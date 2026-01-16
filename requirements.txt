@@ -1,0 +1,22 @@
+# Data Sources
+yfinance>=0.2.36
+ccxt>=4.2.0
+
+# Configuration & Environment
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# HTTP Clients
+requests>=2.31.0
+httpx>=0.25.0
+
+# HTML/XML Parsing (for SEC filings)
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+
+# Broker Integration (optional)
+# ib_insync>=0.9.86  # Uncomment when using IBKR

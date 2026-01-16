@@ -1,0 +1,158 @@
+# Trading Signal Configuration
+# Customize this file for your watchlist and preferences
+
+# Timezone for report timestamps
+timezone: "America/New_York"
+
+# Network retry settings
+max_retries: 3
+retry_delay: 2  # seconds
+
+# US Equities watchlist
+equities:
+  tickers:
+    # Tech Giants
+    - AAPL    # Apple
+    - MSFT    # Microsoft
+    - GOOGL   # Alphabet
+    - AMZN    # Amazon
+    - NVDA    # NVIDIA
+    - META    # Meta
+    - TSLA    # Tesla
+
+    # Finance
+    - JPM     # JPMorgan Chase
+    - BAC     # Bank of America
+    - GS      # Goldman Sachs
+
+    # Healthcare
+    - JNJ     # Johnson & Johnson
+    - UNH     # UnitedHealth
+
+    # Other major indices components
+    - SPY     # S&P 500 ETF
+    - QQQ     # NASDAQ ETF
+
+# Cryptocurrency watchlist
+crypto:
+  # Exchange to use (primary)
+  exchange: "binance"
+
+  # Trading pairs (format: BASE/QUOTE)
+  pairs:
+    - BTC/USDT    # Bitcoin
+    - ETH/USDT    # Ethereum
+    - BNB/USDT    # Binance Coin
+    - SOL/USDT    # Solana
+    - ADA/USDT    # Cardano
+    - XRP/USDT    # Ripple
+    - DOGE/USDT   # Dogecoin
+    - AVAX/USDT   # Avalanche
+    - MATIC/USDT  # Polygon
+    - DOT/USDT    # Polkadot
+
+# Signal thresholds (for scoring)
+thresholds:
+  # Price movement thresholds (%)
+  day_return_high: 5.0      # Strong 1-day move
+  day_return_moderate: 3.0  # Moderate 1-day move
+  week_return_high: 10.0    # Strong 7-day move
+  week_return_moderate: 5.0 # Moderate 7-day move
+
+  # Volatility thresholds (%)
+  volatility_spike_high: 50.0    # Major volatility increase
+  volatility_spike_moderate: 25.0 # Moderate volatility increase
+
+  # Volume thresholds (ratio vs average)
+  volume_high: 2.0      # Exceptional volume
+  volume_moderate: 1.5  # High volume
+
+# Email settings
+email:
+  subject_template: "Trading Signals Brief - {date}"
+
+# Report customization
+report:
+  max_top_signals: 5  # Max signals per category
+  include_heatmap: true
+  include_caveats: true
+
+# ============================================================================
+# CLAUDE CODE REPORT GENERATION
+# ============================================================================
+claude:
+  enabled: true
+  timeout: 300  # seconds
+  skip_permissions: true  # Use --dangerously-skip-permissions for full automation
+  fallback_to_template: true  # Fall back to template if Claude fails
+  # Claude can use all configured MCP Skills:
+  # - tavily-search: Real-time news search
+  # - filesystem: Read historical reports and data files
+  # - sequential-thinking: Complex multi-step analysis
+  # - fetch: Fetch web content
+
+# ============================================================================
+# CONGRESS MEMBER TRADING
+# ============================================================================
+congress:
+  enabled: true
+  lookback_days: 30  # How many days back to fetch
+  min_amount: 15000  # Minimum trade amount to highlight ($)
+
+# ============================================================================
+# HEDGE FUND 13F FILINGS
+# ============================================================================
+hedgefunds:
+  enabled: true
+  min_position_change_pct: 25.0  # Minimum position change to highlight
+  notable_funds:
+    - "0001067983"  # Berkshire Hathaway
+    - "0001350694"  # Citadel Advisors
+    - "0001336528"  # Renaissance Technologies
+    - "0001649339"  # Tiger Global
+    - "0001056389"  # Bridgewater Associates
+    - "0001541617"  # Pershing Square
+    - "0001079114"  # Appaloosa Management
+    - "0001167483"  # Icahn Associates
+    - "0001364742"  # Greenlight Capital
+    - "0001061768"  # Third Point
+
+# ============================================================================
+# POLYMARKET PREDICTION MARKETS
+# ============================================================================
+polymarket:
+  enabled: true
+  categories:
+    - Economics
+    - Crypto
+    - Business
+    - Politics
+  max_markets: 20  # Max markets to fetch
+
+# ============================================================================
+# NEWS AGGREGATION
+# ============================================================================
+news:
+  enabled: true
+  max_articles_per_ticker: 10
+  # NewsAPI key optional - falls back to Yahoo Finance if not set
+
+# ============================================================================
+# SEC FILINGS (10-K, 10-Q, 8-K)
+# ============================================================================
+sec_filings:
+  enabled: true
+  form_types:
+    - 10-K  # Annual report
+    - 10-Q  # Quarterly report
+    - 8-K   # Current report (material events)
+
+# ============================================================================
+# BROKER INTEGRATION (IBKR)
+# ============================================================================
+broker:
+  enabled: false  # Set to true when TWS/Gateway is running
+  type: ibkr
+  host: "127.0.0.1"
+  port: 7497  # TWS paper: 7497, TWS live: 7496, Gateway paper: 4002, Gateway live: 4001
+  client_id: 1
