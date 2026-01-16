@@ -32,7 +32,6 @@ env/
 # Reports (generated data)
 reports/
 *.json
-*.md
 
 # IDE
 .vscode/
