@@ -11,6 +11,7 @@
 7. [故障排除](#7-故障排除)
 8. [高级用法](#8-高级用法)
 9. [Claude AI 报告生成](#9-claude-ai-报告生成)
+10. [Web 仪表盘](#10-web-仪表盘)
 
 ---
 
@@ -43,6 +44,14 @@ Tradz 是一个多源数据聚合的自动化交易信号系统，使用 Claude 
 | 📧 **邮件报告** | 通过 SMTP 发送每日报告 |
 | 🔒 **模拟运行** | 支持 dry-run 模式测试 |
 
+#### Web 仪表盘
+
+| 功能模块 | 说明 |
+|---------|------|
+| 🖥️ **React 仪表盘** | 交互式信号可视化界面 |
+| 🔌 **FastAPI 后端** | 信号、数据源和报告的 REST API |
+| 🔄 **实时刷新** | 手动和自动数据刷新功能 |
+
 #### 券商集成（可选）
 
 | 功能模块 | 说明 |
@@ -68,6 +77,28 @@ tradz/
 ├── logs/                    # 日志目录（定时任务使用）
 ├── scripts/
 │   └── nightly.sh           # 主执行脚本
+├── api/                     # FastAPI 后端
+│   ├── main.py              # API 入口
+│   ├── config.py            # API 配置
+│   ├── routers/             # API 路由
+│   │   ├── signals.py       # 信号接口
+│   │   ├── sources.py       # 数据源接口
+│   │   └── reports.py       # 报告接口
+│   ├── schemas/             # Pydantic 模型
+│   └── services/            # 业务逻辑
+│       ├── signal_service.py
+│       ├── aggregator_service.py
+│       └── cache_service.py
+├── frontend/                # React 仪表盘
+│   ├── src/
+│   │   ├── App.tsx          # 根组件
+│   │   ├── pages/           # 页面组件
+│   │   │   ├── Dashboard.tsx
+│   │   │   └── Sources.tsx
+│   │   ├── components/      # UI 组件
+│   │   └── hooks/           # React 钩子
+│   ├── package.json
+│   └── vite.config.ts
 └── src/tradz/
     ├── run_nightly.py       # 主入口程序
     ├── aggregator.py        # 多源数据聚合器
@@ -987,6 +1018,85 @@ claude:
 
 ---
 
+## 10. Web 仪表盘
+
+### 10.1 系统要求
+
+- **Node.js**: 18+（用于前端开发）
+- **npm**: 9+
+
+### 10.2 启动后端 API
+
+```bash
+# 激活虚拟环境
+source .venv/bin/activate
+
+# 启动 FastAPI 服务（开发模式）
+uvicorn api.main:app --reload --port 8000
+
+# 或指定主机（允许局域网访问）
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+API 文档地址：
+- **Swagger UI**: http://localhost:8000/api/docs
+- **ReDoc**: http://localhost:8000/api/redoc
+
+### 10.3 启动前端
+
+```bash
+# 进入前端目录
+cd frontend
+
+# 首次运行：安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+```
+
+前端地址：http://localhost:5173
+
+### 10.4 API 端点
+
+| 端点 | 方法 | 说明 |
+|-----|------|------|
+| `/api/health` | GET | 健康检查 |
+| `/api/signals/` | GET | 获取所有信号 |
+| `/api/signals/refresh` | POST | 刷新信号数据 |
+| `/api/sources/` | GET | 获取数据源状态 |
+| `/api/sources/{source}` | GET | 获取特定数据源 |
+| `/api/reports/` | GET | 获取报告列表 |
+| `/api/reports/{date}` | GET | 获取特定日期报告 |
+
+### 10.5 仪表盘功能
+
+**Dashboard 页面**：
+- 信号概览卡片
+- 顶级股票信号列表
+- 顶级加密货币信号列表
+- 信号评分可视化
+
+**Sources 页面**：
+- 各数据源状态监控
+- 数据获取时间显示
+- 错误状态显示
+
+### 10.6 生产部署
+
+```bash
+# 构建前端静态文件
+cd frontend
+npm run build
+
+# 构建产物在 frontend/dist/ 目录
+
+# 生产环境启动 API
+uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+---
+
 ## 快速参考卡
 
 ```bash
@@ -1020,6 +1130,17 @@ vim config.yaml
 
 # 编辑邮件配置
 vim .env
+
+# ===== Web 仪表盘 =====
+
+# 启动 API 后端（终端 1）
+uvicorn api.main:app --reload --port 8000
+
+# 启动前端（终端 2）
+cd frontend && npm run dev
+
+# 构建前端生产版本
+cd frontend && npm run build
 
 # ===== 故障排查 =====
 
@@ -1075,4 +1196,4 @@ launchctl load ~/Library/LaunchAgents/com.tradz.nightly.plist
 
 ---
 
-*最后更新：2026-01-16*
+*最后更新：2026-01-18*

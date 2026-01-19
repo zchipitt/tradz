@@ -28,6 +28,11 @@ Daily automated trading signal generation powered by multi-source data aggregati
 ### Broker Integration (Optional) / 券商集成（可选）
 - 💼 **IBKR Integration / 盈透证券集成**: Connect to Interactive Brokers for portfolio tracking / 连接盈透证券进行投资组合追踪
 
+### Web Dashboard / Web 仪表盘
+- 🖥️ **React Dashboard / React 仪表盘**: Real-time signal visualization with interactive UI / 实时信号可视化交互界面
+- 🔌 **FastAPI Backend / FastAPI 后端**: REST API for signals, sources, and reports / 信号、数据源和报告的 REST API
+- 🔄 **Live Refresh / 实时刷新**: Manual and automatic data refresh capabilities / 手动和自动数据刷新功能
+
 ### Operations / 运维功能
 - 🔒 **Dry-Run Mode / 测试模式**: Test without sending real emails / 测试运行不发送真实邮件
 - ⏰ **Automated Scheduling / 自动调度**: Works with cron (Linux) and launchd (macOS) / 支持 cron (Linux) 和 launchd (macOS)
@@ -195,6 +200,44 @@ DRY_RUN=0
 ./scripts/nightly.sh
 ```
 
+### 6. Web Dashboard (Optional) / Web 仪表盘（可选）
+
+Start the API backend and frontend for interactive signal visualization / 启动 API 后端和前端进行交互式信号可视化:
+
+```bash
+# Terminal 1: Start the FastAPI backend / 终端 1：启动 FastAPI 后端
+cd tradz
+source .venv/bin/activate
+uvicorn api.main:app --reload --port 8000
+
+# Terminal 2: Start the React frontend / 终端 2：启动 React 前端
+cd tradz/frontend
+npm install  # First time only / 首次运行
+npm run dev
+```
+
+Access the dashboard at / 访问仪表盘：
+- **Frontend**: http://localhost:5173
+- **Api Docs**: http://localhost:8000/api/docs
+
+### 7. One-Click Local Dev / 一键本地开发
+
+Easily manage the local environment with helper scripts / 使用辅助脚本轻松管理本地环境:
+
+**Start Environment / 启动环境:**
+```bash
+./scripts/local_up.sh
+```
+Starts backend (port 8002) and frontend in background. Logs are saved to `logs/`.
+后台启动后端（端口 8002）和前端。日志保存在 `logs/`。
+
+**Stop Environment / 停止环境:**
+```bash
+./scripts/local_down.sh
+```
+Stops processes on ports 8002 and 5173-5175.
+停止端口 8002 和 5173-5175 上的进程。
+
 ---
 
 ## Automated Scheduling / 自动调度
@@ -293,6 +336,31 @@ tradz/
 ├── reports/                  # Generated reports (gitignored) / 生成的报告（已忽略）
 │   ├── YYYY-MM-DD.json      # Raw signal data / 原始信号数据
 │   └── YYYY-MM-DD.md        # Markdown report / Markdown 报告
+├── api/                      # FastAPI backend / FastAPI 后端
+│   ├── main.py              # API entry point / API 入口
+│   ├── config.py            # API configuration / API 配置
+│   ├── routers/             # API route handlers / API 路由
+│   │   ├── signals.py       # Signals endpoints / 信号接口
+│   │   ├── sources.py       # Data sources endpoints / 数据源接口
+│   │   └── reports.py       # Reports endpoints / 报告接口
+│   ├── schemas/             # Pydantic models / Pydantic 模型
+│   └── services/            # Business logic / 业务逻辑
+│       ├── signal_service.py
+│       ├── aggregator_service.py
+│       └── cache_service.py
+├── frontend/                 # React dashboard / React 仪表盘
+│   ├── src/
+│   │   ├── App.tsx          # Root component / 根组件
+│   │   ├── pages/           # Page components / 页面组件
+│   │   │   ├── Dashboard.tsx
+│   │   │   └── Sources.tsx
+│   │   ├── components/      # UI components / UI 组件
+│   │   │   ├── layout/
+│   │   │   ├── signals/
+│   │   │   └── sources/
+│   │   └── hooks/           # React hooks / React 钩子
+│   ├── package.json
+│   └── vite.config.ts
 └── src/
     └── tradz/
         ├── run_nightly.py    # Main entry point / 主入口
@@ -562,12 +630,12 @@ For issues, questions, or contributions / 如有问题、疑问或贡献:
 - [x] Congress trading disclosures / 国会交易披露
 - [x] Hedge fund 13F filings / 对冲基金 13F 文件
 - [x] IBKR broker integration / 盈透证券集成
+- [x] Web dashboard (React + FastAPI) / Web 仪表盘
 
 **Future enhancements / 待开发功能:**
 - [ ] Social media (X/Twitter) trends / 社交媒体趋势
 - [ ] Multi-timeframe analysis / 多时间框架分析
 - [ ] Backtesting framework / 回测框架
-- [ ] Web dashboard / Web 仪表盘
 - [ ] Telegram/Slack notifications / Telegram/Slack 通知
 - [ ] Machine learning models / 机器学习模型
 - [ ] Real-time alerts / 实时警报

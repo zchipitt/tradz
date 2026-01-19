@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Tradz is a daily trading signal aggregation system that collects data from multiple sources, generates quantitative signals, and delivers reports via email. It supports both template-based and Claude Code CLI-powered report generation.
+Tradz is a daily trading signal aggregation system that collects data from multiple sources, generates quantitative signals, and delivers reports via email. It includes:
+- **Core Pipeline**: Data aggregation, signal generation, and email reports
+- **Web Dashboard**: React frontend with FastAPI backend for interactive visualization
 
 ## Common Commands
 
@@ -28,6 +30,12 @@ python3 src/tradz/run_nightly.py --skip-email
 
 # Run via shell script (for cron)
 ./scripts/nightly.sh
+
+# Start API backend (development)
+uvicorn api.main:app --reload --port 8000
+
+# Start frontend (development)
+cd frontend && npm install && npm run dev
 ```
 
 ## Architecture
@@ -35,6 +43,8 @@ python3 src/tradz/run_nightly.py --skip-email
 ### Data Flow
 ```
 DataAggregator → SignalGenerator → ReportGenerator/ClaudeReporter → EmailSender
+                      ↓
+              API (FastAPI) → Frontend (React)
 ```
 
 ### Core Components
@@ -61,6 +71,32 @@ DataAggregator → SignalGenerator → ReportGenerator/ClaudeReporter → EmailS
 - `claude_reporter.py` - Claude Code CLI integration for AI-powered reports
 - `emailer.py` - SMTP email delivery with dry-run support
 
+### Web Dashboard
+
+**API Backend** (`api/`):
+- `main.py` - FastAPI application entry point
+- `config.py` - API configuration (CORS, settings)
+- `routers/` - Route handlers:
+  - `signals.py` - GET/POST signals, refresh
+  - `sources.py` - Data source status
+  - `reports.py` - Report retrieval
+- `services/` - Business logic:
+  - `signal_service.py` - Signal operations
+  - `aggregator_service.py` - Data aggregation
+  - `cache_service.py` - In-memory caching
+- `schemas/` - Pydantic request/response models
+
+**Frontend** (`frontend/`):
+- React + TypeScript + Vite
+- Tailwind CSS for styling
+- TanStack Query for data fetching
+- Key files:
+  - `src/App.tsx` - Root component with routing
+  - `src/pages/Dashboard.tsx` - Signal overview
+  - `src/pages/Sources.tsx` - Data source status
+  - `src/components/` - Reusable UI components
+  - `src/hooks/useSignals.ts` - Data fetching hooks
+
 ### Configuration
 
 **`config.yaml`**: Watchlists, thresholds, source toggles, Claude settings
@@ -71,6 +107,10 @@ DataAggregator → SignalGenerator → ReportGenerator/ClaudeReporter → EmailS
 **`.env`**: Sensitive credentials (SMTP, API keys)
 - `DRY_RUN=1` prevents actual email sending
 - Copy from `.env.example` and configure
+
+**`api/config.py`**: API server settings
+- CORS origins configuration
+- API title, description, version
 
 ### Output Files
 
@@ -87,3 +127,6 @@ Aggregated data saved to `data/` directory:
 - Retry logic with exponential backoff in data sources
 - DataFrame-based data processing with pandas
 - Signal scores calculated from momentum, volatility, and volume metrics
+- API uses Pydantic schemas for request/response validation
+- Frontend uses TanStack Query for server state management
+- Services layer abstracts business logic from route handlers
