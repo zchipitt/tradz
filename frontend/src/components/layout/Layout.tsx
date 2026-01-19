@@ -2,13 +2,13 @@
  * Main layout component with header and sidebar.
  */
 import { useState } from 'react';
-import { BarChart3, TrendingUp, Newspaper, RefreshCw, Menu, X } from 'lucide-react';
+import { BarChart3, TrendingUp, Newspaper, RefreshCw, Menu, X, BookOpen } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface LayoutProps {
   children: React.ReactNode;
-  activeTab: 'dashboard' | 'sources';
-  onTabChange: (tab: 'dashboard' | 'sources') => void;
+  activeTab: 'dashboard' | 'sources' | 'guide';
+  onTabChange: (tab: 'dashboard' | 'sources' | 'guide') => void;
   lastUpdated?: string;
   onRefresh?: () => void;
   isRefreshing?: boolean;
@@ -27,6 +27,7 @@ export function Layout({
   const navItems = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: BarChart3 },
     { id: 'sources' as const, label: 'Sources', icon: Newspaper },
+    { id: 'guide' as const, label: '使用指南', icon: BookOpen },
   ];
 
   return (

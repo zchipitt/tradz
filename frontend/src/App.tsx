@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './components/layout/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Sources } from './pages/Sources';
+import { UsageGuide } from './pages/UsageGuide';
 import { useSignals, useRefreshSignals } from './hooks/useSignals';
 import { formatDate } from './lib/utils';
 
@@ -20,7 +21,7 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'sources'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'sources' | 'guide'>('dashboard');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { data } = useSignals();
   const refreshSignals = useRefreshSignals();
@@ -46,6 +47,7 @@ function AppContent() {
     >
       {activeTab === 'dashboard' && <Dashboard />}
       {activeTab === 'sources' && <Sources />}
+      {activeTab === 'guide' && <UsageGuide />}
     </Layout>
   );
 }
