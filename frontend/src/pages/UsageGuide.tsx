@@ -86,7 +86,7 @@ export function UsageGuide() {
                     rows={[
                         ['📈 美股监控', '通过 yfinance 获取美国股票数据', '15-20分钟'],
                         ['💰 加密货币监控', '通过 ccxt 获取主流加密货币数据', '实时'],
-                        ['🏛️ 国会议员交易', 'House/Senate 交易披露', '~45天'],
+                        ['🏛️ 国会议员交易', 'Capitol Trades（主）+ Quiver/Finnhub（备选）', '~45天'],
                         ['🏦 对冲基金 13F', 'SEC EDGAR 机构持仓', '季度，~45天'],
                         ['🎰 Polymarket', '预测市场赔率', '实时'],
                         ['📰 新闻聚合', 'Yahoo Finance + NewsAPI', '实时'],
@@ -175,6 +175,8 @@ python3 scripts/verify_db.py`}</CodeBlock>
                         ['SMTP_USER', '邮箱用户名', 'your@gmail.com'],
                         ['SMTP_PASS', '应用专用密码', 'xxxx-xxxx-xxxx'],
                         ['ANTHROPIC_API_KEY', 'Claude API 密钥', 'sk-ant-api03-...'],
+                        ['QUIVER_API_KEY', '国会交易备选源（可选）', 'your-key'],
+                        ['FINNHUB_API_KEY', '国会交易备选源（可选）', 'your-key'],
                     ]}
                 />
 
@@ -283,6 +285,14 @@ pip install -r requirements.txt`}</CodeBlock>
                     <p className="font-medium text-yellow-800">Claude CLI not found</p>
                     <CodeBlock>{`npm install -g @anthropic-ai/claude-code
 claude --version`}</CodeBlock>
+                </div>
+
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                    <p className="font-medium text-yellow-800">国会交易数据显示 0 条记录</p>
+                    <p className="text-yellow-700 text-sm mt-1">
+                        系统使用多源自动降级策略：Capitol Trades → Quiver → Finnhub。
+                        可在 .env 中配置 QUIVER_API_KEY 或 FINNHUB_API_KEY 作为备选源。
+                    </p>
                 </div>
 
                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
@@ -439,7 +449,7 @@ python3 scripts/verify_facts.py`}</CodeBlock>
             </div>
 
             <div className="mt-4 text-center text-sm text-gray-400">
-                最后更新：2026-01-19
+                最后更新：2026-01-20
             </div>
         </div>
     );

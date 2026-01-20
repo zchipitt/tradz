@@ -93,11 +93,18 @@ claude:
 
 # ============================================================================
 # CONGRESS MEMBER TRADING
+# Multi-source with automatic fallback:
+#   1. Capitol Trades (free, no API key)
+#   2. Quiver Quantitative (free trial with code 'TWITTER')
+#   3. Finnhub (free tier available)
 # ============================================================================
 congress:
   enabled: true
   lookback_days: 30  # How many days back to fetch
   min_amount: 15000  # Minimum trade amount to highlight ($)
+  # Optional API keys for fallback sources (set in .env)
+  # QUIVER_API_KEY: Get free trial at https://api.quiverquant.com (use code 'TWITTER')
+  # FINNHUB_API_KEY: Get free key at https://finnhub.io
 
 # ============================================================================
 # HEDGE FUND 13F FILINGS
@@ -123,10 +130,13 @@ hedgefunds:
 polymarket:
   enabled: true
   categories:
-    - Economics
+    - Economy     # Note: API returns 'Economy' not 'Economics'
     - Crypto
     - Business
     - Politics
+    - Finance
+    - Stocks
+    - Tech
   max_markets: 20  # Max markets to fetch
 
 # ============================================================================

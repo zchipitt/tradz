@@ -15,33 +15,8 @@ interface ReportEntry {
   };
 }
 
-// Mock data for reports
-const mockReports: ReportEntry[] = [
-  {
-    date: '2026-01-19',
-    eventCount: 5,
-    topEvents: ['NVDA congressional trade', 'Fed rate cut probability shift'],
-    dataQuality: { sourcesOk: 6, sourcesTotal: 7 },
-  },
-  {
-    date: '2026-01-18',
-    eventCount: 3,
-    topEvents: ['AAPL hedge fund accumulation', 'BTC volume spike'],
-    dataQuality: { sourcesOk: 7, sourcesTotal: 7 },
-  },
-  {
-    date: '2026-01-17',
-    eventCount: 4,
-    topEvents: ['TSLA earnings preview', 'Crypto market volatility'],
-    dataQuality: { sourcesOk: 5, sourcesTotal: 7 },
-  },
-  {
-    date: '2026-01-16',
-    eventCount: 2,
-    topEvents: ['Fed minutes release'],
-    dataQuality: { sourcesOk: 7, sourcesTotal: 7 },
-  },
-];
+// Backend reports endpoint not yet implemented
+const reports: ReportEntry[] = [];
 
 export function Reports() {
   const handleOpenReport = (date: string) => {
@@ -66,7 +41,7 @@ export function Reports() {
 
       {/* Reports List */}
       <div className="bg-white rounded-xl border border-border divide-y divide-border">
-        {mockReports.map((report) => (
+        {reports.map((report) => (
           <div
             key={report.date}
             className="p-4 hover:bg-surface/50 transition-colors"
@@ -132,7 +107,7 @@ export function Reports() {
       </div>
 
       {/* Empty state */}
-      {mockReports.length === 0 && (
+      {reports.length === 0 && (
         <div className="text-center py-12 text-text-muted">
           <FileText size={40} className="mx-auto mb-3 opacity-50" />
           <p className="font-medium">No reports yet</p>

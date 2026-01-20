@@ -174,11 +174,14 @@ class DataAggregator:
 
     def _fetch_congress(self) -> Dict:
         """Fetch congress trading data."""
+        import os
         try:
             congress_config = self.config.get('congress', {})
             source = CongressDataSource(
                 lookback_days=congress_config.get('lookback_days', 30),
-                min_amount=congress_config.get('min_amount', 15000)
+                min_amount=congress_config.get('min_amount', 15000),
+                quiver_api_key=os.getenv('QUIVER_API_KEY'),
+                finnhub_api_key=os.getenv('FINNHUB_API_KEY'),
             )
 
             trades = source.fetch_recent_trades()
@@ -190,12 +193,14 @@ class DataAggregator:
 
             source.close()
 
-            logger.info(f"Fetched {len(trades)} congress trades")
+            active_source = source.get_active_source()
+            logger.info(f"Fetched {len(trades)} congress trades from {active_source}")
             return {
                 'trades': trades[:50],  # Limit for JSON size
                 'summary': summary,
                 'watchlist_overlap': overlap,
                 'count': len(trades),
+                'active_source': active_source,
             }
 
         except Exception as e:

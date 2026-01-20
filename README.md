@@ -124,6 +124,10 @@ Enable/disable data sources in `config.yaml` / 在 `config.yaml` 中启用或禁
 
 ```yaml
 # Congress member trading / 国会成员交易
+# Multi-source with automatic fallback / 多源自动降级:
+#   1. Capitol Trades (free, no API key) / 免费，无需 API 密钥
+#   2. Quiver Quantitative (optional, set QUIVER_API_KEY) / 可选
+#   3. Finnhub (optional, set FINNHUB_API_KEY) / 可选
 congress:
   enabled: true
   lookback_days: 30
@@ -617,6 +621,25 @@ crypto:
 - Use VPN if in China or restricted region / 在中国或受限地区使用 VPN
 - Wait and retry - API may have temporary issues / 等待重试 - API 可能有临时问题
 
+### Problem / 问题: Congress trading shows 0 trades
+
+**Causes / 原因**:
+- Primary source (Capitol Trades) temporarily unavailable / 主数据源暂时不可用
+- Network issues / 网络问题
+- No recent trades in lookback period / 回溯期内无交易记录
+
+**Solutions / 解决方案**:
+1. Check logs for active source / 检查日志查看当前使用的数据源
+2. Optional: Configure fallback API keys in `.env` / 可选：在 `.env` 中配置备用 API 密钥:
+   ```bash
+   # Quiver Quantitative (free trial with code 'TWITTER')
+   QUIVER_API_KEY=your-key-here
+
+   # Finnhub (free tier: 60 requests/minute)
+   FINNHUB_API_KEY=your-key-here
+   ```
+3. The system automatically tries fallback sources / 系统会自动尝试备用数据源
+
 ### Problem / 问题: DuckDB database issues
 
 **Solutions / 解决方案**:
@@ -672,7 +695,10 @@ cat logs/launchd-error.log
 - **Best for / 适用场景**: Daily trend analysis / 每日趋势分析
 
 ### Congress Trading / 国会交易
-- **Source / 数据源**: House/Senate financial disclosures / 众议院/参议院财务披露
+- **Source / 数据源**: Multi-source with automatic fallback / 多源自动降级:
+  1. Capitol Trades (Primary, free) / 首选，免费
+  2. Quiver Quantitative API (Fallback) / 备选
+  3. Finnhub API (Fallback) / 备选
 - **Delay / 延迟**: 45-day disclosure requirement / 45天披露要求
 - **Limitations / 限制**: Delayed reporting, incomplete data / 报告延迟，数据不完整
 - **Best for / 适用场景**: Following institutional/insider patterns / 跟踪机构/内部人士模式

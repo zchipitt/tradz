@@ -18,12 +18,15 @@ class PolymarketDataSource:
     CLOB_API = "https://clob.polymarket.com"
 
     # Categories relevant to trading
+    # Note: These must match the 'label' values returned by Polymarket API tags
     RELEVANT_CATEGORIES = [
-        'Economics',
+        'Economy',    # API returns 'Economy' not 'Economics'
         'Crypto',
         'Business',
         'Politics',
         'Finance',
+        'Stocks',
+        'Tech',
     ]
 
     def __init__(
@@ -53,8 +56,10 @@ class PolymarketDataSource:
             List of market data
         """
         try:
+            # We use the events endpoint because the markets endpoint often lacks 
+            # category/tag information which is crucial for filtering.
             resp = self.client.get(
-                f"{self.GAMMA_API}/markets",
+                f"{self.GAMMA_API}/events",
                 params={
                     "limit": limit,
                     "active": True,
@@ -62,10 +67,55 @@ class PolymarketDataSource:
                 }
             )
             resp.raise_for_status()
-            markets = resp.json()
+            events = resp.json()
 
-            logger.info(f"Fetched {len(markets)} active markets from Polymarket")
-            return markets
+            all_markets = []
+            for event in events:
+                # Extract event-level metadata
+                category = event.get('category')
+                params_tags = event.get('tags', [])
+                
+                # Convert tags to strings if they are dicts
+                event_tags = []
+                for tag in params_tags:
+                    if isinstance(tag, dict):
+                        if 'label' in tag:
+                            event_tags.append(tag['label'])
+                        elif 'slug' in tag:
+                            event_tags.append(tag['slug'])
+                    elif isinstance(tag, str):
+                        event_tags.append(tag)
+                
+                # Each event can have multiple markets
+                event_markets = event.get('markets', [])
+                for market in event_markets:
+                    if not market.get('category') and category:
+                        market['category'] = str(category) if category else ''
+                    elif market.get('category'):
+                        # Ensure existing category is string too
+                        market['category'] = str(market.get('category'))
+                    
+                    # Handle market level tags
+                    raw_market_tags = market.get('tags', [])
+                    market_tags = []
+                    for tag in raw_market_tags:
+                        if isinstance(tag, dict):
+                            if 'label' in tag:
+                                market_tags.append(tag['label'])
+                            elif 'slug' in tag:
+                                market_tags.append(tag['slug'])
+                        elif isinstance(tag, str):
+                            market_tags.append(tag)
+
+                    # Merge tags
+                    if event_tags:
+                        market_tags = list(set(market_tags + event_tags))
+                    
+                    market['tags'] = market_tags
+                    all_markets.append(market)
+
+            logger.info(f"Fetched {len(all_markets)} active markets from Polymarket events")
+            return all_markets
 
         except httpx.HTTPError as e:
             logger.error(f"HTTP error fetching Polymarket markets: {e}")
@@ -108,15 +158,23 @@ class PolymarketDataSource:
             category = market.get('category', '')
             tags = market.get('tags', [])
 
-            is_relevant = (
-                category in self.categories or
-                any(tag in self.categories for tag in tags)
-            )
+            # Find matching category from tags
+            matched_category = None
+            if category in self.categories:
+                matched_category = category
+            else:
+                for tag in tags:
+                    if tag in self.categories:
+                        matched_category = tag
+                        break
 
-            if is_relevant:
+            if matched_category:
                 # Extract key info
                 processed = self._process_market(market)
                 if processed:
+                    # Set the matched category for proper categorization
+                    if not processed.get('category'):
+                        processed['category'] = matched_category
                     relevant.append(processed)
 
             if len(relevant) >= self.max_markets:
@@ -138,7 +196,20 @@ class PolymarketDataSource:
         try:
             # Get outcomes and prices
             outcomes = market.get('outcomes', [])
+            if isinstance(outcomes, str):
+                try:
+                    import json
+                    outcomes = json.loads(outcomes)
+                except:
+                    outcomes = []
+
             outcome_prices = market.get('outcomePrices', [])
+            if isinstance(outcome_prices, str):
+                try:
+                    import json
+                    outcome_prices = json.loads(outcome_prices)
+                except:
+                    outcome_prices = []
 
             if not outcomes:
                 return None

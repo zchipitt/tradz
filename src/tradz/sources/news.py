@@ -65,13 +65,30 @@ class NewsDataSource:
             raw_news = stock.news or []
 
             articles = []
-            for n in raw_news[:self.max_articles]:
+            for item in raw_news[:self.max_articles]:
+                # yfinance returns news with nested 'content' object
+                content = item.get('content', {})
+                
+                # Extract URL from canonicalUrl or clickThroughUrl
+                url = ''
+                if 'canonicalUrl' in content:
+                    url = content['canonicalUrl'].get('url', '')
+                elif 'clickThroughUrl' in content:
+                    url = content['clickThroughUrl'].get('url', '')
+                
+                # Extract provider name
+                provider = content.get('provider', {})
+                source = provider.get('displayName', 'Yahoo Finance')
+                
+                # Parse timestamp
+                pub_date = content.get('pubDate', '')
+                
                 articles.append({
-                    'title': n.get('title', ''),
-                    'source': n.get('publisher', 'Yahoo Finance'),
-                    'url': n.get('link', ''),
-                    'published_at': self._format_timestamp(n.get('providerPublishTime')),
-                    'description': '',
+                    'title': content.get('title', ''),
+                    'source': source,
+                    'url': url,
+                    'published_at': pub_date,
+                    'description': content.get('summary', ''),
                     'ticker': ticker,
                     'source_api': 'yahoo',
                 })
