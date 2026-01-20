@@ -4,8 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Tradz is a daily trading signal aggregation system that collects data from multiple sources, generates quantitative signals, and delivers reports via email. It includes:
-- **Core Pipeline**: Data aggregation, signal generation, and email reports
+Tradz is a daily trading signal aggregation system that collects data from multiple sources, generates quantitative signals with 4-dimensional scoring, and delivers reports via email. It includes:
+- **Core Pipeline**: Data aggregation, entity resolution, signal generation, and email reports
+- **DuckDB Database**: Persistent storage for entities, observations, events, and signals
 - **Web Dashboard**: React frontend with FastAPI backend for interactive visualization
 
 ## Common Commands
@@ -31,26 +32,62 @@ python3 src/tradz/run_nightly.py --skip-email
 # Run via shell script (for cron)
 ./scripts/nightly.sh
 
-# Start API backend (development)
-uvicorn api.main:app --reload --port 8000
+# One-click local development
+./scripts/local_up.sh    # Start backend (8002) + frontend (5173)
+./scripts/local_down.sh  # Stop all services
 
-# Start frontend (development)
+# Manual API/frontend startup
+uvicorn api.main:app --reload --port 8002
 cd frontend && npm install && npm run dev
+
+# Verification scripts
+python3 scripts/verify_db.py       # Verify database schema
+python3 scripts/verify_entities.py # Verify entity resolution
+python3 scripts/verify_signals.py  # Verify signal generation
+python3 scripts/verify_facts.py    # Verify fact generation
 ```
 
 ## Architecture
 
 ### Data Flow
 ```
-DataAggregator → SignalGenerator → ReportGenerator/ClaudeReporter → EmailSender
-                      ↓
-              API (FastAPI) → Frontend (React)
+DataAggregator → EntityResolver → Scorer → SignalGenerator → ReportGenerator → EmailSender
+      ↓               ↓              ↓            ↓
+   DuckDB:        entities      observations   signals
+                                  events
+      ↓
+  API (FastAPI) → Frontend (React)
 ```
 
 ### Core Components
 
 **Entry Point**: `src/tradz/run_nightly.py`
-- Orchestrates the full pipeline: load config → aggregate data → generate signals → create report → send email
+- Orchestrates the full pipeline: load config → aggregate data → resolve entities → generate signals → create report → send email
+
+**Data Models** (`src/tradz/models.py`):
+- `Entity` - Ticker/CIK/Name mappings with aliases
+- `Observation` - Raw data points from sources with quality/freshness scores
+- `Event` - Aggregated trackable stories linking observations
+- `Signal` - 4-dimensional scored output (anomaly, catalyst, flow, confidence)
+- `FactTable` / `FactTableEntry` - Deterministic facts for LLM reporting
+
+**Database Layer** (`src/tradz/database.py`):
+- DuckDB-based persistence at `data/tradz.duckdb`
+- Tables: `entities`, `observations`, `events`, `signals`, `event_observations`, `run_history`
+- CRUD operations and analytics queries
+
+**Entity Resolution** (`src/tradz/entity_resolver.py`):
+- Resolves tickers/CIKs/names to unique Entity IDs
+- Syncs reference data from SEC (`company_tickers.json`)
+- Extracts entities from unstructured text (cashtags, names)
+
+**Scoring** (`src/tradz/scoring.py`):
+- 4-dimensional signal scoring (0-100 each):
+  - `anomaly_score`: Price/volume/volatility Z-scores
+  - `catalyst_score`: News, SEC filings, Polymarket events
+  - `flow_score`: Congress trades, 13F filings
+  - `confidence_score`: Data quality and source verification
+- Composite `attention_score` for ranking
 
 **Data Sources** (`src/tradz/sources/`):
 - `equities.py` - US stocks via yfinance
@@ -64,11 +101,12 @@ DataAggregator → SignalGenerator → ReportGenerator/ClaudeReporter → EmailS
 
 **Processing**:
 - `aggregator.py` - Orchestrates all data sources, saves to `data/{date}.json`
-- `signals.py` - Calculates signal scores (0-100) based on price movement, volatility, volume
+- `signals.py` - Legacy signal generation (uses new Scorer internally)
 
-**Output**:
+**Reporting**:
 - `report.py` - Template-based Markdown report generation
 - `claude_reporter.py` - Claude Code CLI integration for AI-powered reports
+- `reporting/fact_generator.py` - Generates deterministic FactTable for LLM
 - `emailer.py` - SMTP email delivery with dry-run support
 
 ### Web Dashboard
@@ -94,6 +132,7 @@ DataAggregator → SignalGenerator → ReportGenerator/ClaudeReporter → EmailS
   - `src/App.tsx` - Root component with routing
   - `src/pages/Dashboard.tsx` - Signal overview
   - `src/pages/Sources.tsx` - Data source status
+  - `src/pages/UsageGuide.tsx` - Interactive usage guide
   - `src/components/` - Reusable UI components
   - `src/hooks/useSignals.ts` - Data fetching hooks
 
@@ -120,13 +159,17 @@ Reports are saved to `reports/` directory:
 
 Aggregated data saved to `data/` directory:
 - `{date}.json` - All source data combined
+- `tradz.duckdb` - DuckDB database with entities, observations, events, signals
 
 ## Key Patterns
 
 - All data sources follow the same interface: `fetch_data()`, `get_latest_data()`, `close()`
 - Retry logic with exponential backoff in data sources
 - DataFrame-based data processing with pandas
-- Signal scores calculated from momentum, volatility, and volume metrics
+- 4-dimensional signal scores (anomaly, catalyst, flow, confidence) with composite attention_score
+- Entity resolution for cross-source data alignment
+- DuckDB for persistent storage with singleton pattern
 - API uses Pydantic schemas for request/response validation
 - Frontend uses TanStack Query for server state management
 - Services layer abstracts business logic from route handlers
+- FactTable provides deterministic facts for LLM narrative generation

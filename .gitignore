@@ -45,3 +45,11 @@ reports/
 
 # Logs
 *.log
+
+# coding agents
+.claude/
+.codex/
+.gemini/
+.shared/
+.cursor/
+.agent/

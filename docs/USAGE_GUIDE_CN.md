@@ -12,6 +12,7 @@
 8. [高级用法](#8-高级用法)
 9. [Claude AI 报告生成](#9-claude-ai-报告生成)
 10. [Web 仪表盘](#10-web-仪表盘)
+11. [数据库与实体解析](#11-数据库与实体解析)
 
 ---
 
@@ -19,7 +20,7 @@
 
 ### 1.1 功能简介
 
-Tradz 是一个多源数据聚合的自动化交易信号系统，使用 Claude AI 生成专业级分析报告。
+Tradz 是一个多源数据聚合的自动化交易信号系统，使用 4 维评分体系和 Claude AI 生成专业级分析报告。
 
 #### 核心数据源
 
@@ -33,6 +34,15 @@ Tradz 是一个多源数据聚合的自动化交易信号系统，使用 Claude 
 | 📰 **新闻聚合** | Yahoo Finance + NewsAPI | 实时 |
 | 📋 **SEC 年报** | 10-K, 10-Q, 8-K 文件 | 实时 |
 
+#### 4 维信号评分
+
+| 维度 | 说明 | 数据来源 |
+|-----|------|---------|
+| 📊 **异常评分** | 价格/成交量/波动率的 Z-score 偏离 | 市场数据 |
+| 🎯 **催化剂评分** | 新闻、SEC 文件、预测市场事件 | 多源信息 |
+| 💸 **资金流评分** | 国会交易、13F 机构资金流 | 披露数据 |
+| ✅ **置信度评分** | 数据质量和跨源验证 | 质量指标 |
+
 #### 智能报告
 
 | 功能模块 | 说明 |
@@ -40,9 +50,17 @@ Tradz 是一个多源数据聚合的自动化交易信号系统，使用 Claude 
 | 🤖 **Claude AI 报告** | 使用 Claude Code CLI + MCP Skills 生成高质量报告 |
 | 🔍 **实时搜索** | Claude 使用 Tavily 搜索最新新闻 |
 | 📊 **跨源分析** | 识别多数据源之间的关联模式 |
-| 🎯 **信号生成** | 基于价格变动、波动率、成交量分析 |
+| 🎯 **信号生成** | 基于 4 维评分体系 |
 | 📧 **邮件报告** | 通过 SMTP 发送每日报告 |
 | 🔒 **模拟运行** | 支持 dry-run 模式测试 |
+
+#### 数据基础设施
+
+| 功能模块 | 说明 |
+|---------|------|
+| 🗄️ **DuckDB 数据库** | 实体、观察、事件、信号的持久化存储 |
+| 🔗 **实体解析** | Ticker/CIK/公司名称映射，支持 SEC 数据同步 |
+| 📋 **事实表** | 为 LLM 叙事生成提供确定性事实 |
 
 #### Web 仪表盘
 
@@ -70,13 +88,20 @@ tradz/
 │   ├── report_system.md     # 系统提示词（定义分析师角色）
 │   └── report_user.md       # 用户提示词模板（包含数据占位符）
 ├── data/                    # 聚合的原始数据（每日 JSON）
-│   └── YYYY-MM-DD.json
+│   ├── YYYY-MM-DD.json      # 每日聚合数据
+│   └── tradz.duckdb         # DuckDB 数据库
 ├── reports/                 # 生成的报告目录
 │   ├── YYYY-MM-DD.json      # 原始信号数据
 │   └── YYYY-MM-DD.md        # Markdown 报告
 ├── logs/                    # 日志目录（定时任务使用）
 ├── scripts/
-│   └── nightly.sh           # 主执行脚本
+│   ├── nightly.sh           # 主执行脚本
+│   ├── local_up.sh          # 一键启动后端+前端
+│   ├── local_down.sh        # 一键停止
+│   ├── verify_db.py         # 数据库验证
+│   ├── verify_entities.py   # 实体解析验证
+│   ├── verify_signals.py    # 信号生成验证
+│   └── verify_facts.py      # 事实生成验证
 ├── api/                     # FastAPI 后端
 │   ├── main.py              # API 入口
 │   ├── config.py            # API 配置
@@ -100,13 +125,21 @@ tradz/
 │   │   └── hooks/           # React 钩子
 │   ├── package.json
 │   └── vite.config.ts
+├── docs/
+│   └── USAGE_GUIDE_CN.md    # 本文件
 └── src/tradz/
     ├── run_nightly.py       # 主入口程序
     ├── aggregator.py        # 多源数据聚合器
-    ├── claude_reporter.py   # Claude Code CLI 集成
+    ├── database.py          # DuckDB 数据库层
+    ├── models.py            # 数据模型（Entity, Observation, Event, Signal）
+    ├── entity_resolver.py   # 实体解析
+    ├── scoring.py           # 4 维信号评分
     ├── signals.py           # 信号生成逻辑
+    ├── claude_reporter.py   # Claude Code CLI 集成
     ├── report.py            # 模板报告渲染（备用）
     ├── emailer.py           # 邮件发送器
+    ├── reporting/
+    │   └── fact_generator.py # 事实表生成
     └── sources/
         ├── equities.py      # yfinance 数据源
         ├── crypto.py        # ccxt 数据源
@@ -150,15 +183,25 @@ tradz/
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Step 3: 生成信号评分 (SignalGenerator)                         │
-│  - 价格变动评分                                                  │
-│  - 波动率评分                                                    │
-│  - 成交量评分                                                    │
+│  Step 3: 实体解析 (EntityResolver)                               │
+│  - 同步 SEC 股票代码映射                                          │
+│  - 解析 Ticker/CIK/公司名称                                       │
+│  - 存储到 DuckDB entities 表                                     │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Step 4: 报告生成                                                │
+│  Step 4: 生成 4 维信号评分 (Scorer)                              │
+│  - 异常评分 (anomaly_score): Z-score 偏离                        │
+│  - 催化剂评分 (catalyst_score): 新闻、SEC、Polymarket            │
+│  - 资金流评分 (flow_score): 国会、13F                            │
+│  - 置信度评分 (confidence_score): 数据质量                       │
+│  输出: 综合关注度 attention_score                                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Step 5: 报告生成                                                │
 │  ┌──────────────────────┐    ┌──────────────────────┐           │
 │  │  Claude Code CLI     │ OR │  Template Fallback   │           │
 │  │  (--dangerously-     │    │  (report.py)         │           │
@@ -174,7 +217,7 @@ tradz/
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Step 5: 发送邮件 (EmailSender)                                  │
+│  Step 6: 发送邮件 (EmailSender)                                  │
 │  - SMTP 发送 (或 DRY_RUN 模式跳过)                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -186,7 +229,7 @@ tradz/
 ### 2.1 系统要求
 
 - **Python**: 3.8+
-- **Node.js**: 16+（用于 Claude Code CLI）
+- **Node.js**: 18+（用于前端和 Claude Code CLI）
 - **操作系统**: macOS / Linux / Windows
 - **网络**: 稳定的互联网连接
 
@@ -224,10 +267,13 @@ vim .env  # 或使用你喜欢的编辑器
 source .venv/bin/activate
 
 # 检查 Python 依赖
-python3 -c "import yfinance; import ccxt; import pandas; print('✅ Python 依赖安装成功')"
+python3 -c "import yfinance; import ccxt; import pandas; import duckdb; print('✅ Python 依赖安装成功')"
 
 # 检查 Claude CLI（可选）
 claude --version && echo '✅ Claude Code CLI 安装成功'
+
+# 验证数据库
+python3 scripts/verify_db.py
 ```
 
 ### 2.4 快速测试
@@ -462,7 +508,17 @@ python3 -m src.tradz.run_nightly --skip-email
 python3 -m src.tradz.run_nightly --template-only --skip-email
 ```
 
-### 4.2 模拟运行（推荐首次使用）
+### 4.2 一键启动/停止
+
+```bash
+# 启动环境（后端 8002 + 前端 5173）
+./scripts/local_up.sh
+
+# 停止环境
+./scripts/local_down.sh
+```
+
+### 4.3 模拟运行（推荐首次使用）
 
 ```bash
 # 确保 .env 中 DRY_RUN=1
@@ -478,7 +534,7 @@ python3 -m src.tradz.run_nightly --template-only --skip-email
 ================================================================================
 ✅ Configuration loaded from config.yaml
 ✅ Environment variables loaded from .env
-📅 Report date: 2026-01-16
+📅 Report date: 2026-01-19
 ✅ Claude Code CLI available
 ================================================================================
 📊 Step 1: Aggregating data from all sources...
@@ -490,37 +546,42 @@ python3 -m src.tradz.run_nightly --template-only --skip-email
 ✅ Polymarket: 15 markets
 ✅ News: 45 articles
 ✅ SEC filings: 8 filings
-✅ Data aggregated and saved to data/2026-01-16.json
+✅ Data aggregated and saved to data/2026-01-19.json
    Sources fetched: 7
    Equities: 14
    Congress watchlist matches: 3
 ================================================================================
-🎯 Step 2: Generating trading signals...
+🔗 Step 2: Resolving entities...
 ================================================================================
-✅ Generated 24 signals
-   Top equities: 5
-   Top crypto: 5
+✅ Entities synced from SEC
+✅ Resolved 14 tickers to entity IDs
 ================================================================================
-📝 Step 3: Generating report with Claude Code CLI...
+🎯 Step 3: Generating 4-dimensional signals...
+================================================================================
+✅ Generated 24 signals with 4D scoring
+   Top by attention_score: NVDA (82.5), TSLA (78.3), BTC/USDT (75.1)
+================================================================================
+📝 Step 4: Generating report with Claude Code CLI...
 ================================================================================
 ✅ Report generated (8523 chars)
-✅ Signals JSON saved to reports/2026-01-16.json
+✅ Signals JSON saved to reports/2026-01-19.json
 ================================================================================
-📧 Step 4: Sending email...
+📧 Step 5: Sending email...
 ================================================================================
 ✅ Dry-run completed successfully
 ================================================================================
 🎉 Nightly signal generation completed successfully!
 ================================================================================
 Report files:
-  - Data: data/2026-01-16.json
-  - JSON: reports/2026-01-16.json
-  - Markdown: reports/2026-01-16.md
+  - Data: data/2026-01-19.json
+  - Database: data/tradz.duckdb
+  - JSON: reports/2026-01-19.json
+  - Markdown: reports/2026-01-19.md
   - Generated by: Claude Code CLI
 ================================================================================
 ```
 
-### 4.3 查看生成的报告
+### 4.4 查看生成的报告
 
 ```bash
 # 查看报告目录
@@ -536,7 +597,7 @@ cat reports/$(date +%Y-%m-%d).json
 cat data/$(date +%Y-%m-%d).json | python3 -m json.tool | head -100
 ```
 
-### 4.4 正式发送邮件
+### 4.5 正式发送邮件
 
 ```bash
 # 编辑 .env，设置 DRY_RUN=0
@@ -550,9 +611,22 @@ vim .env
 
 ## 5. 信号解读
 
-### 5.1 信号评分机制
+### 5.1 4 维信号评分
 
-信号分数范围：**0-100 分**
+每个信号在 4 个维度上评分（各 0-100）：
+
+| 维度 | 说明 | 数据来源 |
+|-----|------|---------|
+| **异常评分 (Anomaly)** | 价格/成交量/波动率的统计偏离 | Z-score 计算 |
+| **催化剂评分 (Catalyst)** | 外部驱动事件的强度 | 新闻、SEC、Polymarket |
+| **资金流评分 (Flow)** | 资金/仓位变动信号 | 国会交易、13F |
+| **置信度评分 (Confidence)** | 数据质量和验证程度 | 多源覆盖、新鲜度 |
+
+### 5.2 综合关注度评分
+
+```
+attention_score = anomaly × 0.30 + catalyst × 0.30 + flow × 0.25 + confidence × 0.15
+```
 
 | 分数区间 | 信号强度 | 建议操作 |
 |---------|---------|---------|
@@ -561,42 +635,55 @@ vim .env
 | 50-64 | 🟡 中等 | 保持观察 |
 | 0-49 | 🟢 弱 | 正常波动，无需特别关注 |
 
-### 5.2 评分因素
+### 5.3 各维度评分因素
+
+**异常评分 (Anomaly)：**
+
+| 因素 | 条件 | 影响 |
+|------|------|------|
+| 价格 Z-score | 偏离历史均值 | 主要因素 (50%) |
+| 成交量 Z-score | 偏离历史均量 | 次要因素 (30%) |
+| 波动率变化 | 7日 vs 30日波动率 | 辅助因素 (20%) |
+
+**催化剂评分 (Catalyst)：**
+
+| 因素 | 权重 | 说明 |
+|------|------|------|
+| SEC 8-K 文件 | +30 | 重大事件披露 |
+| SEC 10-K/10-Q | +20 | 年报/季报 |
+| Polymarket 变化 | +15 | 预测市场信号 |
+| 新闻报道 | +10 | 每篇相关新闻 |
+
+**资金流评分 (Flow)：**
 
 | 因素 | 条件 | 加分 |
 |------|------|------|
-| **日涨跌幅** | >5% | +15 |
-| | >3% | +10 |
-| **周涨跌幅** | >10% | +10 |
-| | >5% | +5 |
-| **波动率变化** | >50% | +15 |
-| | >25% | +10 |
-| **成交量比率** | >2.0x | +10 |
-| | >1.5x | +5 |
+| 国会成员买入 | 新鲜度加权 | +15 |
+| 国会成员卖出 | 新鲜度加权 | -10 |
+| 13F 持仓变化 | 季度数据 | +5 |
 
-### 5.3 报告内容解读
+**置信度评分 (Confidence)：**
+
+| 因素 | 条件 | 加分 |
+|------|------|------|
+| 数据完整性 | >30天历史数据 | +10 |
+| 无数据缺失 | 无 NaN 值 | +10 |
+| 多源覆盖 | 每个额外数据源 | +5 |
+| 高质量观察 | freshness>0.8, quality>0.8 | +5 |
+
+### 5.4 报告内容解读
 
 每日报告包含以下部分：
 
 1. **Executive Summary** - 3-6 个关键要点
-2. **Top Equity Signals** - 排名前 5 的股票信号
-3. **Top Crypto Signals** - 排名前 5 的加密货币信号
-4. **Information Arbitrage** - 国会交易、对冲基金动向、预测市场信号
-5. **News Highlights** - 重要新闻摘要
-6. **Watchlist Heatmap** - 所有监控资产的热力图
-7. **Caveats & Data Quality** - 数据质量说明
-8. **What to Verify Tomorrow** - 次日跟踪事项
-
-### 5.4 指标说明
-
-| 指标 | 英文名 | 计算方法 |
-|------|--------|---------|
-| 日收益率 | day_return | 当日收盘价/前日收盘价 - 1 |
-| 周收益率 | week_return | 当日收盘价/7日前收盘价 - 1 |
-| 7日波动率 | volatility_7d | 7日收益率标准差 × √252（年化）|
-| 30日波动率 | volatility_30d | 30日收益率标准差 × √252（年化）|
-| 波动率变化 | volatility_change | 7日波动率/30日波动率 - 1 |
-| 成交量比率 | volume_ratio | 当日成交量/30日平均成交量 |
+2. **Top Signals by Attention Score** - 综合评分最高的信号
+3. **Top Equity Signals** - 排名前 5 的股票信号
+4. **Top Crypto Signals** - 排名前 5 的加密货币信号
+5. **Information Arbitrage** - 国会交易、对冲基金动向、预测市场信号
+6. **News Highlights** - 重要新闻摘要
+7. **Watchlist Heatmap** - 所有监控资产的热力图
+8. **Caveats & Data Quality** - 数据质量说明
+9. **What to Verify Tomorrow** - 次日跟踪事项
 
 ---
 
@@ -768,6 +855,22 @@ which claude
 1. 检查 .env 中的 ANTHROPIC_API_KEY
 2. 系统会自动降级到模板生成（如果启用了 fallback_to_template）
 
+#### 问题：DuckDB 数据库问题
+
+```bash
+# 验证数据库架构
+python3 scripts/verify_db.py
+
+# 验证实体解析
+python3 scripts/verify_entities.py
+
+# 验证信号生成
+python3 scripts/verify_signals.py
+
+# 验证事实生成
+python3 scripts/verify_facts.py
+```
+
 ### 7.2 日志查看
 
 ```bash
@@ -779,6 +882,12 @@ tail -100 logs/launchd-error.log
 
 # 实时监控日志
 tail -f logs/launchd.log
+
+# 查看后端日志（local_up.sh 启动时）
+tail -f logs/backend.log
+
+# 查看前端日志
+tail -f logs/frontend.log
 ```
 
 ### 7.3 手动测试各模块
@@ -792,6 +901,9 @@ python3 -c "import yfinance as yf; print(yf.Ticker('AAPL').info.get('shortName')
 
 # 测试 ccxt
 python3 -c "import ccxt; print(ccxt.binance().fetch_ticker('BTC/USDT')['last'])"
+
+# 测试 DuckDB
+python3 -c "import duckdb; print(duckdb.connect(':memory:').execute('SELECT 1').fetchone())"
 
 # 测试 Claude CLI
 claude -p "Say hello" --output-format text
@@ -900,6 +1012,7 @@ Claude AI 报告生成流程：
 ┌─────────────────────────────────────────────────────────────────┐
 │  1. 数据准备                                                     │
 │     Python 脚本聚合所有数据源 → data/YYYY-MM-DD.json            │
+│     生成事实表 (FactTable) → 确定性数值                          │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -907,7 +1020,7 @@ Claude AI 报告生成流程：
 │  2. 构建 Prompt                                                  │
 │     - 加载 prompts/report_system.md (系统提示词)                 │
 │     - 加载 prompts/report_user.md (用户提示词模板)               │
-│     - 填充数据摘要                                               │
+│     - 填充数据摘要和事实表                                        │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -1026,7 +1139,17 @@ claude:
 - **Node.js**: 18+（用于前端开发）
 - **npm**: 9+
 
-### 10.2 启动后端 API
+### 10.2 一键启动
+
+```bash
+# 启动后端 (8002) + 前端 (5173)
+./scripts/local_up.sh
+
+# 停止所有服务
+./scripts/local_down.sh
+```
+
+### 10.3 手动启动后端 API
 
 ```bash
 # 激活虚拟环境
@@ -1043,7 +1166,7 @@ API 文档地址：
 - **Swagger UI**: http://localhost:8002/api/docs
 - **ReDoc**: http://localhost:8002/api/redoc
 
-### 10.3 启动前端
+### 10.4 手动启动前端
 
 ```bash
 # 进入前端目录
@@ -1058,7 +1181,7 @@ npm run dev
 
 前端地址：http://localhost:5173
 
-### 10.4 API 端点
+### 10.5 API 端点
 
 | 端点 | 方法 | 说明 |
 |-----|------|------|
@@ -1070,11 +1193,11 @@ npm run dev
 | `/api/reports/` | GET | 获取报告列表 |
 | `/api/reports/{date}` | GET | 获取特定日期报告 |
 
-### 10.5 仪表盘功能
+### 10.6 仪表盘功能
 
 **Dashboard 页面**：
 - 信号概览卡片
-- 顶级股票信号列表
+- 顶级股票信号列表（含 4 维评分）
 - 顶级加密货币信号列表
 - 信号评分可视化
 
@@ -1089,7 +1212,7 @@ npm run dev
 - 信号解读和故障排除
 - Claude AI 报告生成说明
 
-### 10.6 生产部署
+### 10.7 生产部署
 
 ```bash
 # 构建前端静态文件
@@ -1101,6 +1224,119 @@ npm run build
 # 生产环境启动 API
 uvicorn api.main:app --host 0.0.0.0 --port 8002 --workers 4
 ```
+
+---
+
+## 11. 数据库与实体解析
+
+### 11.1 DuckDB 数据库
+
+Tradz 使用 DuckDB 作为本地分析数据库，存储在 `data/tradz.duckdb`。
+
+**数据库表结构：**
+
+| 表名 | 说明 |
+|------|------|
+| `entities` | 实体表（Ticker/CIK/公司名称映射） |
+| `observations` | 观察表（各数据源的原始数据点） |
+| `events` | 事件表（聚合相关观察的故事） |
+| `signals` | 信号表（每日 4 维评分输出） |
+| `event_observations` | 事件-观察关联表 |
+| `run_history` | 运行历史（用于可观测性） |
+
+**验证数据库：**
+
+```bash
+python3 scripts/verify_db.py
+```
+
+### 11.2 实体解析
+
+EntityResolver 负责将不同数据源的数据对齐到统一的实体 ID：
+
+```bash
+# 同步 SEC 股票代码映射
+python3 scripts/verify_entities.py
+```
+
+**功能：**
+- 从 SEC 同步 Ticker/CIK/公司名称
+- 解析文本中的实体（如 $AAPL）
+- 为每个实体分配唯一 UUID
+
+### 11.3 数据模型
+
+**Entity（实体）：**
+```python
+@dataclass
+class Entity:
+    id: UUID
+    entity_type: EntityType  # ticker, cik, person, fund, market
+    ticker: str
+    cik: str
+    name: str
+    aliases: List[str]
+```
+
+**Observation（观察）：**
+```python
+@dataclass
+class Observation:
+    id: UUID
+    source: SourceType  # equities, crypto, congress, etc.
+    entity_id: UUID
+    entity_ticker: str
+    effective_at: datetime
+    observed_at: datetime
+    freshness_score: float  # 0-1
+    quality_score: float    # 0-1
+    summary: str
+    payload: Dict
+```
+
+**Signal（信号）：**
+```python
+@dataclass
+class Signal:
+    id: UUID
+    signal_date: datetime
+    entity_id: UUID
+    ticker: str
+    asset_type: str  # equity, crypto
+    
+    # 4 维评分 (0-100)
+    anomaly_score: float
+    catalyst_score: float
+    flow_score: float
+    confidence_score: float
+    
+    # 综合评分
+    @property
+    def attention_score(self) -> float:
+        return (anomaly * 0.30 + catalyst * 0.30 + 
+                flow * 0.25 + confidence * 0.15)
+```
+
+### 11.4 事实表 (FactTable)
+
+为 LLM 报告生成提供确定性事实：
+
+```python
+@dataclass
+class FactTableEntry:
+    fact_id: str
+    category: str  # price, volume, news, filing, score, metric
+    ticker: str
+    value: Any
+    unit: str  # %, $, x, 0-100
+    source_url: str
+    timestamp: datetime
+```
+
+**用途：**
+- LLM 必须引用事实表中的数值
+- 防止 LLM 编造不存在的数字
+- 确保报告的准确性和可追溯性
 
 ---
 
@@ -1140,14 +1376,34 @@ vim .env
 
 # ===== Web 仪表盘 =====
 
-# 启动 API 后端（终端 1）
+# 一键启动
+./scripts/local_up.sh
+
+# 一键停止
+./scripts/local_down.sh
+
+# 手动启动 API 后端（终端 1）
 uvicorn api.main:app --reload --port 8002
 
-# 启动前端（终端 2）
+# 手动启动前端（终端 2）
 cd frontend && npm run dev
 
 # 构建前端生产版本
 cd frontend && npm run build
+
+# ===== 验证脚本 =====
+
+# 验证数据库
+python3 scripts/verify_db.py
+
+# 验证实体解析
+python3 scripts/verify_entities.py
+
+# 验证信号生成
+python3 scripts/verify_signals.py
+
+# 验证事实生成
+python3 scripts/verify_facts.py
 
 # ===== 故障排查 =====
 
@@ -1174,9 +1430,12 @@ launchctl load ~/Library/LaunchAgents/com.tradz.nightly.plist
 | 文件 | 路径 | 说明 |
 |------|------|------|
 | 聚合数据 | `data/YYYY-MM-DD.json` | 所有数据源的原始聚合数据 |
+| DuckDB 数据库 | `data/tradz.duckdb` | 实体、观察、事件、信号的持久化存储 |
 | 信号 JSON | `reports/YYYY-MM-DD.json` | 信号评分和排名数据 |
 | Markdown 报告 | `reports/YYYY-MM-DD.md` | 可读的报告文件 |
 | 日志 | `logs/launchd.log` | 定时任务日志 |
+| 后端日志 | `logs/backend.log` | API 后端日志 |
+| 前端日志 | `logs/frontend.log` | 前端开发服务器日志 |
 
 ### B. 环境变量完整列表
 
@@ -1198,9 +1457,10 @@ launchctl load ~/Library/LaunchAgents/com.tradz.nightly.plist
 如有任何问题，请：
 
 1. 查看本文档的故障排除章节
-2. 检查 `logs/` 目录中的日志文件
-3. 逐一测试各个模块定位问题
+2. 运行验证脚本检查各组件
+3. 检查 `logs/` 目录中的日志文件
+4. 逐一测试各个模块定位问题
 
 ---
 
-*最后更新：2026-01-18*
+*最后更新：2026-01-19*

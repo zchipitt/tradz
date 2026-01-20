@@ -3,7 +3,7 @@
  * Renders the usage guide content in a styled format.
  */
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, BookOpen, Settings, Play, BarChart3, Clock, AlertTriangle, Zap, Bot, Monitor } from 'lucide-react';
+import { ChevronDown, ChevronRight, BookOpen, Settings, Play, BarChart3, Clock, AlertTriangle, Zap, Bot, Monitor, Database } from 'lucide-react';
 
 interface SectionProps {
     title: string;
@@ -77,7 +77,7 @@ export function UsageGuide() {
 
             <Section title="1. 系统概述" icon={<BookOpen size={20} />} defaultOpen={true}>
                 <p className="mb-4">
-                    Tradz 是一个多源数据聚合的自动化交易信号系统，使用 Claude AI 生成专业级分析报告。
+                    Tradz 是一个多源数据聚合的自动化交易信号系统，使用 4 维评分体系和 Claude AI 生成专业级分析报告。
                 </p>
 
                 <h4 className="font-semibold mt-4 mb-2">核心数据源</h4>
@@ -94,6 +94,17 @@ export function UsageGuide() {
                     ]}
                 />
 
+                <h4 className="font-semibold mt-4 mb-2">4 维信号评分</h4>
+                <Table
+                    headers={['维度', '说明', '数据来源']}
+                    rows={[
+                        ['📊 异常评分', '价格/成交量/波动率的 Z-score 偏离', '市场数据'],
+                        ['🎯 催化剂评分', '新闻、SEC 文件、预测市场事件', '多源信息'],
+                        ['💸 资金流评分', '国会交易、13F 机构资金流', '披露数据'],
+                        ['✅ 置信度评分', '数据质量和跨源验证', '质量指标'],
+                    ]}
+                />
+
                 <h4 className="font-semibold mt-4 mb-2">智能报告</h4>
                 <Table
                     headers={['功能模块', '说明']}
@@ -101,7 +112,7 @@ export function UsageGuide() {
                         ['🤖 Claude AI 报告', '使用 Claude Code CLI + MCP Skills 生成高质量报告'],
                         ['🔍 实时搜索', 'Claude 使用 Tavily 搜索最新新闻'],
                         ['📊 跨源分析', '识别多数据源之间的关联模式'],
-                        ['🎯 信号生成', '基于价格变动、波动率、成交量分析'],
+                        ['🎯 信号生成', '基于 4 维评分体系'],
                         ['📧 邮件报告', '通过 SMTP 发送每日报告'],
                     ]}
                 />
@@ -111,7 +122,7 @@ export function UsageGuide() {
                 <h4 className="font-semibold mb-2">系统要求</h4>
                 <ul className="list-disc list-inside mb-4 text-gray-600">
                     <li><strong>Python</strong>: 3.8+</li>
-                    <li><strong>Node.js</strong>: 16+（用于 Claude Code CLI）</li>
+                    <li><strong>Node.js</strong>: 18+（用于前端和 Claude Code CLI）</li>
                     <li><strong>操作系统</strong>: macOS / Linux / Windows</li>
                 </ul>
 
@@ -134,7 +145,10 @@ vim .env`}</CodeBlock>
 
                 <h4 className="font-semibold mt-4 mb-2">验证安装</h4>
                 <CodeBlock>{`source .venv/bin/activate
-python3 -c "import yfinance; import ccxt; print('✅ 依赖安装成功')"`}</CodeBlock>
+python3 -c "import yfinance; import ccxt; import duckdb; print('✅ 依赖安装成功')"
+
+# 验证数据库
+python3 scripts/verify_db.py`}</CodeBlock>
             </Section>
 
             <Section title="3. 配置详解" icon={<Settings size={20} />}>
@@ -175,7 +189,7 @@ crypto:
 #   --skip-email      跳过邮件发送`}</CodeBlock>
 
                 <h4 className="font-semibold mt-4 mb-2">一键启动/停止</h4>
-                <CodeBlock>{`# 启动环境
+                <CodeBlock>{`# 启动环境（后端 8002 + 前端 5173）
 ./scripts/local_up.sh
 
 # 停止环境
@@ -190,8 +204,23 @@ cat reports/$(date +%Y-%m-%d).json`}</CodeBlock>
             </Section>
 
             <Section title="5. 信号解读" icon={<BarChart3 size={20} />}>
-                <h4 className="font-semibold mb-2">信号评分机制</h4>
-                <p className="mb-4 text-gray-600">信号分数范围：<strong>0-100 分</strong></p>
+                <h4 className="font-semibold mb-2">4 维信号评分</h4>
+                <p className="mb-4 text-gray-600">每个信号在 4 个维度上评分（各 <strong>0-100</strong>）</p>
+                
+                <Table
+                    headers={['维度', '说明', '权重']}
+                    rows={[
+                        ['异常评分 (Anomaly)', '价格/成交量/波动率的统计偏离', '30%'],
+                        ['催化剂评分 (Catalyst)', '新闻、SEC 文件、预测市场事件', '30%'],
+                        ['资金流评分 (Flow)', '国会交易、13F 机构资金流', '25%'],
+                        ['置信度评分 (Confidence)', '数据质量和多源验证', '15%'],
+                    ]}
+                />
+
+                <h4 className="font-semibold mt-4 mb-2">综合关注度评分</h4>
+                <CodeBlock>{`attention_score = anomaly × 0.30 + catalyst × 0.30 + flow × 0.25 + confidence × 0.15`}</CodeBlock>
+
+                <h4 className="font-semibold mt-4 mb-2">信号强度</h4>
                 <Table
                     headers={['分数区间', '信号强度', '建议操作']}
                     rows={[
@@ -199,18 +228,6 @@ cat reports/$(date +%Y-%m-%d).json`}</CodeBlock>
                         ['65-79', '🟠 强', '值得关注'],
                         ['50-64', '🟡 中等', '保持观察'],
                         ['0-49', '🟢 弱', '正常波动，无需特别关注'],
-                    ]}
-                />
-
-                <h4 className="font-semibold mt-4 mb-2">评分因素</h4>
-                <Table
-                    headers={['因素', '条件', '加分']}
-                    rows={[
-                        ['日涨跌幅', '>5%', '+15'],
-                        ['日涨跌幅', '>3%', '+10'],
-                        ['周涨跌幅', '>10%', '+10'],
-                        ['波动率变化', '>50%', '+15'],
-                        ['成交量比率', '>2.0x', '+10'],
                     ]}
                 />
             </Section>
@@ -249,10 +266,22 @@ pip install -r requirements.txt`}</CodeBlock>
                     <p className="text-yellow-700 text-sm mt-1">确认使用的是应用专用密码，而非账户密码</p>
                 </div>
 
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
                     <p className="font-medium text-yellow-800">Claude CLI not found</p>
                     <CodeBlock>{`npm install -g @anthropic-ai/claude-code
 claude --version`}</CodeBlock>
+                </div>
+
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                    <p className="font-medium text-yellow-800">DuckDB 数据库问题</p>
+                    <CodeBlock>{`# 验证数据库
+python3 scripts/verify_db.py
+
+# 验证实体解析
+python3 scripts/verify_entities.py
+
+# 验证信号生成
+python3 scripts/verify_signals.py`}</CodeBlock>
                 </div>
             </Section>
 
@@ -278,6 +307,7 @@ equities:
                     <li><strong>tavily-search</strong>: 搜索每个信号的最新新闻</li>
                     <li><strong>filesystem</strong>: 读取历史报告进行对比</li>
                     <li><strong>sequential-thinking</strong>: 深度分析复杂信号</li>
+                    <li><strong>fetch</strong>: 获取网页内容</li>
                 </ul>
 
                 <h4 className="font-semibold mb-2">安装 Claude CLI</h4>
@@ -295,12 +325,15 @@ claude --version`}</CodeBlock>
                     Tradz 提供交互式 Web 仪表盘，可视化展示信号数据。
                 </p>
 
-                <h4 className="font-semibold mb-2">启动方式</h4>
-                <CodeBlock>{`# 一键启动
+                <h4 className="font-semibold mb-2">一键启动</h4>
+                <CodeBlock>{`# 启动后端 (8002) + 前端 (5173)
 ./scripts/local_up.sh
 
-# 或手动启动
-# 终端 1：启动后端
+# 停止所有服务
+./scripts/local_down.sh`}</CodeBlock>
+
+                <h4 className="font-semibold mt-4 mb-2">手动启动</h4>
+                <CodeBlock>{`# 终端 1：启动后端
 uvicorn api.main:app --reload --port 8002
 
 # 终端 2：启动前端
@@ -310,6 +343,47 @@ cd frontend && npm run dev`}</CodeBlock>
                 <ul className="list-disc list-inside text-gray-600">
                     <li><strong>前端</strong>: http://localhost:5173</li>
                     <li><strong>API 文档</strong>: http://localhost:8002/api/docs</li>
+                </ul>
+            </Section>
+
+            <Section title="11. 数据库与实体解析" icon={<Database size={20} />}>
+                <p className="mb-4 text-gray-600">
+                    Tradz 使用 DuckDB 作为本地分析数据库，存储在 <code className="bg-gray-100 px-1 rounded">data/tradz.duckdb</code>。
+                </p>
+
+                <h4 className="font-semibold mb-2">数据库表</h4>
+                <Table
+                    headers={['表名', '说明']}
+                    rows={[
+                        ['entities', '实体表（Ticker/CIK/公司名称映射）'],
+                        ['observations', '观察表（各数据源的原始数据点）'],
+                        ['events', '事件表（聚合相关观察的故事）'],
+                        ['signals', '信号表（每日 4 维评分输出）'],
+                        ['run_history', '运行历史（用于可观测性）'],
+                    ]}
+                />
+
+                <h4 className="font-semibold mt-4 mb-2">验证脚本</h4>
+                <CodeBlock>{`# 验证数据库架构
+python3 scripts/verify_db.py
+
+# 验证实体解析
+python3 scripts/verify_entities.py
+
+# 验证信号生成
+python3 scripts/verify_signals.py
+
+# 验证事实生成
+python3 scripts/verify_facts.py`}</CodeBlock>
+
+                <h4 className="font-semibold mt-4 mb-2">实体解析</h4>
+                <p className="text-gray-600 mb-2">
+                    EntityResolver 负责将不同数据源的数据对齐到统一的实体 ID：
+                </p>
+                <ul className="list-disc list-inside text-gray-600">
+                    <li>从 SEC 同步 Ticker/CIK/公司名称</li>
+                    <li>解析文本中的实体（如 $AAPL）</li>
+                    <li>为每个实体分配唯一 UUID</li>
                 </ul>
             </Section>
 

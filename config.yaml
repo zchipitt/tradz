@@ -39,17 +39,17 @@ crypto:
   exchange: "binance"
 
   # Trading pairs (format: BASE/QUOTE)
-  pairs:
-    - BTC/USDT    # Bitcoin
-    - ETH/USDT    # Ethereum
-    - BNB/USDT    # Binance Coin
-    - SOL/USDT    # Solana
-    - ADA/USDT    # Cardano
-    - XRP/USDT    # Ripple
-    - DOGE/USDT   # Dogecoin
-    - AVAX/USDT   # Avalanche
-    - MATIC/USDT  # Polygon
-    - DOT/USDT    # Polkadot
+  pairs: []
+    # - BTC/USDT    # Bitcoin
+    # - ETH/USDT    # Ethereum
+    # - BNB/USDT    # Binance Coin
+    # - SOL/USDT    # Solana
+    # - ADA/USDT    # Cardano
+    # - XRP/USDT    # Ripple
+    # - DOGE/USDT   # Dogecoin
+    # - AVAX/USDT   # Avalanche
+    # - MATIC/USDT  # Polygon
+    # - DOT/USDT    # Polkadot
 
 # Signal thresholds (for scoring)
 thresholds:
