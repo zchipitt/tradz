@@ -32,7 +32,7 @@ export function NewsPanel() {
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-orange-50 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-orange-700">
-              {data?.summary?.total_articles || 0}
+              {data?.total_articles || 0}
             </div>
             <div className="text-sm text-orange-600">Total Articles</div>
           </div>

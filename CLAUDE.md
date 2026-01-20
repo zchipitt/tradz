@@ -111,7 +111,7 @@ DataAggregator → EntityResolver → Scorer → SignalGenerator → ReportGener
 
 ### Web Dashboard
 
-The web dashboard provides a Robinhood-style clean interface for visualizing trading signals.
+The web dashboard provides a Robinhood-style clean interface with event-centric design for visualizing trading signals.
 
 **API Backend** (`api/`):
 - `main.py` - FastAPI application entry point
@@ -130,16 +130,42 @@ The web dashboard provides a Robinhood-style clean interface for visualizing tra
 - React + TypeScript + Vite
 - Tailwind CSS for Robinhood-style clean design
 - TanStack Query for data fetching with auto-refresh
-- Responsive layout with collapsible sidebar
+- Event-centric design (transformed from ticker-centric)
 - Key files:
   - `src/App.tsx` - Root component with tab-based routing
-  - `src/pages/Dashboard.tsx` - Signal heatmap and top signals overview
+  - `src/pages/Dashboard.tsx` - Event-centric main page with 4 sections:
+    - SystemStatus: Data quality header (sources OK/errors/stale)
+    - SignalInbox: Event cards sorted by attention score
+    - DailyBrief: Executive summary and trade ideas
+    - MarketSnapshot: Collapsible heatmap view
+  - `src/pages/Signals.tsx` - Raw signals diagnostic table
   - `src/pages/Sources.tsx` - Data source status panels
+  - `src/pages/Reports.tsx` - Historical reports archive
   - `src/pages/UsageGuide.tsx` - Interactive collapsible usage guide
   - `src/components/layout/Layout.tsx` - Main layout with header and sidebar
+  - `src/components/events/` - Event-centric components:
+    - EventCard: Individual event display with 4D scores, evidence, trade plan
+    - SignalInbox: Event list with filtering (Active/Resolved/All)
+    - SystemStatus: Data quality overview and quick actions
+    - DailyBrief: Summary, trade ideas, open loops
+    - MarketSnapshot: Collapsible signal heatmap
   - `src/components/signals/` - SignalCard, SignalHeatmap, TopSignals
   - `src/components/sources/` - CongressPanel, HedgeFundPanel, NewsPanel, PolymarketPanel
-  - `src/hooks/useSignals.ts` - Data fetching hooks with 5-minute auto-refresh
+  - `src/hooks/useSignals.ts` - Signal data fetching with 5-minute auto-refresh
+  - `src/hooks/useEvents.ts` - Event data fetching and actions (Pin/Snooze/Resolve/Dismiss)
+
+**Event State Machine**:
+- `new` - First appearance, requires attention
+- `ongoing` - Continued tracking, being monitored
+- `stale` - No updates for 72+ hours
+- `resolved` - User marked as handled
+- `dismissed` - User chose to ignore
+
+**Event Actions**:
+- Pin/Unpin - Keep event at top of inbox
+- Snooze - Hide for 24 hours
+- Resolve - Mark as handled
+- Dismiss - Remove from active view
 
 ### Configuration
 
@@ -177,6 +203,8 @@ Aggregated data saved to `data/` directory:
 - API uses Pydantic schemas for request/response validation
 - Frontend uses TanStack Query for server state management with 5-minute auto-refresh
 - Robinhood-style clean UI with responsive layout and collapsible sidebar
-- Tab-based navigation (Dashboard, Sources, Usage Guide)
+- Tab-based navigation (Today, Signals, Sources, Reports, Guide)
+- Event-centric dashboard design with state machine (New/Ongoing/Stale/Resolved/Dismissed)
+- Event actions (Pin/Snooze/Resolve/Dismiss) for user interaction
 - Services layer abstracts business logic from route handlers
 - FactTable provides deterministic facts for LLM narrative generation

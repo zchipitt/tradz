@@ -132,3 +132,88 @@ export interface HealthResponse {
   status: string;
   version: string;
 }
+
+// Event-centric types for the new dashboard
+
+export type EventState = 'new' | 'ongoing' | 'stale' | 'resolved' | 'dismissed';
+
+export type EventCategory =
+  | 'congress_trade'
+  | 'hedgefund_filing'
+  | 'polymarket_shift'
+  | 'news_cluster'
+  | 'price_anomaly'
+  | 'volume_spike'
+  | 'sec_filing';
+
+export interface EventEvidence {
+  source: string;
+  timestamp: string;
+  summary: string;
+  url?: string;
+  confidence: number;
+}
+
+export interface TradePlan {
+  thesis: string;
+  invalidation: string;
+  timeframe: string;
+  risk_level: 'low' | 'medium' | 'high';
+}
+
+export interface Event {
+  id: string;
+  title: string;
+  category: EventCategory;
+  state: EventState;
+  attention_score: number;
+  anomaly_score: number;
+  catalyst_score: number;
+  flow_score: number;
+  confidence_score: number;
+  assets: string[];
+  asset_types: AssetType[];
+  evidence: EventEvidence[];
+  evidence_count: number;
+  first_seen: string;
+  last_updated: string;
+  summary: string;
+  trade_plan?: TradePlan;
+  pinned?: boolean;
+  snoozed_until?: string;
+}
+
+export interface EventAction {
+  event_id: string;
+  action: 'dismiss' | 'snooze' | 'pin' | 'unpin' | 'resolve';
+  snooze_hours?: number;
+}
+
+export interface DailyBrief {
+  date: string;
+  executive_summary: string[];
+  top_events: Event[];
+  trade_ideas: TradePlan[];
+  data_quality: {
+    sources_ok: number;
+    sources_total: number;
+    errors: string[];
+    stalest_source: string;
+    stalest_age_hours: number;
+  };
+  open_loops: string[];
+}
+
+export interface EventsResponse {
+  events: Event[];
+  daily_brief: DailyBrief;
+  generated_at: string;
+}
+
+export interface SourceHealth {
+  name: string;
+  status: 'ok' | 'warning' | 'error';
+  last_success?: string;
+  error_message?: string;
+  records_count?: number;
+}

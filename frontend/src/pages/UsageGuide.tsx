@@ -117,14 +117,16 @@ export function UsageGuide() {
                     ]}
                 />
 
-                <h4 className="font-semibold mt-4 mb-2">Web 仪表盘</h4>
+                <h4 className="font-semibold mt-4 mb-2">Web 仪表盘（事件中心化设计）</h4>
                 <Table
                     headers={['功能模块', '说明']}
                     rows={[
-                        ['🖥️ React 仪表盘', 'Robinhood 风格简洁交互式界面'],
+                        ['🖥️ 事件中心化仪表盘', '从 Ticker 视图转为事件驱动设计'],
+                        ['📋 信号收件箱', '事件卡片展示关注度评分、4D 评分、证据摘要'],
+                        ['📊 事件状态机', 'New/Ongoing/Stale/Resolved/Dismissed'],
+                        ['⚡ 事件操作', '置顶/推迟/标记已解决/驳回'],
                         ['🔌 FastAPI 后端', '信号、数据源和报告的 REST API'],
                         ['🔄 实时刷新', 'TanStack Query 实现 5 分钟自动刷新'],
-                        ['📱 响应式设计', '移动端友好，可折叠侧边栏'],
                     ]}
                 />
             </Section>
@@ -333,7 +335,7 @@ claude --version`}</CodeBlock>
 
             <Section title="10. Web 仪表盘" icon={<Monitor size={20} />}>
                 <p className="mb-4 text-gray-600">
-                    Tradz 提供 Robinhood 风格的简洁交互式 Web 仪表盘，可视化展示信号数据。
+                    Tradz 提供 Robinhood 风格的事件中心化 Web 仪表盘，从传统的 Ticker 视图转为事件驱动设计。
                 </p>
 
                 <h4 className="font-semibold mb-2">一键启动</h4>
@@ -356,15 +358,37 @@ cd frontend && npm run dev`}</CodeBlock>
                     <li><strong>API 文档</strong>: http://localhost:8002/api/docs</li>
                 </ul>
 
-                <h4 className="font-semibold mt-4 mb-2">仪表盘功能</h4>
+                <h4 className="font-semibold mt-4 mb-2">仪表盘页面</h4>
                 <Table
                     headers={['页面', '功能']}
                     rows={[
-                        ['Dashboard', '信号热力图、顶级股票/加密货币信号'],
+                        ['Today', '事件中心化主页：系统状态、信号收件箱、每日简报、市场快照'],
+                        ['Signals', '原始信号诊断表格，可排序导出'],
                         ['Sources', '国会交易、对冲基金、新闻、Polymarket 面板'],
+                        ['Reports', '历史报告归档，可下载 MD/JSON'],
                         ['使用指南', '本页面 - 交互式可折叠文档'],
                     ]}
                 />
+
+                <h4 className="font-semibold mt-4 mb-2">事件状态机</h4>
+                <Table
+                    headers={['状态', '说明', '颜色']}
+                    rows={[
+                        ['new', '新事件，首次出现', '蓝色'],
+                        ['ongoing', '进行中，持续跟踪', '黄色'],
+                        ['stale', '过期，超过 72h 未更新', '灰色'],
+                        ['resolved', '已解决，用户标记完成', '绿色'],
+                        ['dismissed', '已驳回，用户选择忽略', '红色'],
+                    ]}
+                />
+
+                <h4 className="font-semibold mt-4 mb-2">事件操作</h4>
+                <ul className="list-disc list-inside text-gray-600">
+                    <li><strong>置顶/取消置顶</strong>: 保持事件在收件箱顶部</li>
+                    <li><strong>推迟 24h</strong>: 暂时隐藏事件</li>
+                    <li><strong>标记已解决</strong>: 事件已处理完毕</li>
+                    <li><strong>驳回</strong>: 从活跃视图移除</li>
+                </ul>
             </Section>
 
             <Section title="11. 数据库与实体解析" icon={<Database size={20} />}>
@@ -415,7 +439,7 @@ python3 scripts/verify_facts.py`}</CodeBlock>
             </div>
 
             <div className="mt-4 text-center text-sm text-gray-400">
-                最后更新：2026-01-20
+                最后更新：2026-01-19
             </div>
         </div>
     );

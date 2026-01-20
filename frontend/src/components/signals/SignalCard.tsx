@@ -4,7 +4,7 @@
  */
 import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import type { Signal } from '../../api/types';
-import { cn, getScoreColor, getScoreColorHex, formatPercent, formatPrice, getPriceColor } from '../../lib/utils';
+import { cn, getScoreColorHex, formatPercent, formatPrice, getPriceColor } from '../../lib/utils';
 
 interface SignalCardProps {
   signal: Signal;

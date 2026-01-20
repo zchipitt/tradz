@@ -39,7 +39,10 @@ Daily automated trading signal generation powered by multi-source data aggregati
 - 💼 **IBKR Integration / 盈透证券集成**: Connect to Interactive Brokers for portfolio tracking / 连接盈透证券进行投资组合追踪
 
 ### Web Dashboard / Web 仪表盘
-- 🖥️ **React Dashboard / React 仪表盘**: Robinhood-style clean UI with real-time signal visualization / Robinhood 风格简洁界面，实时信号可视化
+- 🖥️ **Event-Centric Dashboard / 事件中心化仪表盘**: Robinhood-style clean UI, transformed from ticker-centric to event-driven design / Robinhood 风格简洁界面，从 Ticker 视图转为事件驱动设计
+- 📋 **Signal Inbox / 信号收件箱**: Event cards showing attention score, 4D scores (A/C/F/Conf), evidence summary, trade thesis / 事件卡片展示关注度评分、4D 评分、证据摘要、交易建议
+- 📊 **Event State Machine / 事件状态机**: New/Ongoing/Stale/Resolved/Dismissed state transitions / New/Ongoing/Stale/Resolved/Dismissed 五种状态转换
+- ⚡ **Event Actions / 事件操作**: Pin/Snooze/Resolve/Dismiss actions for each event / 每个事件支持置顶/推迟/标记已解决/驳回操作
 - 🔌 **FastAPI Backend / FastAPI 后端**: REST API for signals, sources, and reports / 信号、数据源和报告的 REST API
 - 🔄 **Live Refresh / 实时刷新**: Manual and automatic data refresh with TanStack Query / 使用 TanStack Query 实现手动和自动刷新
 - 📱 **Responsive Design / 响应式设计**: Mobile-friendly layout with collapsible sidebar / 移动端友好，可折叠侧边栏
@@ -425,18 +428,21 @@ tradz/
 │       ├── signal_service.py
 │       ├── aggregator_service.py
 │       └── cache_service.py
-├── frontend/                 # React dashboard / React 仪表盘
+├── frontend/                 # React dashboard (event-centric design) / React 仪表盘（事件中心化设计）
 │   ├── src/
 │   │   ├── App.tsx          # Root component / 根组件
 │   │   ├── pages/           # Page components / 页面组件
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── Sources.tsx
-│   │   │   └── UsageGuide.tsx
+│   │   │   ├── Dashboard.tsx    # Event-centric home (SystemStatus, SignalInbox, DailyBrief) / 事件中心化主页
+│   │   │   ├── Signals.tsx      # Raw signals diagnostic table / 原始信号诊断表格
+│   │   │   ├── Sources.tsx      # Data source status panels / 数据源状态面板
+│   │   │   ├── Reports.tsx      # Historical reports archive / 历史报告归档
+│   │   │   └── UsageGuide.tsx   # Interactive usage guide / 交互式使用指南
 │   │   ├── components/      # UI components / UI 组件
-│   │   │   ├── layout/
-│   │   │   ├── signals/
-│   │   │   └── sources/
-│   │   └── hooks/           # React hooks / React 钩子
+│   │   │   ├── layout/      # Layout components (Header, Sidebar) / 布局组件
+│   │   │   ├── events/      # Event components (EventCard, SignalInbox, SystemStatus, DailyBrief, MarketSnapshot) / 事件组件
+│   │   │   ├── signals/     # Signal components (Heatmap, Card, TopSignals) / 信号组件
+│   │   │   └── sources/     # Data source panels / 数据源面板
+│   │   └── hooks/           # React hooks (useSignals, useEvents) / React 钩子
 │   ├── package.json
 │   └── vite.config.ts
 ├── docs/
@@ -781,6 +787,9 @@ For issues, questions, or contributions / 如有问题、疑问或贡献:
 - [x] Entity resolution / 实体解析
 - [x] 4-dimensional signal scoring / 4维信号评分
 - [x] Fact table for LLM reporting / LLM 报告事实表
+- [x] Event-centric dashboard design / 事件中心化仪表盘设计
+- [x] Event state machine (New/Ongoing/Stale/Resolved/Dismissed) / 事件状态机
+- [x] Event actions (Pin/Snooze/Resolve/Dismiss) / 事件操作
 
 **Future enhancements / 待开发功能:**
 - [ ] Social media (X/Twitter) trends / 社交媒体趋势

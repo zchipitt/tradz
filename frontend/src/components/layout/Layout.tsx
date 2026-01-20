@@ -3,13 +3,25 @@
  * Robinhood-style clean light theme.
  */
 import { useState } from 'react';
-import { BarChart3, TrendingUp, Newspaper, RefreshCw, Menu, X, BookOpen } from 'lucide-react';
+import {
+  LayoutDashboard,
+  TrendingUp,
+  Newspaper,
+  RefreshCw,
+  Menu,
+  X,
+  BookOpen,
+  BarChart3,
+  FileText,
+} from 'lucide-react';
 import { cn } from '../../lib/utils';
+
+export type TabId = 'today' | 'signals' | 'sources' | 'reports' | 'guide';
 
 interface LayoutProps {
   children: React.ReactNode;
-  activeTab: 'dashboard' | 'sources' | 'guide';
-  onTabChange: (tab: 'dashboard' | 'sources' | 'guide') => void;
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
   lastUpdated?: string;
   onRefresh?: () => void;
   isRefreshing?: boolean;
@@ -26,9 +38,11 @@ export function Layout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navItems = [
-    { id: 'dashboard' as const, label: 'Dashboard', icon: BarChart3 },
-    { id: 'sources' as const, label: 'Sources', icon: Newspaper },
-    { id: 'guide' as const, label: '使用指南', icon: BookOpen },
+    { id: 'today' as const, label: 'Today', icon: LayoutDashboard, description: 'Event inbox & daily brief' },
+    { id: 'signals' as const, label: 'Signals', icon: BarChart3, description: 'Raw signals data' },
+    { id: 'sources' as const, label: 'Sources', icon: Newspaper, description: 'Data source status' },
+    { id: 'reports' as const, label: 'Reports', icon: FileText, description: 'Historical briefs' },
+    { id: 'guide' as const, label: 'Guide', icon: BookOpen, description: 'Usage guide' },
   ];
 
   return (
@@ -39,7 +53,7 @@ export function Layout({
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 rounded-lg hover:bg-surface text-text-muted hover:text-text transition-colors"
+              className="lg:hidden p-2 rounded-lg hover:bg-surface text-text-muted hover:text-text transition-colors cursor-pointer"
             >
               {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -63,7 +77,7 @@ export function Layout({
                   'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium',
                   'bg-primary text-white hover:bg-primary-dark',
                   'disabled:opacity-50 disabled:cursor-not-allowed',
-                  'transition-all duration-200'
+                  'transition-all duration-200 cursor-pointer'
                 )}
               >
                 <RefreshCw
@@ -100,19 +114,32 @@ export function Layout({
                     setSidebarOpen(false);
                   }}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium',
-                    'transition-all duration-150',
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium',
+                    'transition-all duration-150 cursor-pointer',
                     isActive
                       ? 'bg-primary-light text-primary font-semibold'
                       : 'text-text-muted hover:text-text hover:bg-surface'
                   )}
                 >
-                  <Icon size={18} className={cn(isActive ? "text-primary" : "text-text-muted")} />
-                  <span>{item.label}</span>
+                  <Icon size={18} className={cn(isActive ? 'text-primary' : 'text-text-muted')} />
+                  <div className="text-left">
+                    <div>{item.label}</div>
+                    {isActive && (
+                      <div className="text-xs font-normal opacity-70">{item.description}</div>
+                    )}
+                  </div>
                 </button>
               );
             })}
           </nav>
+
+          {/* Sidebar Footer */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+            <div className="text-xs text-text-muted">
+              <p className="font-medium">Tradz v2.0</p>
+              <p className="mt-1">Event-centric signals</p>
+            </div>
+          </div>
         </aside>
 
         {/* Overlay for mobile sidebar */}

@@ -1,13 +1,17 @@
 /**
  * Root application component.
+ * Event-centric trading signal dashboard.
  */
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Layout } from './components/layout/Layout';
+import { Layout, type TabId } from './components/layout/Layout';
 import { Dashboard } from './pages/Dashboard';
+import { Signals } from './pages/Signals';
 import { Sources } from './pages/Sources';
+import { Reports } from './pages/Reports';
 import { UsageGuide } from './pages/UsageGuide';
-import { useSignals, useRefreshSignals } from './hooks/useSignals';
+import { useEvents, useRefreshEvents } from './hooks/useEvents';
+import { useRefreshSignals } from './hooks/useSignals';
 import { formatDate } from './lib/utils';
 
 // Create a client
@@ -21,21 +25,22 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'sources' | 'guide'>('dashboard');
+  const [activeTab, setActiveTab] = useState<TabId>('today');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const { data } = useSignals();
+  const { data: eventsData } = useEvents();
+  const refreshEvents = useRefreshEvents();
   const refreshSignals = useRefreshSignals();
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refreshSignals();
+      await Promise.all([refreshEvents(), refreshSignals()]);
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  const lastUpdated = data?.generated_at ? formatDate(data.generated_at) : undefined;
+  const lastUpdated = eventsData?.generated_at ? formatDate(eventsData.generated_at) : undefined;
 
   return (
     <Layout
@@ -45,8 +50,15 @@ function AppContent() {
       onRefresh={handleRefresh}
       isRefreshing={isRefreshing}
     >
-      {activeTab === 'dashboard' && <Dashboard />}
+      {activeTab === 'today' && (
+        <Dashboard
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+        />
+      )}
+      {activeTab === 'signals' && <Signals />}
       {activeTab === 'sources' && <Sources />}
+      {activeTab === 'reports' && <Reports />}
       {activeTab === 'guide' && <UsageGuide />}
     </Layout>
   );
