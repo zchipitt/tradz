@@ -39,13 +39,14 @@ class ClaudeReporter:
         self.skip_permissions = self.claude_config.get('skip_permissions', True)
         self.fallback_to_template = self.claude_config.get('fallback_to_template', True)
 
-    def generate_report(self, data: Dict, date: Optional[str] = None) -> str:
+    def generate_report(self, data: Dict, date: Optional[str] = None, fact_table: Optional[Dict] = None) -> str:
         """
         Generate a trading report using Claude.
 
         Args:
             data: Aggregated data from DataAggregator
             date: Report date (defaults to today)
+            fact_table: Optional verified fact table for dual-channel reporting
 
         Returns:
             Generated report as Markdown string
@@ -62,7 +63,7 @@ class ClaudeReporter:
 
         try:
             # Build the prompt
-            prompt = self._build_prompt(data, date)
+            prompt = self._build_prompt(data, date, fact_table)
 
             # Invoke Claude CLI
             report = self._invoke_claude(prompt)
@@ -85,13 +86,14 @@ class ClaudeReporter:
             else:
                 raise
 
-    def _build_prompt(self, data: Dict, date: str) -> str:
+    def _build_prompt(self, data: Dict, date: str, fact_table: Optional[Dict] = None) -> str:
         """
         Build the prompt for Claude.
 
         Args:
             data: Aggregated data
             date: Report date
+            fact_table: Optional verified fact table
 
         Returns:
             Complete prompt string
@@ -107,11 +109,32 @@ class ClaudeReporter:
 
         # Data file path
         data_path = self.data_dir / f"{date}.json"
+        
+        # Format Fact Table if present
+        fact_section = ""
+        if fact_table:
+            fact_json = json.dumps(fact_table, indent=2, default=str)
+            fact_section = f"""
+## Verified Fact Table
+CRITICAL: The following JSON contains the DETERMINISTIC FACTS for this report. 
+You MUST use these numbers and values. Do not calculate metrics yourself if they are present here.
+Use this table to audit your narrative.
+
+```json
+{fact_json}
+```
+"""
 
         # Fill in the template
-        user_prompt = user_template.format(
+        # We append fact_section to data_summary or handle it as a new variable if template supports it.
+        # But assuming template just takes {data_summary}, we can append it there or inject it.
+        
+        # Let's verify template content first? 
+        # Assuming template has {data_summary}, we can just append to it for now.
+        
+        full_user_content = user_template.format(
             date=date,
-            data_summary=data_summary,
+            data_summary=data_summary + "\n" + fact_section,
             data_path=str(data_path),
         )
 
@@ -121,7 +144,7 @@ class ClaudeReporter:
 
 ---
 
-{user_prompt}
+{full_user_content}
 """
         return full_prompt
 

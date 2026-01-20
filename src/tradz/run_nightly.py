@@ -22,6 +22,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 import yaml
 from dotenv import load_dotenv
@@ -34,6 +35,8 @@ from src.tradz.claude_reporter import ClaudeReporter, check_claude_available
 from src.tradz.signals import SignalGenerator
 from src.tradz.report import ReportGenerator
 from src.tradz.emailer import EmailSender
+from src.tradz.database import init_database, get_database
+from src.tradz.entity_resolver import EntityResolver
 
 
 # Setup logging
@@ -63,6 +66,11 @@ def parse_args():
         '--skip-email',
         action='store_true',
         help='Skip email sending'
+    )
+    parser.add_argument(
+        '--refresh-entities',
+        action='store_true',
+        help='Force refresh of SEC entity map'
     )
     return parser.parse_args()
 
@@ -155,18 +163,36 @@ def main():
         sys.exit(1)
 
     # =========================================================================
-    # Step 1: Aggregate data from all sources
+    # Step 1: Initialize database and aggregate data from all sources
     # =========================================================================
     logger.info("=" * 80)
     logger.info("📊 Step 1: Aggregating data from all sources...")
     logger.info("=" * 80)
 
-    aggregator = DataAggregator(config)
-    data = aggregator.fetch_all(date=report_date)
+    # Initialize database and create run_id for tracking
+    run_id = f"{report_date}_{uuid4().hex[:8]}"
+    db = init_database()
+    db.start_run(run_id, metadata={"date": report_date, "args": vars(args)})
+    logger.info(f"✅ Database initialized, run_id: {run_id}")
 
-    # Save aggregated data
-    data_path = aggregator.save_data(data, report_date)
-    logger.info(f"✅ Data aggregated and saved to {data_path}")
+    # Entity Resolution
+    resolver = EntityResolver(db)
+    
+    # Auto-refresh if empty, or if requested
+    headers_count = db.conn.execute("SELECT count(*) FROM entities").fetchone()[0]
+    if headers_count == 0 or args.refresh_entities:
+        logger.info("Initializing entity reference data (SEC)...")
+        resolver.initialize_reference_data()
+    else:
+        logger.info(f"Skipping entity refresh (DB has {headers_count} entities)")
+
+    aggregator = DataAggregator(config)
+    
+    # Use new fetch_and_store to save to both JSON and database
+    data = aggregator.fetch_and_store(date=report_date)
+    obs_count = data.get('observations_count', 0)
+    
+    logger.info(f"✅ Data aggregated: {obs_count} observations stored to database")
 
     # Log summary
     summary = data.get('summary', {})
@@ -201,7 +227,7 @@ def main():
     pairs = config.get('crypto', {}).get('pairs', [])
     crypto_data = crypto_source.get_latest_data(pairs, days=60)
 
-    signal_gen = SignalGenerator(config)
+    signal_gen = SignalGenerator(config, db)
     signals = signal_gen.generate_signals(equity_data, crypto_data)
 
     logger.info(f"✅ Generated {len(signals['all_signals'])} signals")
@@ -210,8 +236,27 @@ def main():
 
     # Add signals to aggregated data
     data['signals'] = signals
+    
+    # Generate Fact Table (Dual-Channel Reporting)
+    from src.tradz.reporting.fact_generator import FactGenerator
+    logger.info("Generating Fact Table...")
+    
+    fact_gen = FactGenerator(db)
+    
+    # Get observations for today
+    report_dt = datetime.strptime(report_date, '%Y-%m-%d')
+    todays_obs = db.get_observations_by_date(report_dt)
+    
+    fact_table = fact_gen.generate_fact_table(
+        signals=signals['all_signals'],
+        observations=todays_obs
+    )
+    
+    # Add fact table to combined data
+    data['fact_table'] = fact_table.to_dict()
+    logger.info("✅ Fact Table generated")
 
-    # Re-save with signals
+    # Re-save with signals and facts
     aggregator.save_data(data, report_date)
 
     # =========================================================================
@@ -229,7 +274,7 @@ def main():
     if use_claude:
         # Use Claude for report generation
         reporter = ClaudeReporter(config)
-        markdown_report = reporter.generate_report(data, report_date)
+        markdown_report = reporter.generate_report(data, report_date, fact_table=data.get('fact_table'))
     else:
         # Use template fallback
         report_gen = ReportGenerator(config)
@@ -250,6 +295,14 @@ def main():
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(signals, f, indent=2, default=str, ensure_ascii=False)
     logger.info(f"✅ Signals JSON saved to {json_path}")
+
+    # Update run history with counts
+    db.complete_run(
+        run_id=run_id,
+        observations_count=obs_count,
+        signals_count=len(signals['all_signals'])
+    )
+    logger.info(f"✅ Run history updated: {run_id}")
 
     # =========================================================================
     # Step 4: Send email

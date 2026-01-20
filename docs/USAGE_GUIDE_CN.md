@@ -94,7 +94,8 @@ tradz/
 │   │   ├── App.tsx          # 根组件
 │   │   ├── pages/           # 页面组件
 │   │   │   ├── Dashboard.tsx
-│   │   │   └── Sources.tsx
+│   │   │   ├── Sources.tsx
+│   │   │   └── UsageGuide.tsx
 │   │   ├── components/      # UI 组件
 │   │   └── hooks/           # React 钩子
 │   ├── package.json
@@ -1032,15 +1033,15 @@ claude:
 source .venv/bin/activate
 
 # 启动 FastAPI 服务（开发模式）
-uvicorn api.main:app --reload --port 8000
+uvicorn api.main:app --reload --port 8002
 
 # 或指定主机（允许局域网访问）
-uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8002
 ```
 
 API 文档地址：
-- **Swagger UI**: http://localhost:8000/api/docs
-- **ReDoc**: http://localhost:8000/api/redoc
+- **Swagger UI**: http://localhost:8002/api/docs
+- **ReDoc**: http://localhost:8002/api/redoc
 
 ### 10.3 启动前端
 
@@ -1082,6 +1083,12 @@ npm run dev
 - 数据获取时间显示
 - 错误状态显示
 
+**使用指南页面**：
+- 交互式可折叠文档
+- 系统概述和安装配置
+- 信号解读和故障排除
+- Claude AI 报告生成说明
+
 ### 10.6 生产部署
 
 ```bash
@@ -1092,7 +1099,7 @@ npm run build
 # 构建产物在 frontend/dist/ 目录
 
 # 生产环境启动 API
-uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 4
+uvicorn api.main:app --host 0.0.0.0 --port 8002 --workers 4
 ```
 
 ---
@@ -1134,7 +1141,7 @@ vim .env
 # ===== Web 仪表盘 =====
 
 # 启动 API 后端（终端 1）
-uvicorn api.main:app --reload --port 8000
+uvicorn api.main:app --reload --port 8002
 
 # 启动前端（终端 2）
 cd frontend && npm run dev

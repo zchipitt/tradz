@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from uuid import uuid4
 
 from .sources import (
     EquitiesDataSource,
@@ -17,6 +18,9 @@ from .sources import (
     NewsDataSource,
     SECFilingsDataSource,
 )
+from .models import Observation, SourceType
+from .database import Database, get_database
+from .entity_resolver import EntityResolver
 
 logger = logging.getLogger(__name__)
 
@@ -404,3 +408,231 @@ class DataAggregator:
 
         with open(filepath, 'r', encoding='utf-8') as f:
             return json.load(f)
+
+    # =========================================================================
+    # Observation Extraction (New Data Layer)
+    # =========================================================================
+
+    def extract_observations(
+        self,
+        data: Dict,
+        resolver: Optional[EntityResolver] = None
+    ) -> List[Observation]:
+        """
+        Extract standardized Observations from aggregated data.
+
+        This converts the raw fetched data into Observation objects
+        that can be stored in the database for querying and analysis.
+
+        Args:
+            data: Aggregated data dict from fetch_all()
+            resolver: EntityResolver instance to link entity IDs
+
+        Returns:
+            List of Observation objects
+        """
+        observations: List[Observation] = []
+        sources = data.get('sources', {})
+        observed_at = datetime.fromisoformat(data.get('generated_at', datetime.now().isoformat()))
+
+        # Helper to resolve entity ID if resolver is available
+        def resolve_id(ticker: Optional[str]) -> Optional[str]:
+            if not ticker or not resolver:
+                return None
+            entity = resolver.resolve_ticker(ticker)
+            return entity.id if entity else None
+
+        # Extract equities observations
+        if 'equities' in sources and 'data' in sources['equities']:
+            for ticker, eq_data in sources['equities']['data'].items():
+                obs = Observation(
+                    source=SourceType.EQUITIES,
+                    entity_ticker=ticker,
+                    entity_id=resolve_id(ticker),
+                    observed_at=observed_at,
+                    effective_at=observed_at,
+                    freshness_score=1.0,
+                    quality_score=1.0 if eq_data.get('data_points', 0) >= 30 else 0.7,
+                    summary=f"{ticker}: ${eq_data.get('last_price', 0):.2f}, day {eq_data.get('day_return', 0):+.1f}%",
+                    payload=eq_data,
+                )
+                observations.append(obs)
+
+        # Extract crypto observations
+        if 'crypto' in sources and 'data' in sources['crypto']:
+            for pair, cr_data in sources['crypto']['data'].items():
+                obs = Observation(
+                    source=SourceType.CRYPTO,
+                    entity_ticker=pair,
+                    # Crypto entities might not be in SEC map, we skip resolve_id for now 
+                    # or extend resolver to handle crypto pairs
+                    observed_at=observed_at,
+                    effective_at=observed_at,
+                    freshness_score=1.0,
+                    quality_score=1.0 if cr_data.get('data_points', 0) >= 30 else 0.7,
+                    summary=f"{pair}: ${cr_data.get('last_price', 0):.2f}, day {cr_data.get('day_return', 0):+.1f}%",
+                    payload=cr_data,
+                )
+                observations.append(obs)
+
+        # Extract congress trade observations
+        if 'congress' in sources and 'trades' in sources['congress']:
+            for trade in sources['congress'].get('trades', []):
+                effective_at = None
+                if trade.get('transaction_date'):
+                    try:
+                        effective_at = datetime.fromisoformat(trade['transaction_date'])
+                    except (ValueError, TypeError):
+                        pass
+
+                # Congress disclosures have ~45 day delay, lower freshness
+                days_delay = (observed_at - effective_at).days if effective_at else 45
+                freshness = max(0.1, 1.0 - (days_delay / 60))
+
+                ticker = trade.get('ticker')
+                obs = Observation(
+                    source=SourceType.CONGRESS,
+                    entity_ticker=ticker,
+                    entity_id=resolve_id(ticker),
+                    observed_at=observed_at,
+                    effective_at=effective_at,
+                    freshness_score=freshness,
+                    quality_score=0.9,
+                    summary=f"{trade.get('member')}: {trade.get('type')} {trade.get('ticker')} ({trade.get('amount_range', 'unknown')})",
+                    payload=trade,
+                )
+                observations.append(obs)
+
+        # Extract hedge fund 13F observations
+        if 'hedgefunds' in sources and 'filings' in sources['hedgefunds']:
+            for filing in sources['hedgefunds'].get('filings', []):
+                # 13F filings are quarterly, even lower freshness
+                obs = Observation(
+                    source=SourceType.HEDGEFUND,
+                    entity_ticker=None,  # 13F covers multiple tickers
+                    observed_at=observed_at,
+                    effective_at=None,
+                    freshness_score=0.5,  # Quarterly delay
+                    quality_score=0.95,  # Official SEC filing
+                    summary=f"13F filing from {filing.get('fund_name', 'Unknown')}",
+                    payload=filing,
+                )
+                observations.append(obs)
+
+        # Extract Polymarket observations
+        if 'polymarket' in sources and 'markets' in sources['polymarket']:
+            for market in sources['polymarket'].get('markets', []):
+                # Try to extract ticker from market question
+                question = market.get('question', '')
+                entities = resolver.extract_entities_from_text(question) if resolver else []
+                primary_entity = entities[0] if entities else None
+
+                obs = Observation(
+                    source=SourceType.POLYMARKET,
+                    entity_ticker=primary_entity.ticker if primary_entity else None,
+                    entity_id=primary_entity.id if primary_entity else None,
+                    observed_at=observed_at,
+                    effective_at=observed_at,
+                    freshness_score=1.0,  # Real-time
+                    quality_score=0.7,  # Prediction market, not confirmed
+                    summary=f"{market.get('question', 'Unknown')}: {market.get('probability', 0)*100:.0f}%",
+                    payload=market,
+                )
+                observations.append(obs)
+
+        # Extract news observations
+        if 'news' in sources and 'by_ticker' in sources['news']:
+            for ticker, articles in sources['news'].get('by_ticker', {}).items():
+                for article in articles[:5]:  # Limit per ticker
+                    obs = Observation(
+                        source=SourceType.NEWS,
+                        entity_ticker=ticker,
+                        entity_id=resolve_id(ticker),
+                        observed_at=observed_at,
+                        effective_at=observed_at,
+                        freshness_score=0.95,  # News is recent
+                        quality_score=0.6,  # Unverified news
+                        summary=article.get('title', '')[:200],
+                        payload=article,
+                    )
+                    observations.append(obs)
+
+        # Extract SEC filing observations
+        if 'sec_filings' in sources and 'by_ticker' in sources['sec_filings']:
+            for ticker, filings in sources['sec_filings'].get('by_ticker', {}).items():
+                for filing in filings:
+                    # 8-K is more recent/important than 10-K/10-Q
+                    form_type = filing.get('form', '')
+                    quality = 0.95 if form_type == '8-K' else 0.9
+                    
+                    obs = Observation(
+                        source=SourceType.SEC,
+                        entity_ticker=ticker,
+                        entity_id=resolve_id(ticker),
+                        observed_at=observed_at,
+                        effective_at=None,
+                        freshness_score=0.8,
+                        quality_score=quality,
+                        summary=f"{ticker} {form_type}: {filing.get('description', '')[:100]}",
+                        payload=filing,
+                    )
+                    observations.append(obs)
+
+        logger.info(f"Extracted {len(observations)} observations from aggregated data")
+        return observations
+
+    def save_observations(
+        self,
+        observations: List[Observation],
+        db: Optional[Database] = None
+    ) -> int:
+        """
+        Save observations to the database.
+
+        Args:
+            observations: List of Observation objects
+            db: Database instance (uses singleton if not provided)
+
+        Returns:
+            Count of observations saved
+        """
+        if db is None:
+            db = get_database()
+
+        count = db.insert_observations(observations)
+        logger.info(f"Saved {count} observations to database")
+        return count
+
+    def fetch_and_store(self, date: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Fetch all data and store both as JSON and in database.
+
+        This is the primary entry point for the new data layer,
+        combining backward-compatible JSON storage with the new
+        DuckDB observation storage.
+
+        Args:
+            date: Report date (defaults to today)
+
+        Returns:
+            Dict with aggregated data and observation count
+        """
+        # Fetch all data (existing behavior)
+        data = self.fetch_all(date)
+
+        # Save to JSON (backward compatibility)
+        self.save_data(data, date)
+
+        # Initialize resolver for linking
+        db = get_database()
+        resolver = EntityResolver(db)
+
+        # Extract and save observations (new behavior)
+        observations = self.extract_observations(data, resolver)
+        obs_count = self.save_observations(observations, db)
+
+        # Add observation count to returned data
+        data['observations_count'] = obs_count
+
+        return data
+
