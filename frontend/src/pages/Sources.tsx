@@ -1,5 +1,6 @@
 /**
  * Sources page with tabbed panels for different data sources.
+ * Robinhood-style clean design.
  */
 import { useState } from 'react';
 import { Users, Building2, LineChart, Newspaper } from 'lucide-react';
@@ -24,22 +25,23 @@ export function Sources() {
   return (
     <div className="space-y-6">
       {/* Tab navigation */}
-      <div className="bg-white rounded-xl border border-gray-200 p-1 flex gap-1 overflow-x-auto">
+      <div className="bg-white rounded-xl border border-border p-1 flex gap-1 overflow-x-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap',
-                'transition-colors text-sm font-medium',
-                activeTab === tab.id
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-50'
+                'transition-all duration-150 text-sm font-medium',
+                isActive
+                  ? 'bg-primary-light text-primary'
+                  : 'text-text-muted hover:text-text hover:bg-surface'
               )}
             >
-              <Icon size={18} />
+              <Icon size={18} className={cn(isActive ? "text-primary" : "text-text-muted")} />
               {tab.label}
             </button>
           );

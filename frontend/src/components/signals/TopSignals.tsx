@@ -1,5 +1,6 @@
 /**
  * Component showing top signals for a category (equities or crypto).
+ * Robinhood-style clean design.
  */
 import type { Signal } from '../../api/types';
 import { SignalCard } from './SignalCard';
@@ -13,9 +14,9 @@ interface TopSignalsProps {
 export function TopSignals({ title, signals, emptyMessage = 'No signals available' }: TopSignalsProps) {
   return (
     <div>
-      <h2 className="text-lg font-semibold mb-4">{title}</h2>
+      <h2 className="text-lg font-semibold mb-4 text-text">{title}</h2>
       {signals.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-500">
+        <div className="bg-white rounded-xl border border-border p-6 text-center text-text-muted">
           {emptyMessage}
         </div>
       ) : (

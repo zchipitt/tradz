@@ -1,5 +1,6 @@
 /**
  * Main layout component with header and sidebar.
+ * Robinhood-style clean light theme.
  */
 import { useState } from 'react';
 import { BarChart3, TrendingUp, Newspaper, RefreshCw, Menu, X, BookOpen } from 'lucide-react';
@@ -31,26 +32,26 @@ export function Layout({
   ];
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="flex items-center justify-between px-4 py-3">
+    <div className="min-h-screen flex flex-col bg-background text-text">
+      {/* Header - Clean white Robinhood style */}
+      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-white border-b border-border shadow-sm">
+        <div className="flex items-center justify-between px-4 h-full max-w-7xl mx-auto w-full">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+              className="lg:hidden p-2 rounded-lg hover:bg-surface text-text-muted hover:text-text transition-colors"
             >
               {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-6 w-6 text-blue-600" />
-              <span className="font-bold text-xl">Tradz</span>
+              <TrendingUp className="h-6 w-6 text-primary" />
+              <span className="font-bold text-xl tracking-tight text-text">Tradz</span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             {lastUpdated && (
-              <span className="text-sm text-gray-500 hidden sm:block">
+              <span className="text-sm text-text-muted hidden sm:block">
                 Updated: {lastUpdated}
               </span>
             )}
@@ -59,14 +60,14 @@ export function Layout({
                 onClick={onRefresh}
                 disabled={isRefreshing}
                 className={cn(
-                  'flex items-center gap-2 px-3 py-2 rounded-lg',
-                  'bg-blue-600 text-white hover:bg-blue-700',
+                  'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium',
+                  'bg-primary text-white hover:bg-primary-dark',
                   'disabled:opacity-50 disabled:cursor-not-allowed',
-                  'transition-colors'
+                  'transition-all duration-200'
                 )}
               >
                 <RefreshCw
-                  size={16}
+                  size={14}
                   className={cn(isRefreshing && 'animate-spin')}
                 />
                 <span className="hidden sm:inline">Refresh</span>
@@ -76,20 +77,21 @@ export function Layout({
         </div>
       </header>
 
-      <div className="flex flex-1">
-        {/* Sidebar */}
+      <div className="flex flex-1 pt-16 max-w-7xl mx-auto w-full">
+        {/* Sidebar - Clean white */}
         <aside
           className={cn(
-            'fixed lg:static inset-y-0 left-0 z-40',
-            'w-64 bg-white border-r border-gray-200',
-            'transform transition-transform duration-200 ease-in-out',
-            'lg:transform-none pt-16 lg:pt-0',
+            'fixed lg:sticky top-16 left-0 z-40 h-[calc(100vh-4rem)]',
+            'w-56 bg-white border-r border-border',
+            'transform transition-transform duration-300 ease-out',
+            'lg:transform-none lg:block',
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           )}
         >
           <nav className="p-4 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
+              const isActive = activeTab === item.id;
               return (
                 <button
                   key={item.id}
@@ -98,14 +100,14 @@ export function Layout({
                     setSidebarOpen(false);
                   }}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg',
-                    'transition-colors text-left',
-                    activeTab === item.id
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-700 hover:bg-gray-100'
+                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium',
+                    'transition-all duration-150',
+                    isActive
+                      ? 'bg-primary-light text-primary font-semibold'
+                      : 'text-text-muted hover:text-text hover:bg-surface'
                   )}
                 >
-                  <Icon size={20} />
+                  <Icon size={18} className={cn(isActive ? "text-primary" : "text-text-muted")} />
                   <span>{item.label}</span>
                 </button>
               );
@@ -122,7 +124,7 @@ export function Layout({
         )}
 
         {/* Main content */}
-        <main className="flex-1 p-4 lg:p-6 overflow-auto">
+        <main className="flex-1 p-4 lg:p-8 overflow-auto bg-background">
           {children}
         </main>
       </div>

@@ -7,18 +7,36 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Signal score colors
-        score: {
-          excellent: '#22c55e', // 80-100
-          good: '#84cc16',      // 60-79
-          moderate: '#eab308',  // 40-59
-          low: '#f97316',       // 20-39
-          poor: '#ef4444',      // 0-19
+        // Robinhood-style Color Palette
+        primary: {
+          DEFAULT: '#00C805', // Robinhood Green
+          light: '#E8F9E8',
+          dark: '#00A004',
         },
-        // Price movement colors
-        positive: '#22c55e',
-        negative: '#ef4444',
-        neutral: '#71717a',
+        background: '#FFFFFF',
+        surface: '#F5F5F5',
+        border: '#E5E5E5',
+        text: {
+          DEFAULT: '#1A1A1A',
+          muted: '#6B7280',
+          light: '#9CA3AF',
+        },
+
+        // Score colors
+        score: {
+          excellent: '#00C805',
+          good: '#84cc16',
+          moderate: '#eab308',
+          low: '#f97316',
+          poor: '#ef4444',
+        },
+        // Price movement
+        positive: '#00C805',
+        negative: '#FF5000',
+        neutral: '#6B7280',
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
     },
   },
