@@ -111,6 +111,8 @@ DataAggregator → EntityResolver → Scorer → SignalGenerator → ReportGener
 
 ### Web Dashboard
 
+The web dashboard provides a Robinhood-style clean interface for visualizing trading signals.
+
 **API Backend** (`api/`):
 - `main.py` - FastAPI application entry point
 - `config.py` - API configuration (CORS, settings)
@@ -126,15 +128,18 @@ DataAggregator → EntityResolver → Scorer → SignalGenerator → ReportGener
 
 **Frontend** (`frontend/`):
 - React + TypeScript + Vite
-- Tailwind CSS for styling
-- TanStack Query for data fetching
+- Tailwind CSS for Robinhood-style clean design
+- TanStack Query for data fetching with auto-refresh
+- Responsive layout with collapsible sidebar
 - Key files:
-  - `src/App.tsx` - Root component with routing
-  - `src/pages/Dashboard.tsx` - Signal overview
-  - `src/pages/Sources.tsx` - Data source status
-  - `src/pages/UsageGuide.tsx` - Interactive usage guide
-  - `src/components/` - Reusable UI components
-  - `src/hooks/useSignals.ts` - Data fetching hooks
+  - `src/App.tsx` - Root component with tab-based routing
+  - `src/pages/Dashboard.tsx` - Signal heatmap and top signals overview
+  - `src/pages/Sources.tsx` - Data source status panels
+  - `src/pages/UsageGuide.tsx` - Interactive collapsible usage guide
+  - `src/components/layout/Layout.tsx` - Main layout with header and sidebar
+  - `src/components/signals/` - SignalCard, SignalHeatmap, TopSignals
+  - `src/components/sources/` - CongressPanel, HedgeFundPanel, NewsPanel, PolymarketPanel
+  - `src/hooks/useSignals.ts` - Data fetching hooks with 5-minute auto-refresh
 
 ### Configuration
 
@@ -170,6 +175,8 @@ Aggregated data saved to `data/` directory:
 - Entity resolution for cross-source data alignment
 - DuckDB for persistent storage with singleton pattern
 - API uses Pydantic schemas for request/response validation
-- Frontend uses TanStack Query for server state management
+- Frontend uses TanStack Query for server state management with 5-minute auto-refresh
+- Robinhood-style clean UI with responsive layout and collapsible sidebar
+- Tab-based navigation (Dashboard, Sources, Usage Guide)
 - Services layer abstracts business logic from route handlers
 - FactTable provides deterministic facts for LLM narrative generation

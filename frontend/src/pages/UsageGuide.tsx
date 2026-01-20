@@ -116,6 +116,17 @@ export function UsageGuide() {
                         ['📧 邮件报告', '通过 SMTP 发送每日报告'],
                     ]}
                 />
+
+                <h4 className="font-semibold mt-4 mb-2">Web 仪表盘</h4>
+                <Table
+                    headers={['功能模块', '说明']}
+                    rows={[
+                        ['🖥️ React 仪表盘', 'Robinhood 风格简洁交互式界面'],
+                        ['🔌 FastAPI 后端', '信号、数据源和报告的 REST API'],
+                        ['🔄 实时刷新', 'TanStack Query 实现 5 分钟自动刷新'],
+                        ['📱 响应式设计', '移动端友好，可折叠侧边栏'],
+                    ]}
+                />
             </Section>
 
             <Section title="2. 安装配置" icon={<Settings size={20} />}>
@@ -322,7 +333,7 @@ claude --version`}</CodeBlock>
 
             <Section title="10. Web 仪表盘" icon={<Monitor size={20} />}>
                 <p className="mb-4 text-gray-600">
-                    Tradz 提供交互式 Web 仪表盘，可视化展示信号数据。
+                    Tradz 提供 Robinhood 风格的简洁交互式 Web 仪表盘，可视化展示信号数据。
                 </p>
 
                 <h4 className="font-semibold mb-2">一键启动</h4>
@@ -344,6 +355,16 @@ cd frontend && npm run dev`}</CodeBlock>
                     <li><strong>前端</strong>: http://localhost:5173</li>
                     <li><strong>API 文档</strong>: http://localhost:8002/api/docs</li>
                 </ul>
+
+                <h4 className="font-semibold mt-4 mb-2">仪表盘功能</h4>
+                <Table
+                    headers={['页面', '功能']}
+                    rows={[
+                        ['Dashboard', '信号热力图、顶级股票/加密货币信号'],
+                        ['Sources', '国会交易、对冲基金、新闻、Polymarket 面板'],
+                        ['使用指南', '本页面 - 交互式可折叠文档'],
+                    ]}
+                />
             </Section>
 
             <Section title="11. 数据库与实体解析" icon={<Database size={20} />}>
@@ -391,6 +412,10 @@ python3 scripts/verify_facts.py`}</CodeBlock>
                 <p className="text-blue-800 text-sm">
                     💡 <strong>提示</strong>: 完整版使用指南请查看 <code className="bg-blue-100 px-1 rounded">docs/USAGE_GUIDE_CN.md</code>
                 </p>
+            </div>
+
+            <div className="mt-4 text-center text-sm text-gray-400">
+                最后更新：2026-01-20
             </div>
         </div>
     );

@@ -39,9 +39,10 @@ Daily automated trading signal generation powered by multi-source data aggregati
 - 💼 **IBKR Integration / 盈透证券集成**: Connect to Interactive Brokers for portfolio tracking / 连接盈透证券进行投资组合追踪
 
 ### Web Dashboard / Web 仪表盘
-- 🖥️ **React Dashboard / React 仪表盘**: Real-time signal visualization with interactive UI / 实时信号可视化交互界面
+- 🖥️ **React Dashboard / React 仪表盘**: Robinhood-style clean UI with real-time signal visualization / Robinhood 风格简洁界面，实时信号可视化
 - 🔌 **FastAPI Backend / FastAPI 后端**: REST API for signals, sources, and reports / 信号、数据源和报告的 REST API
-- 🔄 **Live Refresh / 实时刷新**: Manual and automatic data refresh capabilities / 手动和自动数据刷新功能
+- 🔄 **Live Refresh / 实时刷新**: Manual and automatic data refresh with TanStack Query / 使用 TanStack Query 实现手动和自动刷新
+- 📱 **Responsive Design / 响应式设计**: Mobile-friendly layout with collapsible sidebar / 移动端友好，可折叠侧边栏
 
 ### Operations / 运维功能
 - 🔒 **Dry-Run Mode / 测试模式**: Test without sending real emails / 测试运行不发送真实邮件
