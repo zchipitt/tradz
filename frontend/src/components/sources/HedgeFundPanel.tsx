@@ -16,8 +16,8 @@ export function HedgeFundPanel() {
     return <ErrorState message={data?.error || 'Failed to load hedge fund data'} />;
   }
 
-  const filings = data?.filings || [];
-  const notableFunds = data?.notable_funds || [];
+  const filings = data?.latest_filings || data?.filings || [];
+  const trackedFunds = data?.tracked_funds || 0;
 
   return (
     <div className="space-y-6">
@@ -36,29 +36,12 @@ export function HedgeFundPanel() {
           </div>
           <div className="bg-purple-50 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-purple-700">
-              {notableFunds.length}
+              {trackedFunds}
             </div>
             <div className="text-sm text-purple-600">Tracked Funds</div>
           </div>
         </div>
       </div>
-
-      {/* Notable funds being tracked */}
-      {notableFunds.length > 0 && (
-        <div>
-          <h3 className="font-semibold mb-3">Notable Funds Tracked</h3>
-          <div className="flex flex-wrap gap-2">
-            {notableFunds.map((fund, i) => (
-              <span
-                key={i}
-                className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
-              >
-                {fund}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Recent filings */}
       <div>

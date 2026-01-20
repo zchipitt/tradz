@@ -153,6 +153,72 @@ claude:
   fallback_to_template: true
 ```
 
+#### D. Cryptocurrency Configuration / 加密货币配置
+
+To enable crypto data, configure trading pairs in `config.yaml` / 要启用加密货币数据，需在 `config.yaml` 中配置交易对:
+
+```yaml
+crypto:
+  # Exchange to use (binance, coinbase, kraken) / 使用的交易所
+  exchange: "binance"
+  
+  # Trading pairs - MUST be a list, not commented out! / 交易对列表 - 必须是列表格式，不能注释掉！
+  pairs:
+    - BTC/USDT
+    - ETH/USDT
+    - SOL/USDT
+    - BNB/USDT
+    - ADA/USDT
+```
+
+**Common Issues / 常见问题:**
+- ❌ **"No pairs configured"**: Ensure `pairs` is a list, not commented out / 确保 `pairs` 是列表格式，未被注释
+- ❌ **Exchange not available**: Try changing `exchange` to `coinbase` or `kraken` / 尝试更换交易所为 coinbase 或 kraken
+- ❌ **Network issues in China / 中国网络问题**: Use VPN or switch to `kraken` exchange / 使用 VPN 或切换到 kraken 交易所
+
+#### E. News API Configuration / 新闻 API 配置
+
+News aggregation has two sources / 新闻聚合有两个来源:
+
+1. **Yahoo Finance (Default / 默认)** - Free, no API key needed / 免费，无需 API 密钥
+2. **NewsAPI (Optional / 可选)** - Provides more articles / 提供更多文章
+
+To enable NewsAPI / 启用 NewsAPI:
+
+```bash
+# 1. Get free API key from / 从以下网址获取免费 API 密钥:
+#    https://newsapi.org/register
+
+# 2. Add to .env file / 添加到 .env 文件:
+NEWSAPI_KEY=your-api-key-here
+```
+
+**Limitations / 限制:**
+- Free tier: 100 requests/day, 1 month old articles only / 免费版：每天100次请求，仅1个月内文章
+- If no NewsAPI key is set, only Yahoo Finance news will be shown / 未设置 NewsAPI 密钥时，仅显示 Yahoo Finance 新闻
+
+#### F. Polymarket Configuration / Polymarket 配置
+
+Polymarket uses free public APIs, no API key required / Polymarket 使用免费公共 API，无需 API 密钥.
+
+```yaml
+polymarket:
+  enabled: true
+  categories:
+    - Economics
+    - Crypto
+    - Business
+    - Politics
+  max_markets: 20  # Maximum markets to fetch / 最大获取市场数
+```
+
+**Troubleshooting / 故障排除:**
+- ❌ **No markets returned / 未返回市场数据**: 
+  - Check network connectivity / 检查网络连接
+  - Polymarket API may be temporarily unavailable / Polymarket API 可能暂时不可用
+  - In China, may require VPN / 在中国可能需要 VPN
+- ❌ **0 markets in category**: Some categories may have no active markets / 某些类别可能没有活跃市场
+
 ### 3. Claude Code CLI Setup (Recommended) / Claude Code CLI 设置（推荐）
 
 For AI-powered reports, install Claude Code CLI / 安装 Claude Code CLI 以启用 AI 报告:
@@ -485,17 +551,65 @@ pip install -r requirements.txt
 - Run again later (rate limits reset) / 稍后重试（限流会重置）
 - Check yfinance status / 检查 yfinance 状态: https://github.com/ranaroussi/yfinance
 
+### Problem / 问题: "No pairs configured" for crypto
+
+**Causes / 原因**:
+- Crypto pairs are commented out or not properly formatted in `config.yaml` / 加密货币交易对被注释或格式不正确
+
+**Solutions / 解决方案**:
+```yaml
+# ❌ Wrong (pairs commented out) / 错误（交易对被注释）:
+crypto:
+  exchange: "binance"
+  pairs:
+    # - BTC/USDT
+    # - ETH/USDT
+
+# ✅ Correct (pairs as active list) / 正确（交易对为活跃列表）:
+crypto:
+  exchange: "binance"
+  pairs:
+    - BTC/USDT
+    - ETH/USDT
+    - SOL/USDT
+```
+
 ### Problem / 问题: "No exchange found" for crypto
 
 **Causes / 原因**:
 - ccxt cannot connect to configured exchange / ccxt 无法连接配置的交易所
 - Exchange API is down / 交易所 API 宕机
-- Network issues / 网络问题
+- Network issues (especially in China) / 网络问题（尤其在中国）
 
 **Solutions / 解决方案**:
 - Change exchange in `config.yaml` (try 'coinbase' or 'kraken') / 在 `config.yaml` 中更换交易所
 - Check exchange status / 检查交易所状态: https://status.binance.com
+- Use VPN if in China / 在中国时使用 VPN
 - Run with different trading pairs / 尝试不同的交易对
+
+### Problem / 问题: News shows 0 articles
+
+**Causes / 原因**:
+- No NewsAPI key configured / 未配置 NewsAPI 密钥
+- Yahoo Finance news fetch failed / Yahoo Finance 新闻获取失败
+- Network issues / 网络问题
+
+**Solutions / 解决方案**:
+1. Get free NewsAPI key from https://newsapi.org/register / 从 NewsAPI 获取免费密钥
+2. Add to `.env`: `NEWSAPI_KEY=your-key-here` / 添加到 `.env` 文件
+3. Yahoo Finance is used as fallback - check if yfinance works / Yahoo Finance 作为备用，检查 yfinance 是否正常
+
+### Problem / 问题: Polymarket shows 0 markets
+
+**Causes / 原因**:
+- Polymarket API temporarily unavailable / Polymarket API 暂时不可用
+- Network issues (blocked in some regions) / 网络问题（某些地区被阻止）
+- No active markets in selected categories / 所选类别没有活跃市场
+
+**Solutions / 解决方案**:
+- Check if you can access https://polymarket.com in browser / 检查浏览器是否能访问 Polymarket
+- Use VPN if in China or restricted region / 在中国或受限地区使用 VPN
+- Wait and retry - API may have temporary issues / 等待重试 - API 可能有临时问题
 
 ### Problem / 问题: DuckDB database issues
 

@@ -39,7 +39,7 @@ crypto:
   exchange: "binance"
 
   # Trading pairs (format: BASE/QUOTE)
-  pairs: []
+  pairs: ["BTC/USDT","ETH/USDT","SOL/USDT","BNB/USDT","ADA/USDT","XRP/USDT","DOGE/USDT","AVAX/USDT","MATIC/USDT","DOT/USDT"]
     # - BTC/USDT    # Bitcoin
     # - ETH/USDT    # Ethereum
     # - BNB/USDT    # Binance Coin

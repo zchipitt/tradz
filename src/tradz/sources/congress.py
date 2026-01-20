@@ -40,17 +40,30 @@ class CongressDataSource:
             List of normalized trade records
         """
         all_trades = []
+        errors = []
         cutoff_date = datetime.now() - timedelta(days=self.lookback_days)
 
         # Fetch House trades
-        house_trades = self._fetch_house_trades(cutoff_date)
-        all_trades.extend(house_trades)
-        logger.info(f"Fetched {len(house_trades)} House trades")
+        try:
+            house_trades = self._fetch_house_trades(cutoff_date)
+            all_trades.extend(house_trades)
+            logger.info(f"Fetched {len(house_trades)} House trades")
+        except Exception as e:
+            logger.error(f"Failed to fetch House trades: {e}")
+            errors.append(f"House: {e}")
 
         # Fetch Senate trades
-        senate_trades = self._fetch_senate_trades(cutoff_date)
-        all_trades.extend(senate_trades)
-        logger.info(f"Fetched {len(senate_trades)} Senate trades")
+        try:
+            senate_trades = self._fetch_senate_trades(cutoff_date)
+            all_trades.extend(senate_trades)
+            logger.info(f"Fetched {len(senate_trades)} Senate trades")
+        except Exception as e:
+            logger.error(f"Failed to fetch Senate trades: {e}")
+            errors.append(f"Senate: {e}")
+
+        # If both failed, raise an exception to be caught by the aggregator
+        if not all_trades and errors:
+            raise Exception(f"Failed to fetch trades. Sources returned: {'; '.join(errors)}")
 
         # Sort by transaction date (newest first)
         all_trades.sort(
@@ -64,22 +77,16 @@ class CongressDataSource:
         """Fetch House of Representatives trades."""
         trades = []
 
-        try:
-            resp = self.client.get(self.HOUSE_API)
-            resp.raise_for_status()
-            data = resp.json()
+        resp = self.client.get(self.HOUSE_API)
+        resp.raise_for_status()
+        data = resp.json()
 
-            for trade in data:
-                trade_date = self._parse_date(trade.get('transaction_date'))
-                if trade_date and trade_date >= cutoff_date:
-                    normalized = self._normalize_house_trade(trade)
-                    if normalized:
-                        trades.append(normalized)
-
-        except httpx.HTTPError as e:
-            logger.error(f"Failed to fetch House trades: {e}")
-        except Exception as e:
-            logger.error(f"Error processing House trades: {e}")
+        for trade in data:
+            trade_date = self._parse_date(trade.get('transaction_date'))
+            if trade_date and trade_date >= cutoff_date:
+                normalized = self._normalize_house_trade(trade)
+                if normalized:
+                    trades.append(normalized)
 
         return trades
 
@@ -87,22 +94,16 @@ class CongressDataSource:
         """Fetch Senate trades."""
         trades = []
 
-        try:
-            resp = self.client.get(self.SENATE_API)
-            resp.raise_for_status()
-            data = resp.json()
+        resp = self.client.get(self.SENATE_API)
+        resp.raise_for_status()
+        data = resp.json()
 
-            for trade in data:
-                trade_date = self._parse_date(trade.get('transaction_date'))
-                if trade_date and trade_date >= cutoff_date:
-                    normalized = self._normalize_senate_trade(trade)
-                    if normalized:
-                        trades.append(normalized)
-
-        except httpx.HTTPError as e:
-            logger.error(f"Failed to fetch Senate trades: {e}")
-        except Exception as e:
-            logger.error(f"Error processing Senate trades: {e}")
+        for trade in data:
+            trade_date = self._parse_date(trade.get('transaction_date'))
+            if trade_date and trade_date >= cutoff_date:
+                normalized = self._normalize_senate_trade(trade)
+                if normalized:
+                    trades.append(normalized)
 
         return trades
 
