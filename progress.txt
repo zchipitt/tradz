@@ -16,6 +16,9 @@
 - Use `FactType` enum for fact type classification (PRICE, VOLUME, HEADLINE, POLITICIAN, etc.)
 - Fact extraction via `extract_facts(observation)` dispatches to source-specific extractors
 - Fact IDs use format: `{obs_id[:8]}_{fact_type}` for uniqueness
+- API pattern: routers in `api/routers/`, schemas in `api/schemas/`, services in `api/services/`
+- API tests use `from api.routers.X import router` and `TestClient(app)` for HTTP testing
+- Register new routers in both `api/routers/__init__.py` and `api/main.py`
 
 ---
 
@@ -109,4 +112,45 @@
   - Database schema already has `fact_entries JSON` column in observations table
   - The existing `FactTable` and `FactTableEntry` in models.py are used by report generation
   - All fact extractors return `List[FactTableEntry]` for consistency
+---
+
+## 2026-01-21 - US-004a
+- **What was implemented**: Events API endpoints for listing and retrieving events
+  - Created `api/schemas/events.py` with Pydantic schemas:
+    - `EventStatusFilter` and `EventSortBy` enums for query params
+    - `FourDScores` model for 4D score breakdown
+    - `EventListItem` for list responses with scores, status, observation_count
+    - `EventsListResponse` with pagination (total_count, offset, limit)
+    - `EventDetail` with full event info including observations and entity details
+    - `ObservationSummary` and `FactEntry` for timeline data
+  - Created `api/services/event_service.py` with EventService class:
+    - `get_events()` with status filtering (active/resolved/dismissed/all), sorting, pagination
+    - `get_event_by_id()` with observations and entity lookup
+    - Active status filters out snoozed events
+    - Attention score calculated inline: 0.3*anomaly + 0.3*catalyst + 0.25*flow + 0.15*confidence
+    - Pinned events sort to top when sorting by attention_score
+  - Created `api/routers/events.py` with two endpoints:
+    - `GET /api/events` with status, sort, limit, offset query params
+    - `GET /api/events/{event_id}` for event detail with observations
+  - Updated `api/main.py` and `api/routers/__init__.py` to register events router
+  - Added 24 unit tests covering all filter/sort/pagination combinations
+
+- **Files changed**:
+  - `api/schemas/events.py` (new)
+  - `api/services/event_service.py` (new)
+  - `api/routers/events.py` (new)
+  - `api/main.py` (added events_router)
+  - `api/routers/__init__.py` (exported events_router)
+  - `api/schemas/__init__.py` (exported event schemas)
+  - `tests/test_events_api.py` (new)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - API follows existing patterns: routers delegate to services, services query database
+  - Use `EventStatusFilter.ACTIVE` to filter for events with status 'new' or 'ongoing' that are not snoozed
+  - Attention score is calculated inline in SQL for sorting; use formula from Event.attention_score property
+  - FastAPI Query params support enums directly with validation
+  - Tests mock `event_service` in the router rather than the database directly
+  - The database has `event_observations` junction table for linking events to observations
+  - Use `from api.schemas.events import ...` for schema imports in tests
 ---
