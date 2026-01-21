@@ -10,6 +10,17 @@ from .sources import (
     PolymarketMarket,
     NewsArticle,
 )
+from .events import (
+    EventStatusFilter,
+    EventSortBy,
+    EventListItem,
+    EventsListResponse,
+    EventDetail,
+    FourDScores,
+    EntityBrief,
+    ObservationSummary,
+    FactEntry,
+)
 
 __all__ = [
     "Signal",
@@ -21,4 +32,13 @@ __all__ = [
     "HedgeFundFiling",
     "PolymarketMarket",
     "NewsArticle",
+    "EventStatusFilter",
+    "EventSortBy",
+    "EventListItem",
+    "EventsListResponse",
+    "EventDetail",
+    "FourDScores",
+    "EntityBrief",
+    "ObservationSummary",
+    "FactEntry",
 ]

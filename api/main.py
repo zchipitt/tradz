@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import get_settings
-from api.routers import signals_router, sources_router, reports_router
+from api.routers import signals_router, sources_router, reports_router, events_router
 
 settings = get_settings()
 
@@ -41,6 +41,7 @@ async def health_check():
 app.include_router(signals_router, prefix="/api/signals", tags=["signals"])
 app.include_router(sources_router, prefix="/api/sources", tags=["sources"])
 app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
+app.include_router(events_router, prefix="/api/events", tags=["events"])
 
 
 @app.get("/")
