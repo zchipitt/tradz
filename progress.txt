@@ -8,6 +8,11 @@
 - Coverage bonus: +5 per unique source, max +20
 - Events link to observations via `event_observations` table
 - Use `datetime.now(timezone.utc)` instead of deprecated `datetime.utcnow()`
+- LLM providers use abstract base class pattern with `generate()` method
+- Title generation returns `tuple[str, str]` for (title, source) where source is 'llm' or 'template'
+- Use `get_default_provider(config)` to auto-detect available LLM provider
+- OpenRouter API key: `OPENROUTER_API_KEY` env var
+- Tests use `from src.tradz.events import ...` pattern for imports
 
 ---
 
@@ -36,4 +41,36 @@
   - EventBuilder._get_all_observations_for_event() is a stub - needs DB query implementation
   - Test imports use `from src.tradz.events.builder import ...` pattern
   - pytest needs to be installed: `pip install pytest`
+---
+
+## 2026-01-21 - US-001c
+- **What was implemented**: LLM title generation with fallback
+  - Created `src/tradz/events/llm_provider.py` with LLMProvider abstraction
+  - Implemented ClaudeCLIProvider for Claude Code CLI (`claude -p` command)
+  - Implemented OpenRouterProvider for OpenRouter API calls (supports multiple models)
+  - Implemented MockProvider for testing scenarios
+  - Created `src/tradz/events/title_generator.py` with TitleGenerator class
+  - Implemented `generate_title()` that returns `(title, source)` tuple
+  - Title format: '[Entity] [Action Verb] [Key Detail]' (e.g., 'AAPL Surges 8% on Strong Earnings Beat')
+  - Template fallback generates type-specific titles when LLM fails
+  - Configurable timeout (default 10s), max 2 retries
+  - Added 63 unit tests covering all providers and scenarios
+
+- **Files changed**:
+  - `src/tradz/events/__init__.py` (updated exports)
+  - `src/tradz/events/llm_provider.py` (new)
+  - `src/tradz/events/title_generator.py` (new)
+  - `tests/test_llm_provider.py` (new)
+  - `tests/test_title_generator.py` (new)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - LLMProvider uses abstract base class pattern - extend by implementing `generate()` and `name` property
+  - `get_default_provider(config)` auto-selects: OpenRouter (if API key) > Claude CLI (if available)
+  - MockProvider useful for testing - can set `should_fail=True`, `fail_with=Exception`, `delay=seconds`
+  - Title cleanup handles: 'Title:' prefix, quotes, multi-line responses, truncation >100 chars
+  - Template fallback generates type-specific titles based on event_type and observation data
+  - Event model already has `title_template` and `title_source` fields ready
+  - httpx used for OpenRouter API (already in requirements)
+  - Use `provider.is_available()` to check availability before `generate()`
 ---
