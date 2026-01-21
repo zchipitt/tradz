@@ -1,0 +1,650 @@
+{
+  "project": "Tradz vNext",
+  "branchName": "ralph/tradz-vnext-events",
+  "description": "Event-driven daily trading brief system with 4D scoring, evidence timelines, and actionable trade suggestions",
+  "userStories": [
+    {
+      "id": "US-001a",
+      "title": "Extend DuckDB schema for events system",
+      "description": "As a developer, I need the database schema extended to support events, observations with richer metadata, and daily briefs.",
+      "acceptanceCriteria": [
+        "Add columns to events table: event_type, parent_event_id, last_update_at, start_at, resolved_at, pinned, snoozed_until, dismissed_reason, title_template, title_source",
+        "Add event_id column to signals table",
+        "Add columns to observations table: source_url, title, summary, raw_payload, fact_entries, entity_mapping_confidence, payload_truncated",
+        "Create daily_briefs table with id, date, summary_json, report_path_md, report_path_json, generation_method, created_at, run_id",
+        "Create event_type_history table with id, event_id, old_type, new_type, changed_at, trigger_observation_id",
+        "Migration runs successfully without data loss",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Implemented in commit d6dd8c7. Added 4D scores to events, extended EventType/EventStatus enums, created DailyBrief and EventTypeHistory models."
+    },
+    {
+      "id": "US-001b",
+      "title": "Implement EventBuilder core aggregation logic",
+      "description": "As a developer, I need an EventBuilder class that aggregates observations into events by entity_id within a configurable time window.",
+      "acceptanceCriteria": [
+        "Create EventBuilder class in src/tradz/events/builder.py",
+        "Implement build_events() that groups observations by entity_id within 72h window (configurable)",
+        "Implement event_type classification: market_anomaly, catalyst_news, catalyst_filing, flow_congress, flow_13f, prediction_shift, mixed, uncertain",
+        "Calculate attention_score from 4D scores: 0.3*anomaly + 0.3*catalyst + 0.25*flow + 0.15*confidence + coverage_bonus",
+        "Coverage bonus: +5 per independent source, max +20",
+        "Support Primary/Secondary event hierarchy via parent_event_id",
+        "Unit tests cover all event_type classification rules",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Implemented in commit c592291. Created EventBuilder class with 72h window grouping, event_type classification, 4D scoring with coverage bonus, and Primary/Secondary hierarchy. 34 unit tests pass."
+    },
+    {
+      "id": "US-001c",
+      "title": "Implement LLM title generation with fallback",
+      "description": "As a developer, I need event titles generated via LLM with template fallback when LLM fails.",
+      "acceptanceCriteria": [
+        "Create LLMProvider abstraction supporting ClaudeCLIProvider, OpenRouterProvider, MockProvider",
+        "Implement generate_title() that calls LLM with event context",
+        "Title format: '[Entity] [Action Verb] [Key Detail]' e.g. 'AAPL Surges 8% on Strong Earnings Beat'",
+        "Implement template fallback: '{symbol}: {event_type} ({attention_score})' when LLM fails",
+        "Store title_source as 'llm' or 'template' in events table",
+        "LLM timeout configurable (default 10s), max 2 retries",
+        "Unit tests cover LLM success, failure, and fallback scenarios",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-001d",
+      "title": "Implement FactTableEntry extraction",
+      "description": "As a developer, I need observations to extract structured FactTableEntry data to prevent LLM fabrication.",
+      "acceptanceCriteria": [
+        "Define FactTableEntry dataclass with fact_id, fact_type, label, value, unit, source, timestamp, observation_id",
+        "Implement extract_facts() for each observation source type",
+        "Congress source extracts: politician, party, trade_type, amount_range, ticker, trade_date",
+        "SEC source extracts: filing_type, filed_date, form_url, key_items",
+        "News source extracts: headline, publisher, published_at, sentiment_score",
+        "Market source extracts: price, change_pct, volume, volume_vs_avg",
+        "Store fact_entries JSON in observations table",
+        "Unit tests verify fact extraction for each source type",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004a",
+      "title": "Implement Events API endpoints",
+      "description": "As a developer, I need REST API endpoints to retrieve events with filtering and pagination.",
+      "acceptanceCriteria": [
+        "GET /api/events returns event list with status, sort, limit, offset params",
+        "GET /api/events/{event_id} returns event detail with timeline and facts",
+        "Response includes: event_id, entity_id, title, event_type, status, attention_score, 4D scores, observation_count, last_update_at",
+        "Support status filter: active (new+ongoing), resolved, dismissed, all",
+        "Support sort: attention_score desc (default), last_update_at desc, created_at desc",
+        "Pagination with limit (default 20, max 100) and offset",
+        "API tests cover all filter/sort combinations",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007a",
+      "title": "Implement System Status API",
+      "description": "As a developer, I need an API endpoint that returns data source health status.",
+      "acceptanceCriteria": [
+        "GET /api/system/status returns health status for all data sources",
+        "Response includes per-source: name, status (ok/degraded/error), last_success_at, last_error, record_count_24h",
+        "Response includes overall: total_sources, healthy_count, degraded_count, error_count",
+        "Status determined by: ok if success in last hour, degraded if success in last 24h, error otherwise",
+        "Include data freshness indicator per source",
+        "API tests verify status calculation logic",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004b",
+      "title": "Implement Signal Inbox UI component",
+      "description": "As a user, I want to see a list of active events in the Signal Inbox on the Today page.",
+      "acceptanceCriteria": [
+        "SignalInbox component displays events from GET /api/events",
+        "Tab switcher for Active/Resolved/All views",
+        "Empty state shows helpful message when no events",
+        "Loading state with skeleton placeholders",
+        "Error state with retry button",
+        "Auto-refresh every 5 minutes via TanStack Query",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Implement EventCard UI component",
+      "description": "As a user, I want to see event details in a card format with scores and evidence count.",
+      "acceptanceCriteria": [
+        "EventCard displays: title, entity chips, 4D score bars, evidence count badge, last_update_at, action_label",
+        "Score bars show anomaly (red), catalyst (blue), flow (green), confidence (gray)",
+        "Action label shows Act (green), Investigate (yellow), or Monitor (gray) based on confidence",
+        "Entity chips are clickable and show symbol + exchange/rank",
+        "Card is clickable to navigate to /events/{event_id}",
+        "Hover state shows subtle elevation",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007b",
+      "title": "Implement System Status UI component",
+      "description": "As a user, I want to see data source health status on the Today page.",
+      "acceptanceCriteria": [
+        "SystemStatus component displays health grid from GET /api/system/status",
+        "Each source shows: icon, name, status indicator (green/yellow/red dot), last update time",
+        "Overall summary shows X/Y sources healthy",
+        "Clicking a degraded/error source shows error details in tooltip",
+        "Collapsible to save space, default expanded",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Implement Event Card user actions",
+      "description": "As a user, I want to pin, snooze, dismiss, or resolve events from the card.",
+      "acceptanceCriteria": [
+        "POST /api/events/{event_id}/actions accepts action: pin, unpin, snooze, dismiss, resolve",
+        "Snooze accepts duration_hours parameter (default 24)",
+        "Dismiss accepts optional reason parameter",
+        "Actions persist to DuckDB events table",
+        "EventCard shows action menu on hover/click with Pin, Snooze 24h, Dismiss, Resolve options",
+        "Pinned events show pin icon and sort to top",
+        "Snoozed events hidden until snooze expires",
+        "Optimistic UI updates with rollback on error",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008a",
+      "title": "Implement Event Detail page route and layout",
+      "description": "As a user, I want to view detailed information about an event on a dedicated page.",
+      "acceptanceCriteria": [
+        "Create /events/{event_id} route in frontend",
+        "Page layout: Header with title and back button, main content area, right sidebar for actions",
+        "Header shows event title, entity badges, status badge, last updated time",
+        "Loading state with skeleton",
+        "404 state when event not found",
+        "Responsive layout: sidebar below main on mobile",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008b",
+      "title": "Implement 4D Score Breakdown component",
+      "description": "As a user, I want to see detailed breakdown of the 4D scores on the event detail page.",
+      "acceptanceCriteria": [
+        "ScoreBreakdown component shows all 4 dimensions with progress bars",
+        "Each dimension shows: label, score value, contributing factors",
+        "Anomaly shows: price change %, volume vs avg, volatility",
+        "Catalyst shows: news count, filing count, polymarket shift",
+        "Flow shows: congress trade count, 13F position changes",
+        "Confidence shows: data quality, source count, freshness",
+        "Attention score shown prominently at top with formula tooltip",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009a",
+      "title": "Implement Evidence Timeline API",
+      "description": "As a developer, I need an API to return chronological observations for an event.",
+      "acceptanceCriteria": [
+        "GET /api/events/{event_id}/timeline returns observations sorted by timestamp desc",
+        "Each observation includes: id, source, observation_type, timestamp, title, summary, fact_entries, source_url",
+        "Support source filter param: all, market, news, sec, congress, 13f, polymarket",
+        "Support pagination with limit and offset",
+        "Include total_count in response",
+        "API tests cover filtering and pagination",
+        "Typecheck passes"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009b",
+      "title": "Implement Evidence Timeline UI component",
+      "description": "As a user, I want to see a chronological timeline of evidence supporting an event.",
+      "acceptanceCriteria": [
+        "EvidenceTimeline component displays observations in reverse chronological order",
+        "Each entry shows: source icon, timestamp, title, summary preview",
+        "Source filter chips: All, Market, News, SEC, Congress, 13F, Polymarket",
+        "Expandable entries show full details and fact_entries",
+        "Source URL links open in new tab",
+        "Load more button for pagination",
+        "Empty state when no observations match filter",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Implement FactTable Spotlight component",
+      "description": "As a user, I want to see key facts extracted from evidence without LLM fabrication.",
+      "acceptanceCriteria": [
+        "FactSpotlight component displays FactTableEntry data grouped by fact_type",
+        "Groups: Price & Volume, Filings, News, Insider Activity, Predictions",
+        "Each fact shows: label, value with unit, source attribution, timestamp",
+        "Facts are clickable to highlight related observation in timeline",
+        "No LLM-generated content in this component - only extracted facts",
+        "Citation format: [source_name, timestamp]",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Implement Trade Idea generation with quality gates",
+      "description": "As a user, I want actionable trade ideas that pass quality gates, or research plans when gates fail.",
+      "acceptanceCriteria": [
+        "Implement QualityGate evaluation with configurable thresholds",
+        "Gates: min_confidence (70), min_sources (2), min_anomaly (50), min_catalyst (40), has_invalidation (true)",
+        "Trade Idea includes: direction, entry_zone, target, stop_loss, invalidation condition, time_horizon",
+        "Research Plan includes: questions_to_verify, evidence_to_watch, next_check_date",
+        "Gate evaluation returns: passed (bool), gate_score (0-100), failed_gates list, improvement_suggestions",
+        "Output type determined by gate results: trade_idea if all pass, research_plan otherwise",
+        "Store recommendation in events table",
+        "Typecheck passes"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Implement Action Panel UI component",
+      "description": "As a user, I want to see trade ideas or research plans in the event detail page.",
+      "acceptanceCriteria": [
+        "ActionPanel component displays Trade Idea or Research Plan based on gate results",
+        "Trade Idea view shows: direction badge, entry/target/stop levels, invalidation condition, confidence meter",
+        "Research Plan view shows: questions checklist, evidence to watch, next review date",
+        "Gate evaluation summary shows which gates passed/failed with progress bars",
+        "Improvement suggestions shown for failed gates",
+        "Copy to clipboard button for sharing",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013a",
+      "title": "Implement Daily Brief data model and generation",
+      "description": "As a developer, I need a structured Daily Brief generation pipeline.",
+      "acceptanceCriteria": [
+        "Define DailyBrief dataclass with: date, executive_summary, top_events, trade_ideas, research_ideas, open_loops, data_quality",
+        "Implement DailyBriefGenerator class with generate() method",
+        "Executive summary limited to 3 sentences, mentions top 3 events",
+        "Top events section includes top 5 by attention_score",
+        "Trade ideas from events with passed quality gates",
+        "Research ideas from events with failed gates but high potential",
+        "Data quality section summarizes source health",
+        "Generation method stored: 'claude' or 'template'",
+        "Typecheck passes"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013b",
+      "title": "Implement Daily Brief LLM narrative with fallback",
+      "description": "As a developer, I need LLM-generated narratives for daily briefs with template fallback.",
+      "acceptanceCriteria": [
+        "LLM generates executive_summary from FactTable data (no fabrication)",
+        "LLM generates natural language descriptions for each section",
+        "Template fallback generates bullet-point format when LLM fails",
+        "Template uses only FactTableEntry data for content",
+        "Fallback triggered on: LLM timeout, API error, empty response",
+        "Generation time logged for monitoring",
+        "Unit tests cover LLM and template paths",
+        "Typecheck passes"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013c",
+      "title": "Implement Daily Brief persistence",
+      "description": "As a developer, I need daily briefs saved to files and database.",
+      "acceptanceCriteria": [
+        "Save markdown report to reports/{date}.md",
+        "Save JSON data to reports/{date}.json",
+        "Insert record into daily_briefs table with paths and metadata",
+        "run_id links to run_history table",
+        "Idempotent: regenerating same date overwrites files and updates DB record",
+        "File paths use ISO date format: YYYY-MM-DD",
+        "Typecheck passes"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Implement Daily Brief API endpoint",
+      "description": "As a developer, I need an API to retrieve daily briefs by date.",
+      "acceptanceCriteria": [
+        "GET /api/briefs/{date} returns structured brief for given date",
+        "GET /api/briefs/latest returns most recent brief",
+        "GET /api/briefs returns list of available briefs with dates",
+        "Response includes all DailyBrief fields plus generation metadata",
+        "404 when brief not found for date",
+        "Date format: YYYY-MM-DD",
+        "API tests cover all endpoints",
+        "Typecheck passes"
+      ],
+      "priority": 21,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Implement Daily Brief UI component",
+      "description": "As a user, I want to see the daily brief on the Today page.",
+      "acceptanceCriteria": [
+        "DailyBrief component fetches from GET /api/briefs/latest",
+        "Shows executive summary prominently at top",
+        "Collapsible sections: Top Events, Trade Ideas, Research Ideas, Open Loops, Data Quality",
+        "Trade Ideas show entry/target/stop with copy button",
+        "Link to full report in Reports page",
+        "SEND EMAIL button triggers email (existing emailer)",
+        "Loading and error states",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 22,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Implement Reports archive page",
+      "description": "As a user, I want to browse historical daily briefs in the Reports page.",
+      "acceptanceCriteria": [
+        "Reports page shows list of available briefs from GET /api/briefs",
+        "List shows: date, generation method, event count, top entity",
+        "Clicking a report shows full brief in Markdown viewer",
+        "Markdown viewer renders tables, code blocks, links properly",
+        "Date range filter for browsing history",
+        "Empty state when no reports available",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 23,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Ensure email content matches UI brief",
+      "description": "As a user, I want the emailed brief to match what I see in the UI.",
+      "acceptanceCriteria": [
+        "Email uses same DailyBrief data as UI",
+        "Email template renders all sections: summary, events, ideas, loops, quality",
+        "HTML email with proper styling for tables and lists",
+        "Plain text fallback included",
+        "Subject line: 'Tradz Daily Brief - {date}'",
+        "Test by comparing email output to API response",
+        "Typecheck passes"
+      ],
+      "priority": 24,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Implement Event state machine",
+      "description": "As a developer, I need automatic event state transitions based on activity.",
+      "acceptanceCriteria": [
+        "Events start in 'new' state on creation",
+        "Transition to 'ongoing' when new observations added after 1h",
+        "Transition to 'stale' when no observations for 72h",
+        "User actions set: 'resolved' or 'dismissed'",
+        "Resolved/dismissed events not auto-reactivated (configurable exception for major new evidence)",
+        "State history tracked in event_type_history table",
+        "Scheduled job runs state transitions hourly",
+        "Typecheck passes"
+      ],
+      "priority": 25,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Persist user actions to database",
+      "description": "As a developer, I need all user actions (pin/snooze/dismiss/resolve) persisted.",
+      "acceptanceCriteria": [
+        "Pin action sets pinned=true in events table",
+        "Unpin action sets pinned=false",
+        "Snooze action sets snoozed_until timestamp",
+        "Dismiss action sets status='dismissed' and dismissed_reason",
+        "Resolve action sets status='resolved' and resolved_at",
+        "All actions logged with timestamp and user context",
+        "Queries filter out snoozed events (snoozed_until > now)",
+        "Typecheck passes"
+      ],
+      "priority": 26,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Implement Compare Yesterday API",
+      "description": "As a developer, I need an API to compare today's brief with yesterday's.",
+      "acceptanceCriteria": [
+        "GET /api/reports/diff returns comparison between two briefs",
+        "Query params: date (default today), baseline (default yesterday)",
+        "Response includes: new_events, resolved_events, score_changes, new_trade_ideas, closed_loops",
+        "Score changes show delta and direction for each event",
+        "Handle missing baseline gracefully (return today only)",
+        "Typecheck passes"
+      ],
+      "priority": 27,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-021",
+      "title": "Implement Compare Yesterday UI",
+      "description": "As a user, I want to see what changed since yesterday at a glance.",
+      "acceptanceCriteria": [
+        "CompareYesterday component on Today page (collapsible)",
+        "Shows: X new events, Y resolved, Z score changes",
+        "New events highlighted with 'NEW' badge",
+        "Score changes show up/down arrows with delta",
+        "Resolved events shown with strikethrough",
+        "Toggle to show full diff details",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 28,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-022",
+      "title": "Implement Open Loops data model",
+      "description": "As a developer, I need to track open loops (unresolved questions) across days.",
+      "acceptanceCriteria": [
+        "Define OpenLoop dataclass: loop_id, event_id, question, created_at, status, progress_notes, resolved_at",
+        "Status enum: open, in_progress, resolved, stale",
+        "Create open_loops table in DuckDB",
+        "Link loops to events via event_id",
+        "Auto-create loops from Research Plan questions",
+        "Typecheck passes"
+      ],
+      "priority": 29,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-023",
+      "title": "Implement Open Loops API",
+      "description": "As a developer, I need API endpoints for managing open loops.",
+      "acceptanceCriteria": [
+        "GET /api/loops returns all open loops with status filter",
+        "GET /api/loops/{loop_id} returns loop details with progress history",
+        "POST /api/loops creates new loop manually",
+        "PATCH /api/loops/{loop_id} updates status or adds progress note",
+        "DELETE /api/loops/{loop_id} removes loop",
+        "Include related event summary in response",
+        "Typecheck passes"
+      ],
+      "priority": 30,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-024",
+      "title": "Implement Open Loops UI",
+      "description": "As a user, I want to track and update open loops from the UI.",
+      "acceptanceCriteria": [
+        "OpenLoops component in Daily Brief section",
+        "Shows checklist of open questions with status indicators",
+        "Checkbox to mark loop as resolved",
+        "Text input to add progress notes",
+        "Link to related event detail page",
+        "Count badge shows N open loops",
+        "Stale loops (>7 days) highlighted in yellow",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 31,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-025",
+      "title": "Implement configurable Quality Gate thresholds",
+      "description": "As a user, I want to configure quality gate thresholds via settings.",
+      "acceptanceCriteria": [
+        "GET /api/settings/gates returns current gate thresholds",
+        "PUT /api/settings/gates updates thresholds",
+        "Thresholds: min_confidence, min_sources, min_anomaly, min_catalyst, require_invalidation",
+        "Validate thresholds are in valid ranges (0-100 for scores)",
+        "Store in config.yaml or database",
+        "Changes take effect immediately for new evaluations",
+        "Typecheck passes"
+      ],
+      "priority": 32,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-025b",
+      "title": "Implement Quality Gate settings UI",
+      "description": "As a user, I want a Settings page to configure quality gate thresholds.",
+      "acceptanceCriteria": [
+        "Add Settings page accessible from navigation",
+        "Quality Gates section with slider inputs for each threshold",
+        "Sliders show current value and range",
+        "Reset to Defaults button restores original values",
+        "Save button persists changes via API",
+        "Preview panel shows how changes affect sample event",
+        "Typecheck passes",
+        "Verify in browser  "
+      ],
+      "priority": 33,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-026",
+      "title": "Extend Entity model for multi-asset support",
+      "description": "As a developer, I need the Entity model to support Equity, Crypto, and Polymarket asset types.",
+      "acceptanceCriteria": [
+        "Add entity_type field: equity, crypto, polymarket, index, commodity",
+        "Add identifiers dict for asset-specific IDs (ticker/cik for equity, coingecko_id for crypto, market_id for polymarket)",
+        "Add metadata dict for asset-specific data (sector for equity, category for crypto, end_date for polymarket)",
+        "Add related_entities list for cross-asset relationships",
+        "Implement asset type detection in EntityResolver (_looks_like_crypto, _looks_like_polymarket)",
+        "Handle identifier conflicts (e.g., LINK could be equity or crypto)",
+        "Typecheck passes"
+      ],
+      "priority": 34,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-027",
+      "title": "Implement multi-asset scoring",
+      "description": "As a developer, I need unified scoring logic for different asset types.",
+      "acceptanceCriteria": [
+        "Create UnifiedScorer with type-specific scorers: EquityScorer, CryptoScorer, PolymarketScorer",
+        "CryptoScorer anomaly: price (35%) + volume (25%) + onchain activity (25%) + funding rate (15%)",
+        "CryptoScorer flow: exchange flow (40%) + whale activity (35%) + institutional (25%)",
+        "PolymarketScorer anomaly: price move (50%) + volume spike (30%) + poll divergence (20%)",
+        "PolymarketScorer flow: large trades (50%) + liquidity change (30%) + smart money (20%)",
+        "Normalize scores to 0-100 using percentile ranking for cross-asset comparability",
+        "Asset-specific attention_score weights (crypto heavier on anomaly, polymarket heavier on catalyst)",
+        "Typecheck passes"
+      ],
+      "priority": 35,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-028",
+      "title": "Implement multi-asset UI components",
+      "description": "As a user, I want to see Equity, Crypto, and Polymarket events in the unified Signal Inbox.",
+      "acceptanceCriteria": [
+        "AssetTypeFilter component with multi-select: All, Equity, Crypto, Polymarket",
+        "Filter shows count per asset type",
+        "EntityBadge shows asset-specific icon and metadata (exchange for equity, rank for crypto, category for polymarket)",
+        "EventCard shows asset-specific metrics (EquityMetrics, CryptoMetrics, PolymarketMetrics)",
+        "MarketSnapshot shows collapsible sections per asset type with top 5 each",
+        "Related Assets section in Event Detail for cross-asset relationships",
+        "Typecheck passes",
+        "Verify in browser"
+      ],
+      "priority": 36,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
