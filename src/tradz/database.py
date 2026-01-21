@@ -20,6 +20,8 @@ from .models import (
     Observation, SourceType,
     Event, EventType, EventStatus,
     Signal,
+    DailyBrief,
+    EventTypeHistory,
 )
 
 logger = logging.getLogger(__name__)
@@ -107,6 +109,12 @@ class Database:
                 quality_score DOUBLE DEFAULT 1.0,
                 summary VARCHAR,
                 payload JSON,
+                source_url VARCHAR,
+                title VARCHAR,
+                raw_payload JSON,
+                fact_entries JSON,
+                entity_mapping_confidence DOUBLE DEFAULT 1.0,
+                payload_truncated BOOLEAN DEFAULT FALSE,
                 FOREIGN KEY (entity_id) REFERENCES entities(id)
             )
         """)
@@ -130,11 +138,23 @@ class Database:
                 primary_ticker VARCHAR,
                 title VARCHAR NOT NULL,
                 event_type VARCHAR NOT NULL,
-                status VARCHAR DEFAULT 'open',
+                status VARCHAR DEFAULT 'new',
                 confidence DOUBLE DEFAULT 0.5,
                 start_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (primary_entity_id) REFERENCES entities(id)
+                resolved_at TIMESTAMP,
+                parent_event_id VARCHAR,
+                pinned BOOLEAN DEFAULT FALSE,
+                snoozed_until TIMESTAMP,
+                dismissed_reason VARCHAR,
+                title_template VARCHAR,
+                title_source VARCHAR DEFAULT 'template',
+                anomaly_score DOUBLE DEFAULT 50.0,
+                catalyst_score DOUBLE DEFAULT 50.0,
+                flow_score DOUBLE DEFAULT 50.0,
+                confidence_score DOUBLE DEFAULT 50.0,
+                FOREIGN KEY (primary_entity_id) REFERENCES entities(id),
+                FOREIGN KEY (parent_event_id) REFERENCES events(id)
             )
         """)
         
@@ -205,8 +225,90 @@ class Database:
                 metadata JSON
             )
         """)
-        
+
+        # Daily briefs table (for storing generated reports)
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS daily_briefs (
+                id VARCHAR PRIMARY KEY,
+                date DATE NOT NULL,
+                summary_json JSON,
+                report_path_md VARCHAR,
+                report_path_json VARCHAR,
+                generation_method VARCHAR DEFAULT 'template',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                run_id VARCHAR,
+                FOREIGN KEY (run_id) REFERENCES run_history(run_id)
+            )
+        """)
+
+        # Create index for daily_briefs date lookup
+        self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_daily_briefs_date ON daily_briefs(date)
+        """)
+
+        # Event type history table (for tracking event type changes)
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS event_type_history (
+                id VARCHAR PRIMARY KEY,
+                event_id VARCHAR NOT NULL,
+                old_type VARCHAR,
+                new_type VARCHAR NOT NULL,
+                changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                trigger_observation_id VARCHAR,
+                FOREIGN KEY (event_id) REFERENCES events(id),
+                FOREIGN KEY (trigger_observation_id) REFERENCES observations(id)
+            )
+        """)
+
+        # Create index for event_type_history event lookups
+        self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_event_type_history_event ON event_type_history(event_id)
+        """)
+
+        # Run migrations to add new columns to existing tables
+        self._run_migrations()
+
         logger.info("Database schema initialized successfully")
+
+    def _run_migrations(self):
+        """
+        Run schema migrations for adding new columns to existing tables.
+
+        This handles the case where the database already exists and we need
+        to add new columns without losing data.
+        """
+        migrations = [
+            # Observations table new columns
+            ("observations", "source_url", "VARCHAR"),
+            ("observations", "title", "VARCHAR"),
+            ("observations", "raw_payload", "JSON"),
+            ("observations", "fact_entries", "JSON"),
+            ("observations", "entity_mapping_confidence", "DOUBLE DEFAULT 1.0"),
+            ("observations", "payload_truncated", "BOOLEAN DEFAULT FALSE"),
+            # Events table new columns
+            ("events", "resolved_at", "TIMESTAMP"),
+            ("events", "parent_event_id", "VARCHAR"),
+            ("events", "pinned", "BOOLEAN DEFAULT FALSE"),
+            ("events", "snoozed_until", "TIMESTAMP"),
+            ("events", "dismissed_reason", "VARCHAR"),
+            ("events", "title_template", "VARCHAR"),
+            ("events", "title_source", "VARCHAR DEFAULT 'template'"),
+            ("events", "anomaly_score", "DOUBLE DEFAULT 50.0"),
+            ("events", "catalyst_score", "DOUBLE DEFAULT 50.0"),
+            ("events", "flow_score", "DOUBLE DEFAULT 50.0"),
+            ("events", "confidence_score", "DOUBLE DEFAULT 50.0"),
+        ]
+
+        for table, column, col_type in migrations:
+            try:
+                self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+                logger.info(f"Added column {column} to {table}")
+            except duckdb.CatalogException:
+                # Column already exists, skip
+                pass
+            except Exception as e:
+                # Log but continue - might be a different error
+                logger.debug(f"Migration for {table}.{column} skipped: {e}")
     
     # =========================================================================
     # Entity Operations
@@ -280,9 +382,11 @@ class Database:
         self.conn.execute("""
             INSERT INTO observations (
                 id, source, entity_id, entity_ticker, effective_at, observed_at,
-                freshness_score, quality_score, summary, payload
+                freshness_score, quality_score, summary, payload,
+                source_url, title, raw_payload, fact_entries,
+                entity_mapping_confidence, payload_truncated
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (id) DO NOTHING
         """, [
             str(obs.id),
@@ -295,6 +399,12 @@ class Database:
             obs.quality_score,
             obs.summary,
             json.dumps(obs.payload),
+            obs.source_url,
+            obs.title,
+            json.dumps(obs.raw_payload) if obs.raw_payload else None,
+            json.dumps(obs.fact_entries) if obs.fact_entries else None,
+            obs.entity_mapping_confidence,
+            obs.payload_truncated,
         ])
         return str(obs.id)
     
@@ -348,7 +458,8 @@ class Database:
     
     def _row_to_observation(self, row) -> Observation:
         """Convert database row to Observation object."""
-        return Observation(
+        # Handle both old and new schema (columns may be at different positions)
+        obs = Observation(
             id=UUID(row[0]),
             source=SourceType(row[1]),
             entity_id=UUID(row[2]) if row[2] else None,
@@ -360,6 +471,15 @@ class Database:
             summary=row[8],
             payload=json.loads(row[9]) if row[9] else {},
         )
+        # New fields (may not exist in older rows)
+        if len(row) > 10:
+            obs.source_url = row[10]
+            obs.title = row[11]
+            obs.raw_payload = json.loads(row[12]) if row[12] else None
+            obs.fact_entries = json.loads(row[13]) if row[13] else []
+            obs.entity_mapping_confidence = row[14] if row[14] is not None else 1.0
+            obs.payload_truncated = row[15] if row[15] is not None else False
+        return obs
     
     # =========================================================================
     # Event Operations
@@ -370,13 +490,26 @@ class Database:
         self.conn.execute("""
             INSERT INTO events (
                 id, primary_entity_id, primary_ticker, title, event_type,
-                status, confidence, start_at, last_update_at
+                status, confidence, start_at, last_update_at, resolved_at,
+                parent_event_id, pinned, snoozed_until, dismissed_reason,
+                title_template, title_source, anomaly_score, catalyst_score,
+                flow_score, confidence_score
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (id) DO UPDATE SET
                 status = EXCLUDED.status,
                 confidence = EXCLUDED.confidence,
-                last_update_at = EXCLUDED.last_update_at
+                last_update_at = EXCLUDED.last_update_at,
+                resolved_at = EXCLUDED.resolved_at,
+                pinned = EXCLUDED.pinned,
+                snoozed_until = EXCLUDED.snoozed_until,
+                dismissed_reason = EXCLUDED.dismissed_reason,
+                title_template = EXCLUDED.title_template,
+                title_source = EXCLUDED.title_source,
+                anomaly_score = EXCLUDED.anomaly_score,
+                catalyst_score = EXCLUDED.catalyst_score,
+                flow_score = EXCLUDED.flow_score,
+                confidence_score = EXCLUDED.confidence_score
         """, [
             str(event.id),
             str(event.primary_entity_id) if event.primary_entity_id else None,
@@ -387,6 +520,17 @@ class Database:
             event.confidence,
             event.start_at,
             event.last_update_at,
+            event.resolved_at,
+            str(event.parent_event_id) if event.parent_event_id else None,
+            event.pinned,
+            event.snoozed_until,
+            event.dismissed_reason,
+            event.title_template,
+            event.title_source,
+            event.anomaly_score,
+            event.catalyst_score,
+            event.flow_score,
+            event.confidence_score,
         ])
         return str(event.id)
     
@@ -399,11 +543,10 @@ class Database:
         """, [str(event_id), str(observation_id)])
     
     def get_open_events(self) -> List[Event]:
-        """Get all events with status 'open'."""
+        """Get all events with status 'open' or 'new' or 'ongoing'."""
         results = self.conn.execute("""
-            SELECT id, primary_entity_id, primary_ticker, title, event_type,
-                   status, confidence, start_at, last_update_at
-            FROM events WHERE status = 'open'
+            SELECT * FROM events
+            WHERE status IN ('open', 'new', 'ongoing')
             ORDER BY last_update_at DESC
         """).fetchall()
         return [self._row_to_event(r) for r in results]
@@ -429,7 +572,7 @@ class Database:
     
     def _row_to_event(self, row) -> Event:
         """Convert database row to Event object."""
-        return Event(
+        event = Event(
             id=UUID(row[0]),
             primary_entity_id=UUID(row[1]) if row[1] else None,
             primary_ticker=row[2],
@@ -440,6 +583,20 @@ class Database:
             start_at=row[7],
             last_update_at=row[8],
         )
+        # New fields (handle both old and new schema)
+        if len(row) > 9:
+            event.resolved_at = row[9]
+            event.parent_event_id = UUID(row[10]) if row[10] else None
+            event.pinned = row[11] if row[11] is not None else False
+            event.snoozed_until = row[12]
+            event.dismissed_reason = row[13]
+            event.title_template = row[14]
+            event.title_source = row[15] if row[15] else "template"
+            event.anomaly_score = row[16] if row[16] is not None else 50.0
+            event.catalyst_score = row[17] if row[17] is not None else 50.0
+            event.flow_score = row[18] if row[18] is not None else 50.0
+            event.confidence_score = row[19] if row[19] is not None else 50.0
+        return event
     
     # =========================================================================
     # Signal Operations
@@ -576,7 +733,130 @@ class Database:
             json.dumps(errors or []),
             run_id,
         ])
-    
+
+    # =========================================================================
+    # Daily Brief Operations
+    # =========================================================================
+
+    def insert_daily_brief(self, brief: DailyBrief) -> str:
+        """Insert or update a daily brief, returning its ID."""
+        brief_date = brief.date
+        if isinstance(brief_date, datetime):
+            brief_date = brief_date.date()
+
+        self.conn.execute("""
+            INSERT INTO daily_briefs (
+                id, date, summary_json, report_path_md, report_path_json,
+                generation_method, created_at, run_id
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO UPDATE SET
+                summary_json = EXCLUDED.summary_json,
+                report_path_md = EXCLUDED.report_path_md,
+                report_path_json = EXCLUDED.report_path_json,
+                generation_method = EXCLUDED.generation_method,
+                run_id = EXCLUDED.run_id
+        """, [
+            str(brief.id),
+            brief_date,
+            json.dumps(brief.summary_json),
+            brief.report_path_md,
+            brief.report_path_json,
+            brief.generation_method,
+            brief.created_at,
+            brief.run_id,
+        ])
+        return str(brief.id)
+
+    def get_daily_brief_by_date(self, date: datetime) -> Optional[DailyBrief]:
+        """Get daily brief for a specific date."""
+        brief_date = date.date() if isinstance(date, datetime) else date
+        result = self.conn.execute("""
+            SELECT id, date, summary_json, report_path_md, report_path_json,
+                   generation_method, created_at, run_id
+            FROM daily_briefs WHERE date = ?
+        """, [brief_date]).fetchone()
+
+        if result:
+            return self._row_to_daily_brief(result)
+        return None
+
+    def get_latest_daily_brief(self) -> Optional[DailyBrief]:
+        """Get the most recent daily brief."""
+        result = self.conn.execute("""
+            SELECT id, date, summary_json, report_path_md, report_path_json,
+                   generation_method, created_at, run_id
+            FROM daily_briefs ORDER BY date DESC LIMIT 1
+        """).fetchone()
+
+        if result:
+            return self._row_to_daily_brief(result)
+        return None
+
+    def get_daily_briefs(self, limit: int = 30) -> List[DailyBrief]:
+        """Get list of recent daily briefs."""
+        results = self.conn.execute("""
+            SELECT id, date, summary_json, report_path_md, report_path_json,
+                   generation_method, created_at, run_id
+            FROM daily_briefs ORDER BY date DESC LIMIT ?
+        """, [limit]).fetchall()
+        return [self._row_to_daily_brief(r) for r in results]
+
+    def _row_to_daily_brief(self, row) -> DailyBrief:
+        """Convert database row to DailyBrief object."""
+        return DailyBrief(
+            id=UUID(row[0]),
+            date=row[1],
+            summary_json=json.loads(row[2]) if row[2] else {},
+            report_path_md=row[3],
+            report_path_json=row[4],
+            generation_method=row[5] or "template",
+            created_at=row[6],
+            run_id=row[7],
+        )
+
+    # =========================================================================
+    # Event Type History Operations
+    # =========================================================================
+
+    def insert_event_type_history(self, history: EventTypeHistory) -> str:
+        """Insert event type change history record."""
+        self.conn.execute("""
+            INSERT INTO event_type_history (
+                id, event_id, old_type, new_type, changed_at, trigger_observation_id
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, [
+            str(history.id),
+            str(history.event_id),
+            history.old_type,
+            history.new_type,
+            history.changed_at,
+            str(history.trigger_observation_id) if history.trigger_observation_id else None,
+        ])
+        return str(history.id)
+
+    def get_event_type_history(self, event_id: UUID) -> List[EventTypeHistory]:
+        """Get type change history for an event."""
+        results = self.conn.execute("""
+            SELECT id, event_id, old_type, new_type, changed_at, trigger_observation_id
+            FROM event_type_history
+            WHERE event_id = ?
+            ORDER BY changed_at DESC
+        """, [str(event_id)]).fetchall()
+        return [self._row_to_event_type_history(r) for r in results]
+
+    def _row_to_event_type_history(self, row) -> EventTypeHistory:
+        """Convert database row to EventTypeHistory object."""
+        return EventTypeHistory(
+            id=UUID(row[0]),
+            event_id=UUID(row[1]),
+            old_type=row[2],
+            new_type=row[3],
+            changed_at=row[4],
+            trigger_observation_id=UUID(row[5]) if row[5] else None,
+        )
+
     # =========================================================================
     # Analytics Queries
     # =========================================================================

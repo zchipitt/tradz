@@ -35,17 +35,34 @@ class SourceType(str, Enum):
 
 class EventType(str, Enum):
     """Types of trackable events."""
+    # Original types
     CATALYST = "catalyst"  # Potential price catalyst
     RISK = "risk"  # Risk event
     FLOW = "flow"  # Money/position flow
     MACRO = "macro"  # Macroeconomic event
+    # New event types for event builder
+    MARKET_ANOMALY = "market_anomaly"  # Significant price/volume anomaly
+    CATALYST_NEWS = "catalyst_news"  # News-driven catalyst
+    CATALYST_FILING = "catalyst_filing"  # SEC filing catalyst
+    FLOW_CONGRESS = "flow_congress"  # Congressional trading activity
+    FLOW_13F = "flow_13f"  # Institutional 13F filings
+    PREDICTION_SHIFT = "prediction_shift"  # Polymarket probability changes
+    MIXED = "mixed"  # Multiple signal types
+    UNCERTAIN = "uncertain"  # Cannot classify
 
 
 class EventStatus(str, Enum):
     """Event lifecycle status."""
+    # Original statuses
     OPEN = "open"
     CLOSED = "closed"
     EXPIRED = "expired"
+    # New statuses for event state machine
+    NEW = "new"  # Just created
+    ONGOING = "ongoing"  # Active with updates
+    STALE = "stale"  # No updates for 72h+
+    RESOLVED = "resolved"  # User marked resolved
+    DISMISSED = "dismissed"  # User dismissed
 
 
 @dataclass
@@ -82,7 +99,7 @@ class Entity:
 class Observation:
     """
     Observation is the minimal fact unit from any data source.
-    
+
     Examples:
     - A news article about AAPL
     - A Congress member trade disclosure
@@ -93,19 +110,27 @@ class Observation:
     source: SourceType = SourceType.EQUITIES
     entity_id: Optional[UUID] = None
     entity_ticker: Optional[str] = None  # For quick reference without join
-    
+
     # Temporal
     effective_at: Optional[datetime] = None  # When the event actually happened
     observed_at: datetime = field(default_factory=datetime.utcnow)  # When we captured it
-    
+
     # Quality metrics
     freshness_score: float = 1.0  # 0-1, how recent/timely
     quality_score: float = 1.0  # 0-1, data completeness/reliability
-    
-    # Content
+
+    # Content - basic
     summary: str = ""  # Short machine-generated summary
     payload: Dict[str, Any] = field(default_factory=dict)  # Raw data
-    
+
+    # Content - extended fields for richer metadata
+    source_url: Optional[str] = None  # URL to original source
+    title: Optional[str] = None  # Human-readable title for the observation
+    raw_payload: Optional[Dict[str, Any]] = None  # Full unprocessed payload (if truncated)
+    fact_entries: List[Dict[str, Any]] = field(default_factory=list)  # Extracted FactTableEntry data
+    entity_mapping_confidence: float = 1.0  # 0-1, confidence in entity resolution
+    payload_truncated: bool = False  # Whether payload was truncated
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": str(self.id),
@@ -118,6 +143,12 @@ class Observation:
             "quality_score": self.quality_score,
             "summary": self.summary,
             "payload": self.payload,
+            "source_url": self.source_url,
+            "title": self.title,
+            "raw_payload": self.raw_payload,
+            "fact_entries": self.fact_entries,
+            "entity_mapping_confidence": self.entity_mapping_confidence,
+            "payload_truncated": self.payload_truncated,
         }
 
 
@@ -125,7 +156,7 @@ class Observation:
 class Event:
     """
     Event aggregates related observations into a trackable story.
-    
+
     Examples:
     - "NFLX potential M&A catalyst" - links Congress trades, news, options activity
     - "Fed rate decision impact" - links Polymarket, news, sector movements
@@ -133,18 +164,56 @@ class Event:
     id: UUID = field(default_factory=uuid4)
     primary_entity_id: Optional[UUID] = None
     primary_ticker: Optional[str] = None  # For quick reference
-    
+
     title: str = ""
     event_type: EventType = EventType.CATALYST
-    status: EventStatus = EventStatus.OPEN
+    status: EventStatus = EventStatus.NEW
     confidence: float = 0.5  # 0-1, how confident we are in the event thesis
-    
+
+    # Temporal fields
     start_at: datetime = field(default_factory=datetime.utcnow)
     last_update_at: datetime = field(default_factory=datetime.utcnow)
-    
+    resolved_at: Optional[datetime] = None
+
+    # Event hierarchy (for Primary/Secondary events)
+    parent_event_id: Optional[UUID] = None
+
+    # User actions
+    pinned: bool = False
+    snoozed_until: Optional[datetime] = None
+    dismissed_reason: Optional[str] = None
+
+    # Title generation metadata
+    title_template: Optional[str] = None  # Template used if LLM failed
+    title_source: str = "template"  # "llm" or "template"
+
+    # 4D scores for attention calculation
+    anomaly_score: float = 50.0
+    catalyst_score: float = 50.0
+    flow_score: float = 50.0
+    confidence_score: float = 50.0
+
     # Linked observations (stored in event_observations table)
     observation_ids: List[UUID] = field(default_factory=list)
-    
+
+    @property
+    def attention_score(self) -> float:
+        """
+        Calculate attention score from 4D scores with coverage bonus.
+
+        Formula: 0.3*anomaly + 0.3*catalyst + 0.25*flow + 0.15*confidence + coverage_bonus
+        Coverage bonus: +5 per independent source, max +20
+        """
+        base_score = (
+            self.anomaly_score * 0.3 +
+            self.catalyst_score * 0.3 +
+            self.flow_score * 0.25 +
+            self.confidence_score * 0.15
+        )
+        # Coverage bonus calculated from unique sources in observation_ids
+        # This is approximated here; actual calculation happens in EventBuilder
+        return min(base_score, 100.0)
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": str(self.id),
@@ -156,6 +225,18 @@ class Event:
             "confidence": self.confidence,
             "start_at": self.start_at.isoformat(),
             "last_update_at": self.last_update_at.isoformat(),
+            "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
+            "parent_event_id": str(self.parent_event_id) if self.parent_event_id else None,
+            "pinned": self.pinned,
+            "snoozed_until": self.snoozed_until.isoformat() if self.snoozed_until else None,
+            "dismissed_reason": self.dismissed_reason,
+            "title_template": self.title_template,
+            "title_source": self.title_source,
+            "anomaly_score": self.anomaly_score,
+            "catalyst_score": self.catalyst_score,
+            "flow_score": self.flow_score,
+            "confidence_score": self.confidence_score,
+            "attention_score": self.attention_score,
         }
 
 
@@ -270,20 +351,80 @@ class FactTableEntry:
 class FactTable:
     """
     Collection of facts for report generation.
-    
+
     LLM must reference these values; it cannot invent new numbers.
     """
     report_date: datetime = field(default_factory=datetime.utcnow)
     facts: List[FactTableEntry] = field(default_factory=list)
-    
+
     def get_facts_by_ticker(self, ticker: str) -> List[FactTableEntry]:
         return [f for f in self.facts if f.ticker == ticker]
-    
+
     def get_facts_by_category(self, category: str) -> List[FactTableEntry]:
         return [f for f in self.facts if f.category == category]
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "report_date": self.report_date.isoformat(),
             "facts": [f.to_dict() for f in self.facts],
+        }
+
+
+@dataclass
+class DailyBrief:
+    """
+    Daily brief containing structured summary of events and trade ideas.
+
+    Stored in the daily_briefs table and rendered to markdown/JSON reports.
+    """
+    id: UUID = field(default_factory=uuid4)
+    date: datetime = field(default_factory=datetime.utcnow)
+
+    # Structured content
+    summary_json: Dict[str, Any] = field(default_factory=dict)
+
+    # File paths for generated reports
+    report_path_md: Optional[str] = None
+    report_path_json: Optional[str] = None
+
+    # Generation metadata
+    generation_method: str = "template"  # "claude" or "template"
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    run_id: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "date": self.date.isoformat() if isinstance(self.date, datetime) else str(self.date),
+            "summary_json": self.summary_json,
+            "report_path_md": self.report_path_md,
+            "report_path_json": self.report_path_json,
+            "generation_method": self.generation_method,
+            "created_at": self.created_at.isoformat(),
+            "run_id": self.run_id,
+        }
+
+
+@dataclass
+class EventTypeHistory:
+    """
+    Tracks event type transitions for audit and analysis.
+
+    Stored in the event_type_history table.
+    """
+    id: UUID = field(default_factory=uuid4)
+    event_id: UUID = field(default_factory=uuid4)
+    old_type: Optional[str] = None
+    new_type: str = ""
+    changed_at: datetime = field(default_factory=datetime.utcnow)
+    trigger_observation_id: Optional[UUID] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "event_id": str(self.event_id),
+            "old_type": self.old_type,
+            "new_type": self.new_type,
+            "changed_at": self.changed_at.isoformat(),
+            "trigger_observation_id": str(self.trigger_observation_id) if self.trigger_observation_id else None,
         }
