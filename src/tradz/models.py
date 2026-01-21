@@ -318,33 +318,102 @@ class Signal:
         return int(self.attention_score)
 
 
+class FactType(str, Enum):
+    """Types of facts extracted from observations."""
+    # Market facts
+    PRICE = "price"
+    PRICE_CHANGE = "price_change"
+    VOLUME = "volume"
+    VOLUME_VS_AVG = "volume_vs_avg"
+    VOLATILITY = "volatility"
+
+    # Congress facts
+    POLITICIAN = "politician"
+    PARTY = "party"
+    TRADE_TYPE = "trade_type"
+    AMOUNT_RANGE = "amount_range"
+    TRADE_DATE = "trade_date"
+
+    # SEC facts
+    FILING_TYPE = "filing_type"
+    FILED_DATE = "filed_date"
+    FORM_URL = "form_url"
+    KEY_ITEM = "key_item"
+
+    # News facts
+    HEADLINE = "headline"
+    PUBLISHER = "publisher"
+    PUBLISHED_AT = "published_at"
+    SENTIMENT_SCORE = "sentiment_score"
+
+    # Polymarket facts
+    MARKET_QUESTION = "market_question"
+    PROBABILITY = "probability"
+    PROBABILITY_CHANGE = "probability_change"
+
+    # General
+    TICKER = "ticker"
+    OTHER = "other"
+
+
 @dataclass
 class FactTableEntry:
     """
     A single fact for the dual-channel report generation.
-    
+
     These are deterministic values that LLM cannot modify.
+    Extracted from observations to prevent AI fabrication in reports.
     """
     fact_id: str
-    category: str  # price, volume, news, filing, etc.
-    ticker: Optional[str] = None
+    fact_type: str  # Use FactType enum values
+    label: str  # Human-readable label for the fact
     value: Any = None
     unit: Optional[str] = None  # %, $, x, etc.
-    source_url: Optional[str] = None
-    observation_id: Optional[UUID] = None
+    source: str = ""  # Source name (e.g., "Capitol Trades", "Yahoo Finance")
     timestamp: datetime = field(default_factory=datetime.utcnow)
-    
+    observation_id: Optional[UUID] = None
+
+    # Legacy fields for backward compatibility
+    category: Optional[str] = None  # Alias for fact_type
+    ticker: Optional[str] = None
+    source_url: Optional[str] = None
+
+    def __post_init__(self):
+        """Set category from fact_type for backward compatibility."""
+        if self.category is None:
+            self.category = self.fact_type
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "fact_id": self.fact_id,
-            "category": self.category,
-            "ticker": self.ticker,
+            "fact_type": self.fact_type,
+            "label": self.label,
             "value": self.value,
             "unit": self.unit,
-            "source_url": self.source_url,
+            "source": self.source,
+            "timestamp": self.timestamp.isoformat() if isinstance(self.timestamp, datetime) else str(self.timestamp),
             "observation_id": str(self.observation_id) if self.observation_id else None,
-            "timestamp": self.timestamp.isoformat(),
+            # Legacy fields
+            "category": self.category,
+            "ticker": self.ticker,
+            "source_url": self.source_url,
         }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "FactTableEntry":
+        """Create FactTableEntry from dictionary."""
+        return cls(
+            fact_id=data.get("fact_id", ""),
+            fact_type=data.get("fact_type", data.get("category", "other")),
+            label=data.get("label", ""),
+            value=data.get("value"),
+            unit=data.get("unit"),
+            source=data.get("source", ""),
+            timestamp=datetime.fromisoformat(data["timestamp"]) if data.get("timestamp") else datetime.utcnow(),
+            observation_id=UUID(data["observation_id"]) if data.get("observation_id") else None,
+            ticker=data.get("ticker"),
+            source_url=data.get("source_url"),
+        )
 
 
 @dataclass
