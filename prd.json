@@ -53,8 +53,8 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit 3a7aa7f. Created LLMProvider abstraction with ClaudeCLIProvider, OpenRouterProvider, and MockProvider. TitleGenerator generates LLM titles with template fallback. 63 unit tests pass."
     },
     {
       "id": "US-001d",
