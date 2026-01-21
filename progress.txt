@@ -1,0 +1,39 @@
+## Codebase Patterns
+- Use `SourceType` enum for observation sources (EQUITIES, CRYPTO, NEWS, SEC, CONGRESS, HEDGEFUND, POLYMARKET, BROKER, X_SENTIMENT)
+- Use `EventType` enum for event classification (MARKET_ANOMALY, CATALYST_NEWS, CATALYST_FILING, FLOW_CONGRESS, FLOW_13F, PREDICTION_SHIFT, MIXED, UNCERTAIN)
+- Use `EventStatus` enum for event lifecycle (NEW, ONGOING, STALE, RESOLVED, DISMISSED)
+- Database singleton accessed via `get_database()` function
+- 4D scoring model: anomaly_score, catalyst_score, flow_score, confidence_score (all 0-100)
+- Attention score formula: 0.3*anomaly + 0.3*catalyst + 0.25*flow + 0.15*confidence + coverage_bonus
+- Coverage bonus: +5 per unique source, max +20
+- Events link to observations via `event_observations` table
+- Use `datetime.now(timezone.utc)` instead of deprecated `datetime.utcnow()`
+
+---
+
+## 2026-01-21 - US-001b
+- **What was implemented**: EventBuilder core aggregation logic
+  - Created `src/tradz/events/__init__.py` module entry point
+  - Created `src/tradz/events/builder.py` with EventBuilder class
+  - Implemented `build_events()` that groups observations by entity_id within 72h window
+  - Implemented event_type classification with 8 types based on source dominance
+  - Implemented 4D score calculation (anomaly, catalyst, flow, confidence)
+  - Implemented attention_score with coverage bonus (+5 per source, max +20)
+  - Implemented Primary/Secondary event hierarchy via parent_event_id
+  - Created comprehensive unit test suite with 34 tests
+
+- **Files changed**:
+  - `src/tradz/events/__init__.py` (new)
+  - `src/tradz/events/builder.py` (new)
+  - `tests/__init__.py` (new)
+  - `tests/test_event_builder.py` (new)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - The models.py already has Event, EventType, EventStatus, and observation models ready
+  - The database.py has insert_event, link_observation_to_event, get_open_events methods
+  - The scoring.py has existing Scorer class for 4D calculations on DataFrames
+  - EventBuilder._get_all_observations_for_event() is a stub - needs DB query implementation
+  - Test imports use `from src.tradz.events.builder import ...` pattern
+  - pytest needs to be installed: `pip install pytest`
+---
