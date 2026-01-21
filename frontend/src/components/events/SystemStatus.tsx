@@ -48,7 +48,7 @@ export function SystemStatus({
   const allOk = !hasErrors && !isStale;
 
   return (
-    <div className="bg-white border-2 border-black font-mono" style={{ boxShadow: '4px 4px 0 0 #000000' }}>
+    <div className="bg-white border-2 border-black font-mono">
       {/* Header */}
       <div className="px-4 py-3 bg-gray-100 border-b-2 border-black flex items-center justify-between">
         <span className="text-sm font-bold uppercase tracking-wider">
@@ -124,7 +124,7 @@ export function SystemStatus({
                   'hover:bg-gray-100 transition-colors cursor-pointer',
                   'disabled:opacity-50 disabled:cursor-not-allowed'
                 )}
-                style={{ boxShadow: '2px 2px 0 0 #000000' }}
+               
               >
                 <RefreshCw size={14} className={cn(isRefreshing && 'animate-spin')} />
                 <span className="hidden sm:inline">Refresh</span>
@@ -135,7 +135,7 @@ export function SystemStatus({
               <button
                 onClick={onGenerateBrief}
                 className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wide bg-white border-2 border-black text-black hover:bg-gray-100 transition-colors cursor-pointer"
-                style={{ boxShadow: '2px 2px 0 0 #000000' }}
+               
               >
                 <FileText size={14} />
                 <span className="hidden sm:inline">Brief</span>
@@ -146,7 +146,7 @@ export function SystemStatus({
               <button
                 onClick={onSendEmail}
                 className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wide bg-primary border-2 border-black text-black hover:shadow-brutal transition-colors cursor-pointer"
-                style={{ boxShadow: '2px 2px 0 0 #000000' }}
+               
               >
                 <Mail size={14} />
                 <span className="hidden sm:inline">Send</span>

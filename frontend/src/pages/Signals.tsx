@@ -36,7 +36,7 @@ export function Signals() {
   if (isLoading && !data) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="flex items-center gap-3 font-mono border-2 border-black px-6 py-4 bg-gray-50">
+        <div className="flex items-center gap-3 border-2 border-black px-6 py-4 bg-gray-50">
           <Loader2 className="animate-spin" size={16} />
           <span className="text-sm font-bold uppercase">Loading Signals...</span>
         </div>
@@ -134,7 +134,7 @@ export function Signals() {
   return (
     <div className="space-y-6 font-mono">
       {/* Main Container */}
-      <div className="bg-white border-2 border-black overflow-hidden" style={{ boxShadow: '4px 4px 0 0 #000000' }}>
+      <div className="bg-white border-2 border-black overflow-hidden">
         {/* Header */}
         <div className="px-4 py-3 bg-gray-100 border-b-2 border-black flex items-center justify-between">
           <div className="flex items-center gap-3">

@@ -112,6 +112,11 @@ class PolymarketDataSource:
                         market_tags = list(set(market_tags + event_tags))
                     
                     market['tags'] = market_tags
+                    # Add event metadata for grouping
+                    market['event_title'] = event.get('title')
+                    market['event_id'] = str(event.get('id'))
+                    market['event_slug'] = event.get('slug', '')  # Event-level slug for URL
+                    market['event_image'] = event.get('image')
                     all_markets.append(market)
 
             logger.info(f"Fetched {len(all_markets)} active markets from Polymarket events")
@@ -236,7 +241,12 @@ class PolymarketDataSource:
                 'liquidity': market.get('liquidity', 0),
                 'end_date': market.get('endDate', ''),
                 'created_at': market.get('createdAt', ''),
-                'url': f"https://polymarket.com/event/{market.get('slug', '')}",
+                # Use event_slug for event URL (correct), fall back to market slug
+                'url': f"https://polymarket.com/event/{market.get('event_slug') or market.get('slug', '')}",
+                'event_title': market.get('event_title', ''),
+                'event_id': market.get('event_id', ''),
+                'event_slug': market.get('event_slug', ''),  # Store for frontend use
+                'event_image': market.get('event_image', ''),
             }
 
         except Exception as e:

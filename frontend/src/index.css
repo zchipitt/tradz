@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -33,8 +33,8 @@ body {
   background-color: #FFFFFF;
   color: #000000;
   margin: 0;
-  font-family: 'Space Mono', monospace;
-  font-size: 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px;
   line-height: 1.6;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -78,77 +78,67 @@ body {
 
 /* Component Layer */
 @layer components {
+
   /* Brutalist Card */
   .card-brutal {
     @apply bg-white border-2 border-black;
-    box-shadow: 4px 4px 0 0 #000000;
   }
 
   .card-brutal:hover {
-    box-shadow: 6px 6px 0 0 #000000;
-    transform: translate(-2px, -2px);
+    @apply bg-gray-50;
   }
 
   .card-brutal-sm {
     @apply bg-white border border-black;
-    box-shadow: 2px 2px 0 0 #000000;
   }
 
   /* Brutalist Buttons */
   .btn-brutal {
-    @apply px-4 py-2 bg-primary border-2 border-black font-mono font-bold text-sm uppercase tracking-wider;
+    @apply px-4 py-2 bg-primary border-2 border-black font-bold text-sm uppercase tracking-wider;
     @apply cursor-pointer transition-all duration-100;
-    box-shadow: 4px 4px 0 0 #000000;
   }
 
   .btn-brutal:hover {
-    box-shadow: 6px 6px 0 0 #000000;
-    transform: translate(-2px, -2px);
+    @apply bg-yellow-300;
   }
 
   .btn-brutal:active {
-    box-shadow: 2px 2px 0 0 #000000;
-    transform: translate(2px, 2px);
+    @apply bg-yellow-400;
   }
 
   .btn-brutal-outline {
-    @apply px-4 py-2 bg-white border-2 border-black text-black font-mono font-bold text-sm uppercase tracking-wider;
+    @apply px-4 py-2 bg-white border-2 border-black text-black font-bold text-sm uppercase tracking-wider;
     @apply cursor-pointer transition-all duration-100;
-    box-shadow: 4px 4px 0 0 #000000;
   }
 
   .btn-brutal-outline:hover {
     @apply bg-gray-100;
-    box-shadow: 6px 6px 0 0 #000000;
-    transform: translate(-2px, -2px);
   }
 
   .btn-brutal-sm {
-    @apply px-3 py-1.5 bg-primary border border-black font-mono font-bold text-xs uppercase tracking-wider;
+    @apply px-3 py-1.5 bg-primary border border-black font-bold text-xs uppercase tracking-wider;
     @apply cursor-pointer transition-all duration-100;
-    box-shadow: 2px 2px 0 0 #000000;
   }
 
   .btn-brutal-sm:hover {
-    box-shadow: 3px 3px 0 0 #000000;
-    transform: translate(-1px, -1px);
+    @apply bg-yellow-300;
   }
 
   /* Brutalist Input */
   .input-brutal {
     @apply w-full bg-white border-2 border-black px-4 py-3;
-    @apply text-black font-mono text-sm;
+    @apply text-black text-base;
     @apply focus:outline-none focus:ring-0;
     @apply placeholder:text-gray-400;
   }
 
   .input-brutal:focus {
-    box-shadow: 4px 4px 0 0 #FFEB3B;
+    @apply border-primary;
   }
 
   /* Brutalist Badge/Pill */
   .badge-brutal {
-    @apply px-2 py-0.5 border border-black font-mono text-xs uppercase tracking-wider;
+    @apply px-2 py-0.5 border border-black text-xs uppercase tracking-wider;
     @apply inline-flex items-center;
   }
 
@@ -166,28 +156,28 @@ body {
 
   /* Status Capsule */
   .status-capsule {
-    @apply px-3 py-1 border border-black bg-gray-100 font-mono text-xs;
+    @apply px-3 py-1 border border-black bg-gray-100 text-xs;
     @apply inline-flex items-center gap-2;
   }
 
   /* Section Banner */
   .section-banner {
     @apply w-full bg-primary border-y-2 border-black py-4 px-6;
-    @apply text-center font-mono;
+    @apply text-center;
   }
 
   /* Large Title */
   .title-brutal {
-    @apply text-3xl md:text-4xl font-bold font-mono tracking-tight;
+    @apply text-3xl md:text-4xl font-bold tracking-tight;
   }
 
   .subtitle-brutal {
-    @apply text-lg font-mono text-gray-600;
+    @apply text-lg text-gray-600;
   }
 
   /* Navigation Link */
   .nav-link-brutal {
-    @apply font-mono text-sm text-black hover:text-black;
+    @apply text-sm text-black hover:text-black;
     @apply cursor-pointer transition-colors duration-100;
   }
 
@@ -204,7 +194,7 @@ body {
 
   /* Table - Brutalist */
   .table-brutal {
-    @apply w-full border-2 border-black font-mono text-sm;
+    @apply w-full border-2 border-black text-base;
   }
 
   .table-brutal th {
@@ -240,7 +230,7 @@ body {
 
   /* Tool Count Badge */
   .tool-count {
-    @apply px-2 py-0.5 bg-gray-100 border border-gray-400 font-mono text-xs;
+    @apply px-2 py-0.5 bg-gray-100 border border-gray-400 text-xs;
   }
 }
 
@@ -251,28 +241,29 @@ body {
   }
 
   .shadow-brutal {
-    box-shadow: 4px 4px 0 0 #000000;
+    /* Shadow removed for cleaner look */
   }
 
   .shadow-brutal-sm {
-    box-shadow: 2px 2px 0 0 #000000;
+    /* Shadow removed for cleaner look */
   }
 
   .shadow-brutal-yellow {
-    box-shadow: 4px 4px 0 0 #FFEB3B;
+    /* Shadow removed for cleaner look */
   }
 
   .hover-lift {
-    transition: transform 100ms ease, box-shadow 100ms ease;
+    transition: background-color 100ms ease;
   }
 
   .hover-lift:hover {
-    transform: translate(-2px, -2px);
+    @apply bg-gray-50;
   }
 }
 
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

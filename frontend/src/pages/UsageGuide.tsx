@@ -16,7 +16,7 @@ function Section({ title, icon, children, defaultOpen = false }: SectionProps) {
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
-        <div className="bg-white border-2 border-black overflow-hidden mb-4 font-mono" style={{ boxShadow: '2px 2px 0 0 #000000' }}>
+        <div className="bg-white border-2 border-black overflow-hidden mb-4 font-mono">
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="w-full flex items-center gap-3 px-4 py-3 bg-gray-100 hover:bg-gray-200 transition-colors text-left cursor-pointer border-b-2 border-black"
@@ -71,7 +71,7 @@ export function UsageGuide() {
     return (
         <div className="max-w-4xl mx-auto font-mono">
             {/* Header */}
-            <div className="bg-white border-2 border-black overflow-hidden mb-6" style={{ boxShadow: '4px 4px 0 0 #000000' }}>
+            <div className="bg-white border-2 border-black overflow-hidden mb-6">
                 <div className="px-4 py-3 bg-gray-100 border-b-2 border-black flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <BookOpen size={16} />
@@ -395,7 +395,7 @@ python3 scripts/verify_signals.py
 python3 scripts/verify_facts.py`}</CodeBlock>
             </Section>
 
-            <div className="mt-6 p-4 bg-primary/20 border-2 border-black" style={{ boxShadow: '2px 2px 0 0 #000000' }}>
+            <div className="mt-6 p-4 bg-primary/20 border-2 border-black">
                 <p className="text-xs">
                     <span className="font-bold">TIP:</span> For complete documentation, see <code className="bg-white px-1.5 py-0.5 border border-black">docs/USAGE_GUIDE_CN.md</code>
                 </p>

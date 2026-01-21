@@ -11,6 +11,7 @@
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useCallback, useState, useEffect } from 'react';
 import { getCongress, getHedgeFunds, getPolymarket, getNews } from '../api/client';
+import type { CongressResponse, HedgeFundResponse, PolymarketResponse, NewsResponse } from '../api/types';
 
 const STALE_TIME = 5 * 60 * 1000; // 5 minutes - data is fresh
 const GC_TIME = 10 * 60 * 1000; // 10 minutes - cache retention
@@ -70,7 +71,7 @@ export function useCongress(enabled = true) {
     queryKey: ['sources', 'congress'],
     queryFn: () => getCongress(false),
     enabled,
-    initialData: getCachedData('congress'),
+    initialData: getCachedData<CongressResponse>('congress'),
     ...sourceQueryOptions,
   });
 
@@ -92,7 +93,7 @@ export function useHedgeFunds(enabled = true) {
     queryKey: ['sources', 'hedgefunds'],
     queryFn: () => getHedgeFunds(false),
     enabled,
-    initialData: getCachedData('hedgefunds'),
+    initialData: getCachedData<HedgeFundResponse>('hedgefunds'),
     ...sourceQueryOptions,
   });
 
@@ -113,7 +114,7 @@ export function usePolymarket(enabled = true) {
     queryKey: ['sources', 'polymarket'],
     queryFn: () => getPolymarket(false),
     enabled,
-    initialData: getCachedData('polymarket'),
+    initialData: getCachedData<PolymarketResponse>('polymarket'),
     ...sourceQueryOptions,
   });
 
@@ -134,7 +135,7 @@ export function useNews(enabled = true) {
     queryKey: ['sources', 'news'],
     queryFn: () => getNews(false),
     enabled,
-    initialData: getCachedData('news'),
+    initialData: getCachedData<NewsResponse>('news'),
     ...sourceQueryOptions,
   });
 
@@ -198,7 +199,7 @@ export function useSourcesManager() {
 
   // Check if any source is currently fetching
   const isFetching = congress.isFetching || hedgeFunds.isFetching ||
-                     polymarket.isFetching || news.isFetching;
+    polymarket.isFetching || news.isFetching;
 
   return {
     congress,

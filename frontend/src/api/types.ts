@@ -104,6 +104,10 @@ export interface PolymarketMarket {
   outcomes: PolymarketOutcome[];
   volume?: number;
   url?: string;
+  event_title?: string;
+  event_id?: string;
+  event_slug?: string;  // Correct slug for event URL
+  event_image?: string;
 }
 
 export interface PolymarketResponse {

@@ -81,7 +81,7 @@ export function Layout({
                   key={item.id}
                   onClick={() => onTabChange(item.id)}
                   className={cn(
-                    'px-4 py-1.5 font-mono text-sm transition-all duration-100 cursor-pointer',
+                    'px-4 py-1.5 text-sm transition-all duration-100 cursor-pointer',
                     isActive
                       ? 'font-bold underline underline-offset-4 text-black'
                       : 'text-gray-600 hover:text-black hover:underline hover:underline-offset-4'
@@ -97,7 +97,7 @@ export function Layout({
           <div className="flex items-center gap-4">
             {/* Last Updated - Status capsule */}
             {lastUpdated && (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1 border border-gray-300 bg-gray-50 font-mono text-xs">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1 border border-gray-300 bg-gray-50 text-xs">
                 <span className="text-gray-500">Last sync:</span>
                 <span className="text-black">{lastUpdated}</span>
               </div>
@@ -109,12 +109,12 @@ export function Layout({
                 onClick={onRefresh}
                 disabled={isRefreshing}
                 className={cn(
-                  'flex items-center gap-2 px-4 py-1.5 font-mono text-sm font-bold uppercase tracking-wider',
+                  'flex items-center gap-2 px-4 py-1.5 text-sm font-bold uppercase tracking-wider',
                   'bg-primary border-2 border-black text-black',
                   'hover:shadow-brutal-sm transition-all duration-100 cursor-pointer',
                   'disabled:opacity-50 disabled:cursor-not-allowed'
                 )}
-                style={{ boxShadow: '2px 2px 0 0 #000000' }}
+
               >
                 <RefreshCw
                   size={14}
@@ -139,7 +139,7 @@ export function Layout({
         >
           {/* Sidebar Header */}
           <div className="px-4 py-3 border-b-2 border-black bg-gray-100">
-            <span className="font-mono text-sm font-bold uppercase tracking-wider">
+            <span className="text-sm font-bold uppercase tracking-wider">
               Navigation
             </span>
           </div>
@@ -155,13 +155,12 @@ export function Layout({
                     setSidebarOpen(false);
                   }}
                   className={cn(
-                    'w-full text-left px-4 py-3 font-mono text-sm',
+                    'w-full text-left px-4 py-3 text-sm',
                     'border-2 transition-all duration-100 cursor-pointer',
                     isActive
-                      ? 'bg-primary border-black font-bold shadow-brutal-sm'
+                      ? 'bg-primary border-black font-bold'
                       : 'bg-white border-gray-300 hover:border-black hover:bg-gray-50'
                   )}
-                  style={isActive ? { boxShadow: '2px 2px 0 0 #000000' } : {}}
                 >
                   <div className="font-bold uppercase tracking-wider">{item.label}</div>
                   <div className="text-xs text-gray-500 mt-0.5 normal-case font-normal">
@@ -174,7 +173,7 @@ export function Layout({
 
           {/* Sidebar Footer */}
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t-2 border-black bg-gray-100">
-            <div className="font-mono text-xs text-gray-600">
+            <div className="text-xs text-gray-600">
               <p className="font-bold">TRADZ v2.0</p>
               <p className="mt-1">Event-centric signal aggregation</p>
             </div>

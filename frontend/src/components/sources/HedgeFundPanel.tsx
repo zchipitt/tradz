@@ -23,7 +23,7 @@ export function HedgeFundPanel() {
   const isRefreshing = isFetching && !!data;
 
   return (
-    <div className="space-y-4 font-mono relative">
+    <div className="space-y-4 relative">
       {/* Refreshing indicator */}
       {isRefreshing && (
         <div className="absolute top-0 right-0 flex items-center gap-2 text-xs text-gray-500">
@@ -34,13 +34,13 @@ export function HedgeFundPanel() {
 
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white border-2 border-black p-4 text-center" style={{ boxShadow: '2px 2px 0 0 #000000' }}>
+        <div className="bg-white border-2 border-black p-4 text-center">
           <div className="text-3xl font-bold">
             {data?.filings_found || 0}
           </div>
           <div className="text-[10px] uppercase tracking-wide font-bold text-gray-600">Filings Found</div>
         </div>
-        <div className="bg-primary/20 border-2 border-black p-4 text-center" style={{ boxShadow: '2px 2px 0 0 #000000' }}>
+        <div className="bg-primary/20 border-2 border-black p-4 text-center">
           <div className="text-3xl font-bold">
             {trackedFunds}
           </div>
@@ -104,7 +104,7 @@ export function HedgeFundPanel() {
 function LoadingState() {
   return (
     <div className="flex items-center justify-center py-12">
-      <div className="flex items-center gap-3 font-mono border-2 border-black px-6 py-4 bg-gray-50">
+      <div className="flex items-center gap-3 border-2 border-black px-6 py-4 bg-gray-50">
         <Loader2 className="animate-spin" size={16} />
         <span className="text-sm font-bold uppercase">Loading 13F Filings...</span>
       </div>

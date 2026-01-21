@@ -36,7 +36,7 @@ equities:
 # Cryptocurrency watchlist
 crypto:
   # Exchange to use (primary)
-  exchange: "binance"
+  exchange: "kraken"
 
   # Trading pairs (format: BASE/QUOTE)
   pairs: 

@@ -59,7 +59,7 @@ export function DailyBrief({
   const hasOpenLoops = brief.open_loops.length > 0;
 
   return (
-    <div className="bg-white border-2 border-black font-mono" style={{ boxShadow: '4px 4px 0 0 #000000' }}>
+    <div className="bg-white border-2 border-black font-mono">
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
@@ -151,7 +151,7 @@ export function DailyBrief({
               <button
                 onClick={onOpenFullReport}
                 className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wide bg-primary border-2 border-black text-black cursor-pointer transition-all"
-                style={{ boxShadow: '2px 2px 0 0 #000000' }}
+               
               >
                 <FileText size={14} />
                 Open Report
@@ -161,7 +161,7 @@ export function DailyBrief({
               <button
                 onClick={onDownloadJson}
                 className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wide bg-white border-2 border-black text-black hover:bg-gray-100 cursor-pointer transition-all"
-                style={{ boxShadow: '2px 2px 0 0 #000000' }}
+               
               >
                 <Download size={14} />
                 Download JSON
@@ -171,7 +171,7 @@ export function DailyBrief({
               <button
                 onClick={onCompareYesterday}
                 className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wide bg-white border-2 border-black text-black hover:bg-gray-100 cursor-pointer transition-all"
-                style={{ boxShadow: '2px 2px 0 0 #000000' }}
+               
               >
                 Compare Yesterday
               </button>

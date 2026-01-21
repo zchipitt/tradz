@@ -211,7 +211,7 @@ function EventDetailModal({ event, onClose, onAction }: EventDetailModalProps) {
               {event.assets.map((asset) => (
                 <span
                   key={asset}
-                  className="px-3 py-1 bg-gray-100 border border-black font-mono text-sm font-bold"
+                  className="px-3 py-1 bg-gray-100 border border-black text-sm font-bold"
                 >
                   ${asset}
                 </span>

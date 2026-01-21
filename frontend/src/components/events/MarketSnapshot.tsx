@@ -55,7 +55,7 @@ export function MarketSnapshot({
   }
 
   return (
-    <div className="bg-white border-2 border-black font-mono" style={{ boxShadow: '4px 4px 0 0 #000000' }}>
+    <div className="bg-white border-2 border-black font-mono">
       {/* Header - Always visible */}
       <button
         onClick={() => setExpanded(!expanded)}

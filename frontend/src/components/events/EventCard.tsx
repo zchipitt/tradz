@@ -54,7 +54,7 @@ function ScorePill({ label, value }: { label: string; value: number }) {
   };
 
   return (
-    <div className="flex items-center gap-1 font-mono text-xs">
+    <div className="flex items-center gap-1 text-xs">
       <span className="text-gray-500">{label}:</span>
       <span className={cn('font-bold', getColor(value))}>{value}</span>
     </div>
@@ -92,11 +92,10 @@ export function EventCard({ event, onAction, onOpen }: EventCardProps) {
   return (
     <div
       className={cn(
-        'bg-white border-2 border-black overflow-hidden font-mono transition-all duration-100',
+        'bg-white border-2 border-black overflow-hidden transition-all duration-100',
         event.pinned && 'border-primary',
         !isActionable && 'opacity-60'
       )}
-      style={{ boxShadow: event.pinned ? '4px 4px 0 0 #FFEB3B' : '2px 2px 0 0 #000000' }}
     >
       {/* Header */}
       <div className="px-4 py-2 bg-gray-100 border-b border-black flex items-center justify-between">
@@ -196,8 +195,8 @@ export function EventCard({ event, onAction, onOpen }: EventCardProps) {
                   event.trade_plan.risk_level === 'low'
                     ? 'bg-status-success text-white'
                     : event.trade_plan.risk_level === 'medium'
-                    ? 'bg-status-warning text-black'
-                    : 'bg-status-error text-white'
+                      ? 'bg-status-warning text-black'
+                      : 'bg-status-error text-white'
                 )}
               >
                 {event.trade_plan.risk_level} risk

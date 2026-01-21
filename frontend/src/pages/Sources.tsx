@@ -27,7 +27,7 @@ export function Sources() {
   return (
     <div className="space-y-6 font-mono">
       {/* Main Container */}
-      <div className="bg-white border-2 border-black overflow-hidden" style={{ boxShadow: '4px 4px 0 0 #000000' }}>
+      <div className="bg-white border-2 border-black overflow-hidden">
         {/* Header */}
         <div className="px-4 py-3 bg-gray-100 border-b-2 border-black flex items-center justify-between">
           <div className="flex items-center gap-3">

@@ -28,17 +28,21 @@ class CryptoDataSource:
         self.exchange = None
 
     def _init_exchange(self, exchange_id: str) -> Optional[ccxt.Exchange]:
-        """Initialize exchange instance with error handling."""
+        """Initialize exchange instance with error handling and connectivity check."""
         try:
             exchange_class = getattr(ccxt, exchange_id)
             exchange = exchange_class({
                 'enableRateLimit': True,
                 'timeout': 10000,
             })
-            logger.info(f"Initialized exchange: {exchange_id}")
+            
+            # Verify connectivity by loading markets
+            exchange.load_markets()
+            
+            logger.info(f"Initialized and verified exchange: {exchange_id}")
             return exchange
         except Exception as e:
-            logger.error(f"Failed to initialize {exchange_id}: {str(e)}")
+            logger.warning(f"Failed to initialize/connect to {exchange_id}: {str(e)}")
             return None
 
     def _get_working_exchange(self) -> Optional[ccxt.Exchange]:
@@ -47,18 +51,19 @@ class CryptoDataSource:
             return self.exchange
 
         # Try primary exchange
+        logger.info(f"Attempting to connect to primary exchange: {self.exchange_id}")
         self.exchange = self._init_exchange(self.exchange_id)
         if self.exchange:
             return self.exchange
 
         # Try fallback exchanges
         for fallback in self.fallback_exchanges:
-            logger.warning(f"Trying fallback exchange: {fallback}")
+            logger.info(f"Primary failed. Trying fallback exchange: {fallback}")
             self.exchange = self._init_exchange(fallback)
             if self.exchange:
                 return self.exchange
 
-        logger.error("No working exchange found")
+        logger.error("No working exchange found (primary and fallbacks failed)")
         return None
 
     def fetch_data(self, pairs: List[str], timeframe: str = "1d", limit: int = 60) -> Dict[str, pd.DataFrame]:

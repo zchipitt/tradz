@@ -61,7 +61,7 @@ export function SignalInbox({ events, onAction, onOpenEvent }: SignalInboxProps)
   const activeCount = stateCounts.new + stateCounts.ongoing + stateCounts.stale;
 
   return (
-    <div className="bg-white border-2 border-black font-mono" style={{ boxShadow: '4px 4px 0 0 #000000' }}>
+    <div className="bg-white border-2 border-black font-mono">
       {/* Header */}
       <div className="px-4 py-3 bg-gray-100 border-b-2 border-black flex items-center justify-between">
         <div className="flex items-center gap-4">

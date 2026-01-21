@@ -25,7 +25,7 @@ export function NewsPanel() {
   const isRefreshing = isFetching && !!data;
 
   return (
-    <div className="space-y-4 font-mono relative">
+    <div className="space-y-4 relative">
       {/* Refreshing indicator */}
       {isRefreshing && (
         <div className="absolute top-0 right-0 flex items-center gap-2 text-xs text-gray-500">
@@ -36,13 +36,13 @@ export function NewsPanel() {
 
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white border-2 border-black p-4 text-center" style={{ boxShadow: '2px 2px 0 0 #000000' }}>
+        <div className="bg-white border-2 border-black p-4 text-center">
           <div className="text-3xl font-bold">
             {data?.total_articles || 0}
           </div>
           <div className="text-[10px] uppercase tracking-wide font-bold text-gray-600">Total Articles</div>
         </div>
-        <div className="bg-primary/20 border-2 border-black p-4 text-center" style={{ boxShadow: '2px 2px 0 0 #000000' }}>
+        <div className="bg-primary/20 border-2 border-black p-4 text-center">
           <div className="text-3xl font-bold">{tickers.length}</div>
           <div className="text-xs uppercase tracking-wide font-bold text-gray-600">Tickers Covered</div>
         </div>
@@ -75,8 +75,8 @@ export function NewsPanel() {
                   <span className="px-2 py-0.5 bg-gray-100 border-2 border-black font-bold">
                     ${ticker}
                   </span>
-                  <span className="text-primary font-bold">
-                    [{byTicker[ticker].length} articles]
+                  <span className="px-1.5 py-0.5 bg-primary border border-black font-bold text-black ml-1">
+                    {byTicker[ticker].length} articles
                   </span>
                 </h4>
                 <div className="space-y-1 pl-3 border-l-2 border-gray-300">
@@ -160,7 +160,7 @@ function ArticleRow({ article }: { article: NewsArticle }) {
 function LoadingState() {
   return (
     <div className="flex items-center justify-center py-12">
-      <div className="flex items-center gap-3 font-mono border-2 border-black px-6 py-4 bg-gray-50">
+      <div className="flex items-center gap-3 border-2 border-black px-6 py-4 bg-gray-50">
         <Loader2 className="animate-spin" size={16} />
         <span className="text-sm font-bold uppercase">Loading News Feed...</span>
       </div>
