@@ -78,7 +78,31 @@ class AggregatorService:
         """Get hedge fund 13F data."""
         if not self.config.get("hedgefunds", {}).get("enabled", True):
             return {"error": "Hedge fund data source is disabled"}
-        return self._get_cached_or_fetch("hedgefunds_data", "_fetch_hedgefunds", force_refresh)
+
+        data = self._get_cached_or_fetch("hedgefunds_data", "_fetch_hedgefunds", force_refresh)
+
+        # Transform data to match frontend expected format
+        # Backend returns 'latest_filings', frontend expects 'filings'
+        latest_filings = data.get("latest_filings", [])
+
+        # Extract unique fund names for notable_funds
+        notable_funds = list(set(
+            f.get("fund_name", "") for f in latest_filings if f.get("fund_name")
+        ))
+
+        result = {
+            "filings": latest_filings,
+            "filings_found": data.get("filings_found", len(latest_filings)),
+            "notable_funds": notable_funds,
+            "tracked_funds": data.get("tracked_funds", 0),
+            "fetched_at": data.get("fetched_at"),
+        }
+
+        # Only include error if it exists
+        if data.get("error"):
+            result["error"] = data["error"]
+
+        return result
 
     def get_polymarket(self, force_refresh: bool = False) -> Dict[str, Any]:
         """Get Polymarket prediction data."""

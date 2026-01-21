@@ -1,28 +1,44 @@
 /**
  * Signals page - Raw signals view for diagnostics/tuning.
- * Shows all signals with full score breakdown.
+ * Brutalist design aesthetic - black/white + yellow accent.
  */
-import { useSignals } from '../hooks/useSignals';
-import { AlertCircle, Loader2, Download, ArrowUpDown } from 'lucide-react';
+import { useSignalsManager } from '../hooks/useSignals';
+import { AlertCircle, Loader2, Download, ArrowUpDown, RefreshCw, Clock, Activity } from 'lucide-react';
 import { useState } from 'react';
-import { cn, formatPercent, formatPrice, getScoreColorHex } from '../lib/utils';
+import { cn, formatPercent, formatPrice, formatRelativeTime } from '../lib/utils';
 import type { Signal } from '../api/types';
 
 type SortField = 'symbol' | 'score' | 'day_return' | 'volume_ratio';
 type SortDirection = 'asc' | 'desc';
 
+function getScoreColor(score: number): string {
+  if (score >= 80) return 'text-status-success';
+  if (score >= 60) return 'text-score-good';
+  if (score >= 40) return 'text-status-warning';
+  return 'text-gray-500';
+}
+
+function getScoreBg(score: number): string {
+  if (score >= 80) return 'bg-status-success/10 border-status-success';
+  if (score >= 60) return 'bg-score-good/10 border-score-good';
+  if (score >= 40) return 'bg-status-warning/10 border-status-warning';
+  return 'bg-gray-100 border-gray-300';
+}
+
 export function Signals() {
-  const { data, isLoading, error } = useSignals();
+  const { signals, lastUpdated, isFetching, isRefreshing, forceRefresh } = useSignalsManager();
+  const { data, isLoading, error } = signals;
   const [sortField, setSortField] = useState<SortField>('score');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [filterType, setFilterType] = useState<'all' | 'equity' | 'crypto'>('all');
 
-  if (isLoading) {
+  // Only show full loading state on initial load (no cached data)
+  if (isLoading && !data) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="flex items-center gap-3 text-text-muted">
-          <Loader2 className="animate-spin" />
-          <span>Loading signals...</span>
+        <div className="flex items-center gap-3 font-mono border-2 border-black px-6 py-4 bg-gray-50">
+          <Loader2 className="animate-spin" size={16} />
+          <span className="text-sm font-bold uppercase">Loading Signals...</span>
         </div>
       </div>
     );
@@ -30,11 +46,11 @@ export function Signals() {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-center gap-3">
-        <AlertCircle className="text-negative" />
+      <div className="bg-status-error/10 border-2 border-status-error p-6 flex items-center gap-3 font-mono">
+        <AlertCircle className="text-status-error" />
         <div>
-          <p className="font-medium text-red-800">Error loading signals</p>
-          <p className="text-sm text-red-600">
+          <p className="font-bold text-status-error uppercase">Error: Signal Load Failed</p>
+          <p className="text-sm text-gray-600">
             {error instanceof Error ? error.message : 'Unknown error'}
           </p>
         </div>
@@ -116,98 +132,134 @@ export function Signals() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text">Raw Signals</h1>
-          <p className="text-sm text-text-muted mt-1">
-            Full signal data for diagnostics and parameter tuning
-          </p>
+    <div className="space-y-6 font-mono">
+      {/* Main Container */}
+      <div className="bg-white border-2 border-black overflow-hidden" style={{ boxShadow: '4px 4px 0 0 #000000' }}>
+        {/* Header */}
+        <div className="px-4 py-3 bg-gray-100 border-b-2 border-black flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Activity size={16} />
+            <span className="text-sm font-bold uppercase tracking-wider">
+              Raw Signals
+            </span>
+            <span className="text-xs text-gray-500">
+              [{sortedSignals.length} records]
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <Clock size={12} />
+              {lastUpdated > 0 ? (
+                <span>Sync: {formatRelativeTime(lastUpdated)} ago</span>
+              ) : (
+                <span>Sync: Pending</span>
+              )}
+              {isFetching && !isRefreshing && (
+                <span className="text-status-info">(Refreshing...)</span>
+              )}
+            </div>
+          </div>
         </div>
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface text-text hover:bg-gray-200 transition-colors cursor-pointer"
-        >
-          <Download size={16} />
-          Export CSV
-        </button>
-      </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center bg-surface rounded-lg p-0.5">
-          {(['all', 'equity', 'crypto'] as const).map((type) => (
+        {/* Controls */}
+        <div className="p-4 border-b-2 border-gray-200 flex flex-wrap items-center justify-between gap-4">
+          {/* Filter Tabs */}
+          <div className="flex items-center border-2 border-black">
+            {(['all', 'equity', 'crypto'] as const).map((type) => (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors cursor-pointer',
+                  filterType === type
+                    ? 'bg-black text-white'
+                    : 'bg-white text-black hover:bg-gray-100'
+                )}
+              >
+                {type === 'all' ? 'ALL' : type === 'equity' ? 'EQUITIES' : 'CRYPTO'}
+                <span className="ml-1 opacity-60">
+                  ({type === 'all'
+                    ? data.all_signals.length
+                    : data.all_signals.filter((s) => s.asset_type === type).length})
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
             <button
-              key={type}
-              onClick={() => setFilterType(type)}
+              onClick={forceRefresh}
+              disabled={isRefreshing}
               className={cn(
-                'px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer',
-                filterType === type
-                  ? 'bg-white text-text shadow-sm'
-                  : 'text-text-muted hover:text-text'
+                'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wide',
+                'border-2 border-black transition-all cursor-pointer',
+                isRefreshing
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-black hover:bg-gray-100'
               )}
             >
-              {type === 'all' ? 'All' : type === 'equity' ? 'Equities' : 'Crypto'}
-              <span className="ml-1 text-xs text-text-light">
-                ({type === 'all'
-                  ? data.all_signals.length
-                  : data.all_signals.filter((s) => s.asset_type === type).length})
-              </span>
+              <RefreshCw size={12} className={cn(isRefreshing && 'animate-spin')} />
+              {isRefreshing ? 'SYNCING...' : 'REFRESH'}
             </button>
-          ))}
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wide bg-primary border-2 border-black text-black hover:shadow-brutal transition-all cursor-pointer"
+            >
+              <Download size={12} />
+              EXPORT CSV
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Signals Table */}
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
+        {/* Signals Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-border bg-surface">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">
+              <tr className="border-b-2 border-black bg-gray-50">
+                <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wide">
                   <button
                     onClick={() => handleSort('symbol')}
-                    className="flex items-center gap-1 cursor-pointer hover:text-text"
+                    className="flex items-center gap-1 cursor-pointer hover:text-primary"
                   >
                     Symbol
-                    <ArrowUpDown size={12} />
+                    <ArrowUpDown size={10} />
                   </button>
                 </th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">
+                <th className="text-center px-4 py-3 text-xs font-bold uppercase tracking-wide">
                   <button
                     onClick={() => handleSort('score')}
-                    className="flex items-center gap-1 cursor-pointer hover:text-text mx-auto"
+                    className="flex items-center gap-1 cursor-pointer hover:text-primary mx-auto"
                   >
                     Score
-                    <ArrowUpDown size={12} />
+                    <ArrowUpDown size={10} />
                   </button>
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">
+                <th className="text-right px-4 py-3 text-xs font-bold uppercase tracking-wide">
                   <button
                     onClick={() => handleSort('day_return')}
-                    className="flex items-center gap-1 cursor-pointer hover:text-text ml-auto"
+                    className="flex items-center gap-1 cursor-pointer hover:text-primary ml-auto"
                   >
-                    Day
-                    <ArrowUpDown size={12} />
+                    Day %
+                    <ArrowUpDown size={10} />
                   </button>
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">
-                  Week
+                <th className="text-right px-4 py-3 text-xs font-bold uppercase tracking-wide">
+                  Week %
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">
+                <th className="text-right px-4 py-3 text-xs font-bold uppercase tracking-wide">
                   <button
                     onClick={() => handleSort('volume_ratio')}
-                    className="flex items-center gap-1 cursor-pointer hover:text-text ml-auto"
+                    className="flex items-center gap-1 cursor-pointer hover:text-primary ml-auto"
                   >
                     Vol Ratio
-                    <ArrowUpDown size={12} />
+                    <ArrowUpDown size={10} />
                   </button>
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">
+                <th className="text-right px-4 py-3 text-xs font-bold uppercase tracking-wide">
                   Price
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">
+                <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wide">
                   Drivers
                 </th>
               </tr>
@@ -218,6 +270,16 @@ export function Signals() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-3 bg-gray-50 border-t-2 border-black flex items-center justify-between text-xs">
+          <span className="text-gray-600">
+            Sort: {sortField.toUpperCase()} | Order: {sortDirection.toUpperCase()}
+          </span>
+          <span className="text-gray-600">
+            Total: {sortedSignals.length} | Filter: {filterType.toUpperCase()}
+          </span>
         </div>
       </div>
     </div>
@@ -230,77 +292,84 @@ function SignalRow({ signal }: { signal: Signal }) {
   return (
     <>
       <tr
-        className="border-b border-border hover:bg-surface/50 cursor-pointer transition-colors"
+        className="border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-text">{signal.symbol.replace('/USDT', '')}</span>
-            <span className="text-xs px-1.5 py-0.5 rounded bg-surface text-text-muted">
+            <span className="font-bold">{signal.symbol.replace('/USDT', '')}</span>
+            <span className="text-[10px] px-1.5 py-0.5 border border-black uppercase">
               {signal.asset_type}
             </span>
           </div>
         </td>
         <td className="px-4 py-3 text-center">
           <span
-            className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-white font-bold"
-            style={{ backgroundColor: getScoreColorHex(signal.score) }}
+            className={cn(
+              'inline-flex items-center justify-center w-10 h-10 border-2 font-bold',
+              getScoreBg(signal.score),
+              getScoreColor(signal.score)
+            )}
           >
             {signal.score}
           </span>
         </td>
         <td className={cn(
-          'px-4 py-3 text-right font-medium',
-          signal.metrics.day_return > 0 ? 'text-positive' : signal.metrics.day_return < 0 ? 'text-negative' : 'text-text-muted'
+          'px-4 py-3 text-right font-bold',
+          signal.metrics.day_return > 0 ? 'text-status-success' : signal.metrics.day_return < 0 ? 'text-status-error' : 'text-gray-500'
         )}>
           {formatPercent(signal.metrics.day_return)}
         </td>
         <td className={cn(
           'px-4 py-3 text-right',
-          signal.metrics.week_return > 0 ? 'text-positive' : signal.metrics.week_return < 0 ? 'text-negative' : 'text-text-muted'
+          signal.metrics.week_return > 0 ? 'text-status-success' : signal.metrics.week_return < 0 ? 'text-status-error' : 'text-gray-500'
         )}>
           {formatPercent(signal.metrics.week_return)}
         </td>
-        <td className="px-4 py-3 text-right text-text-muted">
+        <td className="px-4 py-3 text-right text-gray-600">
           {signal.metrics.volume_ratio.toFixed(2)}x
         </td>
-        <td className="px-4 py-3 text-right font-mono text-sm text-text">
+        <td className="px-4 py-3 text-right font-bold">
           ${formatPrice(signal.metrics.last_price)}
         </td>
         <td className="px-4 py-3">
-          <div className="text-xs text-text-muted truncate max-w-xs">
+          <div className="text-xs text-gray-600 truncate max-w-xs">
             {signal.why.slice(0, 2).join(', ')}
             {signal.why.length > 2 && ` +${signal.why.length - 2}`}
           </div>
         </td>
       </tr>
       {expanded && (
-        <tr className="bg-surface/30">
+        <tr className="bg-gray-50 border-b-2 border-gray-300">
           <td colSpan={7} className="px-4 py-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <h4 className="text-xs font-semibold text-text-muted uppercase mb-2">Why (Drivers)</h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider mb-2 border-b border-black pb-1">
+                  Drivers
+                </h4>
                 <ul className="space-y-1">
                   {signal.why.map((reason, i) => (
-                    <li key={i} className="text-sm text-text flex items-start gap-2">
-                      <span className="text-primary">•</span>
+                    <li key={i} className="text-xs text-gray-700 flex items-start gap-2">
+                      <span className="font-bold">+</span>
                       {reason}
                     </li>
                   ))}
                 </ul>
               </div>
               <div>
-                <h4 className="text-xs font-semibold text-text-muted uppercase mb-2">Caveats</h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider mb-2 border-b border-status-warning pb-1 text-status-warning">
+                  Caveats
+                </h4>
                 <ul className="space-y-1">
                   {signal.caveats.length > 0 ? (
                     signal.caveats.map((caveat, i) => (
-                      <li key={i} className="text-sm text-text-muted flex items-start gap-2">
-                        <span className="text-amber-500">!</span>
+                      <li key={i} className="text-xs text-gray-600 flex items-start gap-2">
+                        <span className="text-status-warning font-bold">!</span>
                         {caveat}
                       </li>
                     ))
                   ) : (
-                    <li className="text-sm text-text-muted">No caveats</li>
+                    <li className="text-xs text-gray-500">No caveats detected</li>
                   )}
                 </ul>
               </div>

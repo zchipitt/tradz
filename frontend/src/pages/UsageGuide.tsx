@@ -1,6 +1,6 @@
 /**
  * Usage Guide page component.
- * Renders the usage guide content in a styled format.
+ * Brutalist design aesthetic - black/white + yellow accent.
  */
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, BookOpen, Settings, Play, BarChart3, Clock, AlertTriangle, Zap, Bot, Monitor, Database } from 'lucide-react';
@@ -16,17 +16,17 @@ function Section({ title, icon, children, defaultOpen = false }: SectionProps) {
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
-        <div className="border border-gray-200 rounded-lg overflow-hidden mb-4">
+        <div className="bg-white border-2 border-black overflow-hidden mb-4 font-mono" style={{ boxShadow: '2px 2px 0 0 #000000' }}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                className="w-full flex items-center gap-3 px-4 py-3 bg-gray-100 hover:bg-gray-200 transition-colors text-left cursor-pointer border-b-2 border-black"
             >
-                {isOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                <span className="text-blue-600">{icon}</span>
-                <span className="font-semibold text-gray-800">{title}</span>
+                {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} className="text-gray-500" />}
+                <span>{icon}</span>
+                <span className="font-bold uppercase tracking-wide text-sm">{title}</span>
             </button>
             {isOpen && (
-                <div className="p-4 prose prose-sm max-w-none">
+                <div className="p-4">
                     {children}
                 </div>
             )}
@@ -36,7 +36,7 @@ function Section({ title, icon, children, defaultOpen = false }: SectionProps) {
 
 function CodeBlock({ children }: { children: string }) {
     return (
-        <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 overflow-x-auto text-sm">
+        <pre className="bg-gray-100 border-2 border-black p-4 overflow-x-auto text-xs">
             <code>{children}</code>
         </pre>
     );
@@ -45,19 +45,19 @@ function CodeBlock({ children }: { children: string }) {
 function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
     return (
         <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50">
-                    <tr>
+            <table className="min-w-full text-xs border-2 border-black">
+                <thead>
+                    <tr className="border-b-2 border-black bg-gray-100">
                         {headers.map((h, i) => (
-                            <th key={i} className="px-4 py-2 text-left font-medium text-gray-700">{h}</th>
+                            <th key={i} className="px-3 py-2 text-left font-bold uppercase tracking-wide">{h}</th>
                         ))}
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody>
                     {rows.map((row, i) => (
-                        <tr key={i}>
+                        <tr key={i} className="border-b border-gray-200 hover:bg-gray-50">
                             {row.map((cell, j) => (
-                                <td key={j} className="px-4 py-2 text-gray-600">{cell}</td>
+                                <td key={j} className="px-3 py-2 text-gray-700">{cell}</td>
                             ))}
                         </tr>
                     ))}
@@ -69,123 +69,118 @@ function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
 
 export function UsageGuide() {
     return (
-        <div className="max-w-4xl mx-auto">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">📘 使用指南</h1>
-                <p className="text-gray-600">Tradz 多源交易信号系统详细使用文档</p>
+        <div className="max-w-4xl mx-auto font-mono">
+            {/* Header */}
+            <div className="bg-white border-2 border-black overflow-hidden mb-6" style={{ boxShadow: '4px 4px 0 0 #000000' }}>
+                <div className="px-4 py-3 bg-gray-100 border-b-2 border-black flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <BookOpen size={16} />
+                        <span className="text-sm font-bold uppercase tracking-wider">
+                            Usage Guide
+                        </span>
+                    </div>
+                </div>
+                <div className="p-4">
+                    <h1 className="text-xl font-bold mb-2">Tradz Documentation</h1>
+                    <p className="text-gray-600 text-sm">Multi-source trading signal aggregation system</p>
+                </div>
             </div>
 
-            <Section title="1. 系统概述" icon={<BookOpen size={20} />} defaultOpen={true}>
-                <p className="mb-4">
-                    Tradz 是一个多源数据聚合的自动化交易信号系统，使用 4 维评分体系和 Claude AI 生成专业级分析报告。
+            <Section title="1. System Overview" icon={<BookOpen size={16} />} defaultOpen={true}>
+                <p className="mb-4 text-sm text-gray-700">
+                    Tradz is a multi-source data aggregation system for automated trading signals, using 4D scoring and Claude AI for professional analysis reports.
                 </p>
 
-                <h4 className="font-semibold mt-4 mb-2">核心数据源</h4>
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">Core Data Sources</h4>
                 <Table
-                    headers={['功能模块', '说明', '数据延迟']}
+                    headers={['Module', 'Description', 'Latency']}
                     rows={[
-                        ['📈 美股监控', '通过 yfinance 获取美国股票数据', '15-20分钟'],
-                        ['💰 加密货币监控', '通过 ccxt 获取主流加密货币数据', '实时'],
-                        ['🏛️ 国会议员交易', 'Capitol Trades（主）+ Quiver/Finnhub（备选）', '~45天'],
-                        ['🏦 对冲基金 13F', 'SEC EDGAR 机构持仓', '季度，~45天'],
-                        ['🎰 Polymarket', '预测市场赔率', '实时'],
-                        ['📰 新闻聚合', 'Yahoo Finance + NewsAPI', '实时'],
-                        ['📋 SEC 年报', '10-K, 10-Q, 8-K 文件', '实时'],
+                        ['EQUITIES', 'US stocks via yfinance', '15-20min'],
+                        ['CRYPTO', 'Cryptocurrencies via ccxt', 'REALTIME'],
+                        ['CONGRESS', 'Capitol Trades + Quiver/Finnhub', '~45d'],
+                        ['13F FILINGS', 'SEC EDGAR institutional holdings', 'QUARTERLY'],
+                        ['POLYMARKET', 'Prediction market odds', 'REALTIME'],
+                        ['NEWS', 'Yahoo Finance + NewsAPI', 'REALTIME'],
+                        ['SEC FILINGS', '10-K, 10-Q, 8-K documents', 'REALTIME'],
                     ]}
                 />
 
-                <h4 className="font-semibold mt-4 mb-2">4 维信号评分</h4>
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">4D Signal Scoring</h4>
                 <Table
-                    headers={['维度', '说明', '数据来源']}
+                    headers={['Dimension', 'Description', 'Data Source']}
                     rows={[
-                        ['📊 异常评分', '价格/成交量/波动率的 Z-score 偏离', '市场数据'],
-                        ['🎯 催化剂评分', '新闻、SEC 文件、预测市场事件', '多源信息'],
-                        ['💸 资金流评分', '国会交易、13F 机构资金流', '披露数据'],
-                        ['✅ 置信度评分', '数据质量和跨源验证', '质量指标'],
+                        ['ANOMALY', 'Price/volume/volatility Z-scores', 'MARKET DATA'],
+                        ['CATALYST', 'News, SEC filings, Polymarket events', 'MULTI SOURCE'],
+                        ['FLOW', 'Congress trades, 13F institutional flow', 'DISCLOSURE DATA'],
+                        ['CONFIDENCE', 'Data quality and cross-source validation', 'QUALITY METRICS'],
                     ]}
                 />
 
-                <h4 className="font-semibold mt-4 mb-2">智能报告</h4>
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">Web Dashboard</h4>
                 <Table
-                    headers={['功能模块', '说明']}
+                    headers={['Module', 'Description']}
                     rows={[
-                        ['🤖 Claude AI 报告', '使用 Claude Code CLI + MCP Skills 生成高质量报告'],
-                        ['🔍 实时搜索', 'Claude 使用 Tavily 搜索最新新闻'],
-                        ['📊 跨源分析', '识别多数据源之间的关联模式'],
-                        ['🎯 信号生成', '基于 4 维评分体系'],
-                        ['📧 邮件报告', '通过 SMTP 发送每日报告'],
-                    ]}
-                />
-
-                <h4 className="font-semibold mt-4 mb-2">Web 仪表盘（事件中心化设计）</h4>
-                <Table
-                    headers={['功能模块', '说明']}
-                    rows={[
-                        ['🖥️ 事件中心化仪表盘', '从 Ticker 视图转为事件驱动设计'],
-                        ['📋 信号收件箱', '事件卡片展示关注度评分、4D 评分、证据摘要'],
-                        ['📊 事件状态机', 'New/Ongoing/Stale/Resolved/Dismissed'],
-                        ['⚡ 事件操作', '置顶/推迟/标记已解决/驳回'],
-                        ['🔌 FastAPI 后端', '信号、数据源和报告的 REST API'],
-                        ['🔄 实时刷新', 'TanStack Query 实现 5 分钟自动刷新'],
+                        ['EVENT DASHBOARD', 'Event-centric design (from Ticker view)'],
+                        ['SIGNAL INBOX', 'Event cards with 4D scores and evidence'],
+                        ['STATE MACHINE', 'New/Ongoing/Stale/Resolved/Dismissed'],
+                        ['EVENT ACTIONS', 'Pin/Snooze/Resolve/Dismiss'],
+                        ['FASTAPI BACKEND', 'REST API for signals, sources, reports'],
+                        ['AUTO REFRESH', 'TanStack Query with 5min intervals'],
                     ]}
                 />
             </Section>
 
-            <Section title="2. 安装配置" icon={<Settings size={20} />}>
-                <h4 className="font-semibold mb-2">系统要求</h4>
-                <ul className="list-disc list-inside mb-4 text-gray-600">
-                    <li><strong>Python</strong>: 3.8+</li>
-                    <li><strong>Node.js</strong>: 18+（用于前端和 Claude Code CLI）</li>
-                    <li><strong>操作系统</strong>: macOS / Linux / Windows</li>
+            <Section title="2. Installation" icon={<Settings size={16} />}>
+                <h4 className="font-bold uppercase tracking-wide text-xs mb-2 border-b border-black pb-1">Requirements</h4>
+                <ul className="list-none mb-4 text-sm text-gray-700 space-y-1">
+                    <li><span className="font-bold">+</span> Python: 3.8+</li>
+                    <li><span className="font-bold">+</span> Node.js: 18+ (frontend + Claude CLI)</li>
+                    <li><span className="font-bold">+</span> OS: macOS / Linux / Windows</li>
                 </ul>
 
-                <h4 className="font-semibold mb-2">安装步骤</h4>
-                <CodeBlock>{`# 进入项目目录
+                <h4 className="font-bold uppercase tracking-wide text-xs mb-2 border-b border-black pb-1">Setup Commands</h4>
+                <CodeBlock>{`# Navigate to project
 cd /path/to/tradz
 
-# 创建并激活虚拟环境
+# Create virtual environment
 python3 -m venv .venv
 source .venv/bin/activate    # macOS/Linux
 
-# 安装依赖
+# Install dependencies
 pip install -r requirements.txt
 
-# 复制环境变量模板
+# Configure environment
 cp .env.example .env
-
-# 编辑 .env 填写 API 密钥
 vim .env`}</CodeBlock>
 
-                <h4 className="font-semibold mt-4 mb-2">验证安装</h4>
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">Verify Installation</h4>
                 <CodeBlock>{`source .venv/bin/activate
-python3 -c "import yfinance; import ccxt; import duckdb; print('✅ 依赖安装成功')"
+python3 -c "import yfinance; import ccxt; import duckdb; print('[OK] Dependencies installed')"
 
-# 验证数据库
+# Verify database
 python3 scripts/verify_db.py`}</CodeBlock>
             </Section>
 
-            <Section title="3. 配置详解" icon={<Settings size={20} />}>
-                <h4 className="font-semibold mb-2">环境变量 (.env)</h4>
+            <Section title="3. Configuration" icon={<Settings size={16} />}>
+                <h4 className="font-bold uppercase tracking-wide text-xs mb-2 border-b border-black pb-1">Environment Variables</h4>
                 <Table
-                    headers={['变量名', '说明', '示例值']}
+                    headers={['Variable', 'Description', 'Example']}
                     rows={[
-                        ['DRY_RUN', '模拟模式（1=不发邮件）', '1'],
-                        ['SMTP_HOST', '邮件服务器地址', 'smtp.gmail.com'],
-                        ['SMTP_PORT', '邮件服务器端口', '587'],
-                        ['SMTP_USER', '邮箱用户名', 'your@gmail.com'],
-                        ['SMTP_PASS', '应用专用密码', 'xxxx-xxxx-xxxx'],
-                        ['ANTHROPIC_API_KEY', 'Claude API 密钥', 'sk-ant-api03-...'],
-                        ['QUIVER_API_KEY', '国会交易备选源（可选）', 'your-key'],
-                        ['FINNHUB_API_KEY', '国会交易备选源（可选）', 'your-key'],
+                        ['DRY_RUN', 'Simulation mode (1=no email)', '1'],
+                        ['SMTP_HOST', 'Mail server address', 'smtp.gmail.com'],
+                        ['SMTP_PORT', 'Mail server port', '587'],
+                        ['SMTP_USER', 'Email username', 'your@gmail.com'],
+                        ['SMTP_PASS', 'App-specific password', 'xxxx-xxxx-xxxx'],
+                        ['ANTHROPIC_API_KEY', 'Claude API key', 'sk-ant-api03-...'],
                     ]}
                 />
 
-                <h4 className="font-semibold mt-4 mb-2">监控列表 (config.yaml)</h4>
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">Watchlist Config</h4>
                 <CodeBlock>{`equities:
   tickers:
-    - AAPL    # 苹果
-    - MSFT    # 微软
-    - NVDA    # 英伟达
+    - AAPL    # Apple
+    - MSFT    # Microsoft
+    - NVDA    # Nvidia
 
 crypto:
   exchange: "binance"
@@ -194,262 +189,220 @@ crypto:
     - ETH/USDT`}</CodeBlock>
             </Section>
 
-            <Section title="4. 运行系统" icon={<Play size={20} />}>
-                <h4 className="font-semibold mb-2">命令行参数</h4>
+            <Section title="4. Running System" icon={<Play size={16} />}>
+                <h4 className="font-bold uppercase tracking-wide text-xs mb-2 border-b border-black pb-1">CLI Options</h4>
                 <CodeBlock>{`python3 -m src.tradz.run_nightly [OPTIONS]
 
-# 选项：
-#   --use-claude      强制使用 Claude 生成报告
-#   --template-only   强制使用模板生成
-#   --skip-email      跳过邮件发送`}</CodeBlock>
+# Options:
+#   --use-claude      Force Claude report generation
+#   --template-only   Force template-based generation
+#   --skip-email      Skip email delivery`}</CodeBlock>
 
-                <h4 className="font-semibold mt-4 mb-2">一键启动/停止</h4>
-                <CodeBlock>{`# 启动环境（后端 8002 + 前端 5173）
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">One-Click Start</h4>
+                <CodeBlock>{`# Start environment (backend 8002 + frontend 5173)
 ./scripts/local_up.sh
 
-# 停止环境
+# Stop environment
 ./scripts/local_down.sh`}</CodeBlock>
 
-                <h4 className="font-semibold mt-4 mb-2">查看报告</h4>
-                <CodeBlock>{`# 查看今天的报告
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">View Reports</h4>
+                <CodeBlock>{`# View today's report
 cat reports/$(date +%Y-%m-%d).md
 
-# 查看 JSON 数据
+# View JSON data
 cat reports/$(date +%Y-%m-%d).json`}</CodeBlock>
             </Section>
 
-            <Section title="5. 信号解读" icon={<BarChart3 size={20} />}>
-                <h4 className="font-semibold mb-2">4 维信号评分</h4>
-                <p className="mb-4 text-gray-600">每个信号在 4 个维度上评分（各 <strong>0-100</strong>）</p>
-                
+            <Section title="5. Signal Interpretation" icon={<BarChart3 size={16} />}>
+                <h4 className="font-bold uppercase tracking-wide text-xs mb-2 border-b border-black pb-1">4D Scoring System</h4>
+                <p className="mb-4 text-sm text-gray-700">Each signal is scored across 4 dimensions (0-100 each)</p>
+
                 <Table
-                    headers={['维度', '说明', '权重']}
+                    headers={['Dimension', 'Description', 'Weight']}
                     rows={[
-                        ['异常评分 (Anomaly)', '价格/成交量/波动率的统计偏离', '30%'],
-                        ['催化剂评分 (Catalyst)', '新闻、SEC 文件、预测市场事件', '30%'],
-                        ['资金流评分 (Flow)', '国会交易、13F 机构资金流', '25%'],
-                        ['置信度评分 (Confidence)', '数据质量和多源验证', '15%'],
+                        ['ANOMALY', 'Price/volume/volatility statistical deviation', '30%'],
+                        ['CATALYST', 'News, SEC filings, prediction market events', '30%'],
+                        ['FLOW', 'Congress trades, 13F institutional flow', '25%'],
+                        ['CONFIDENCE', 'Data quality and multi-source validation', '15%'],
                     ]}
                 />
 
-                <h4 className="font-semibold mt-4 mb-2">综合关注度评分</h4>
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">Attention Score Formula</h4>
                 <CodeBlock>{`attention_score = anomaly × 0.30 + catalyst × 0.30 + flow × 0.25 + confidence × 0.15`}</CodeBlock>
 
-                <h4 className="font-semibold mt-4 mb-2">信号强度</h4>
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">Signal Strength</h4>
                 <Table
-                    headers={['分数区间', '信号强度', '建议操作']}
+                    headers={['Range', 'Strength', 'Recommended Action']}
                     rows={[
-                        ['80-100', '🔴 极强', '重点关注，可能有重大事件'],
-                        ['65-79', '🟠 强', '值得关注'],
-                        ['50-64', '🟡 中等', '保持观察'],
-                        ['0-49', '🟢 弱', '正常波动，无需特别关注'],
+                        ['80-100', 'CRITICAL', 'High priority - potential major event'],
+                        ['65-79', 'STRONG', 'Worth attention'],
+                        ['50-64', 'MODERATE', 'Monitor'],
+                        ['0-49', 'WEAK', 'Normal fluctuation, no action'],
                     ]}
                 />
             </Section>
 
-            <Section title="6. 定时任务" icon={<Clock size={20} />}>
-                <h4 className="font-semibold mb-2">macOS (launchd)</h4>
-                <CodeBlock>{`# 加载定时任务
+            <Section title="6. Scheduled Tasks" icon={<Clock size={16} />}>
+                <h4 className="font-bold uppercase tracking-wide text-xs mb-2 border-b border-black pb-1">macOS launchd</h4>
+                <CodeBlock>{`# Load scheduled task
 launchctl load ~/Library/LaunchAgents/com.tradz.nightly.plist
 
-# 验证是否加载成功
+# Verify loaded
 launchctl list | grep tradz
 
-# 卸载定时任务
+# Unload scheduled task
 launchctl unload ~/Library/LaunchAgents/com.tradz.nightly.plist`}</CodeBlock>
 
-                <h4 className="font-semibold mt-4 mb-2">Linux (cron)</h4>
-                <CodeBlock>{`# 编辑 crontab
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">Linux Cron</h4>
+                <CodeBlock>{`# Edit crontab
 crontab -e
 
-# 每天早上 6:30 运行
+# Run daily at 06:30
 30 6 * * * /path/to/tradz/scripts/nightly.sh >> /path/to/tradz/logs/cron.log 2>&1`}</CodeBlock>
             </Section>
 
-            <Section title="7. 故障排除" icon={<AlertTriangle size={20} />}>
-                <h4 className="font-semibold mb-2">常见问题</h4>
+            <Section title="7. Troubleshooting" icon={<AlertTriangle size={16} />}>
+                <h4 className="font-bold uppercase tracking-wide text-xs mb-2 border-b border-black pb-1">Common Errors</h4>
 
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-                    <p className="font-medium text-yellow-800">ModuleNotFoundError: No module named 'yfinance'</p>
-                    <p className="text-yellow-700 text-sm mt-1">解决方案：激活虚拟环境并安装依赖</p>
+                <div className="bg-status-error/10 border-2 border-status-error p-3 mb-3">
+                    <p className="font-bold text-status-error text-xs">[ERROR] ModuleNotFoundError: No module named 'yfinance'</p>
+                    <p className="text-gray-600 text-xs mt-1">FIX: Activate venv and install dependencies</p>
                     <CodeBlock>{`source .venv/bin/activate
 pip install -r requirements.txt`}</CodeBlock>
                 </div>
 
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-                    <p className="font-medium text-yellow-800">SMTP authentication failed</p>
-                    <p className="text-yellow-700 text-sm mt-1">确认使用的是应用专用密码，而非账户密码</p>
+                <div className="bg-status-warning/10 border-2 border-status-warning p-3 mb-3">
+                    <p className="font-bold text-status-warning text-xs">[WARN] SMTP authentication failed</p>
+                    <p className="text-gray-600 text-xs mt-1">FIX: Use app-specific password, not account password</p>
                 </div>
 
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-                    <p className="font-medium text-yellow-800">Claude CLI not found</p>
+                <div className="bg-status-warning/10 border-2 border-status-warning p-3 mb-3">
+                    <p className="font-bold text-status-warning text-xs">[WARN] Claude CLI not found</p>
                     <CodeBlock>{`npm install -g @anthropic-ai/claude-code
 claude --version`}</CodeBlock>
                 </div>
 
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-                    <p className="font-medium text-yellow-800">国会交易数据显示 0 条记录</p>
-                    <p className="text-yellow-700 text-sm mt-1">
-                        系统使用多源自动降级策略：Capitol Trades → Quiver → Finnhub。
-                        可在 .env 中配置 QUIVER_API_KEY 或 FINNHUB_API_KEY 作为备选源。
+                <div className="bg-status-info/10 border-2 border-status-info p-3">
+                    <p className="font-bold text-status-info text-xs">[INFO] Congress trading data shows 0 records</p>
+                    <p className="text-gray-600 text-xs mt-1">
+                        System uses multi-source fallback: Capitol Trades - Quiver - Finnhub.
+                        Configure QUIVER_API_KEY or FINNHUB_API_KEY in .env as backup sources.
                     </p>
-                </div>
-
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                    <p className="font-medium text-yellow-800">DuckDB 数据库问题</p>
-                    <CodeBlock>{`# 验证数据库
-python3 scripts/verify_db.py
-
-# 验证实体解析
-python3 scripts/verify_entities.py
-
-# 验证信号生成
-python3 scripts/verify_signals.py`}</CodeBlock>
                 </div>
             </Section>
 
-            <Section title="8. 高级用法" icon={<Zap size={20} />}>
-                <h4 className="font-semibold mb-2">添加更多股票代码</h4>
-                <CodeBlock>{`# 编辑 config.yaml
+            <Section title="8. Advanced Usage" icon={<Zap size={16} />}>
+                <h4 className="font-bold uppercase tracking-wide text-xs mb-2 border-b border-black pb-1">Add More Tickers</h4>
+                <CodeBlock>{`# Edit config.yaml
 equities:
   tickers:
     - AAPL
     - YOUR_NEW_TICKER`}</CodeBlock>
 
-                <h4 className="font-semibold mt-4 mb-2">修改信号阈值</h4>
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">Adjust Thresholds</h4>
                 <CodeBlock>{`thresholds:
-  day_return_high: 7.0      # 增大以获得更少但更强的信号
-  volume_high: 3.0          # 增大以获得更极端的成交量警报`}</CodeBlock>
+  day_return_high: 7.0      # Increase for fewer, stronger signals
+  volume_high: 3.0          # Increase for more extreme volume alerts`}</CodeBlock>
             </Section>
 
-            <Section title="9. Claude AI 报告生成" icon={<Bot size={20} />}>
-                <p className="mb-4 text-gray-600">
-                    Claude Code CLI 使用 MCP Skills 来增强报告质量：
+            <Section title="9. Claude AI Reports" icon={<Bot size={16} />}>
+                <p className="mb-4 text-sm text-gray-700">
+                    Claude Code CLI uses MCP Skills to enhance report quality:
                 </p>
-                <ul className="list-disc list-inside mb-4 text-gray-600">
-                    <li><strong>tavily-search</strong>: 搜索每个信号的最新新闻</li>
-                    <li><strong>filesystem</strong>: 读取历史报告进行对比</li>
-                    <li><strong>sequential-thinking</strong>: 深度分析复杂信号</li>
-                    <li><strong>fetch</strong>: 获取网页内容</li>
+                <ul className="list-none mb-4 text-sm text-gray-700 space-y-1">
+                    <li><span className="font-bold text-status-info">+</span> <strong>tavily-search</strong>: Search latest news for each signal</li>
+                    <li><span className="font-bold text-status-info">+</span> <strong>filesystem</strong>: Read historical reports for comparison</li>
+                    <li><span className="font-bold text-status-info">+</span> <strong>sequential-thinking</strong>: Deep analysis for complex signals</li>
+                    <li><span className="font-bold text-status-info">+</span> <strong>fetch</strong>: Retrieve webpage content</li>
                 </ul>
 
-                <h4 className="font-semibold mb-2">安装 Claude CLI</h4>
+                <h4 className="font-bold uppercase tracking-wide text-xs mb-2 border-b border-black pb-1">Install Claude CLI</h4>
                 <CodeBlock>{`npm install -g @anthropic-ai/claude-code
 
-# 在 .env 中设置 API 密钥
+# Set API key in .env
 ANTHROPIC_API_KEY=sk-ant-api03-xxxxx
 
-# 验证安装
+# Verify installation
 claude --version`}</CodeBlock>
             </Section>
 
-            <Section title="10. Web 仪表盘" icon={<Monitor size={20} />}>
-                <p className="mb-4 text-gray-600">
-                    Tradz 提供 Robinhood 风格的事件中心化 Web 仪表盘，从传统的 Ticker 视图转为事件驱动设计。
+            <Section title="10. Web Dashboard" icon={<Monitor size={16} />}>
+                <p className="mb-4 text-sm text-gray-700">
+                    Tradz provides an event-centric web dashboard, transformed from traditional Ticker view to event-driven design.
                 </p>
 
-                <h4 className="font-semibold mb-2">一键启动</h4>
-                <CodeBlock>{`# 启动后端 (8002) + 前端 (5173)
+                <h4 className="font-bold uppercase tracking-wide text-xs mb-2 border-b border-black pb-1">One-Click Start</h4>
+                <CodeBlock>{`# Start backend (8002) + frontend (5173)
 ./scripts/local_up.sh
 
-# 停止所有服务
+# Stop all services
 ./scripts/local_down.sh`}</CodeBlock>
 
-                <h4 className="font-semibold mt-4 mb-2">手动启动</h4>
-                <CodeBlock>{`# 终端 1：启动后端
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">Manual Start</h4>
+                <CodeBlock>{`# Terminal 1: Start backend
 uvicorn api.main:app --reload --port 8002
 
-# 终端 2：启动前端
+# Terminal 2: Start frontend
 cd frontend && npm run dev`}</CodeBlock>
 
-                <h4 className="font-semibold mt-4 mb-2">访问地址</h4>
-                <ul className="list-disc list-inside text-gray-600">
-                    <li><strong>前端</strong>: http://localhost:5173</li>
-                    <li><strong>API 文档</strong>: http://localhost:8002/api/docs</li>
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">Access URLs</h4>
+                <ul className="list-none text-sm text-gray-700 space-y-1">
+                    <li><span className="font-bold">+</span> Frontend: <span className="font-bold">http://localhost:5173</span></li>
+                    <li><span className="font-bold">+</span> API Docs: <span className="font-bold">http://localhost:8002/api/docs</span></li>
                 </ul>
 
-                <h4 className="font-semibold mt-4 mb-2">仪表盘页面</h4>
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">Event State Machine</h4>
                 <Table
-                    headers={['页面', '功能']}
+                    headers={['State', 'Description', 'Color']}
                     rows={[
-                        ['Today', '事件中心化主页：系统状态、信号收件箱、每日简报、市场快照'],
-                        ['Signals', '原始信号诊断表格，可排序导出'],
-                        ['Sources', '国会交易、对冲基金、新闻、Polymarket 面板'],
-                        ['Reports', '历史报告归档，可下载 MD/JSON'],
-                        ['使用指南', '本页面 - 交互式可折叠文档'],
+                        ['new', 'New event, first appearance', 'GREEN'],
+                        ['ongoing', 'In progress, being tracked', 'BLUE'],
+                        ['stale', 'Expired, no updates for 72h+', 'YELLOW'],
+                        ['resolved', 'Resolved, user marked complete', 'GRAY'],
+                        ['dismissed', 'Dismissed, user chose to ignore', 'RED'],
                     ]}
                 />
-
-                <h4 className="font-semibold mt-4 mb-2">事件状态机</h4>
-                <Table
-                    headers={['状态', '说明', '颜色']}
-                    rows={[
-                        ['new', '新事件，首次出现', '蓝色'],
-                        ['ongoing', '进行中，持续跟踪', '黄色'],
-                        ['stale', '过期，超过 72h 未更新', '灰色'],
-                        ['resolved', '已解决，用户标记完成', '绿色'],
-                        ['dismissed', '已驳回，用户选择忽略', '红色'],
-                    ]}
-                />
-
-                <h4 className="font-semibold mt-4 mb-2">事件操作</h4>
-                <ul className="list-disc list-inside text-gray-600">
-                    <li><strong>置顶/取消置顶</strong>: 保持事件在收件箱顶部</li>
-                    <li><strong>推迟 24h</strong>: 暂时隐藏事件</li>
-                    <li><strong>标记已解决</strong>: 事件已处理完毕</li>
-                    <li><strong>驳回</strong>: 从活跃视图移除</li>
-                </ul>
             </Section>
 
-            <Section title="11. 数据库与实体解析" icon={<Database size={20} />}>
-                <p className="mb-4 text-gray-600">
-                    Tradz 使用 DuckDB 作为本地分析数据库，存储在 <code className="bg-gray-100 px-1 rounded">data/tradz.duckdb</code>。
+            <Section title="11. Database & Entity Resolution" icon={<Database size={16} />}>
+                <p className="mb-4 text-sm text-gray-700">
+                    Tradz uses DuckDB as local analytics database, stored at <code className="bg-gray-100 px-1.5 py-0.5 border border-black">data/tradz.duckdb</code>.
                 </p>
 
-                <h4 className="font-semibold mb-2">数据库表</h4>
+                <h4 className="font-bold uppercase tracking-wide text-xs mb-2 border-b border-black pb-1">Database Tables</h4>
                 <Table
-                    headers={['表名', '说明']}
+                    headers={['Table', 'Description']}
                     rows={[
-                        ['entities', '实体表（Ticker/CIK/公司名称映射）'],
-                        ['observations', '观察表（各数据源的原始数据点）'],
-                        ['events', '事件表（聚合相关观察的故事）'],
-                        ['signals', '信号表（每日 4 维评分输出）'],
-                        ['run_history', '运行历史（用于可观测性）'],
+                        ['entities', 'Entity table (Ticker/CIK/company name mappings)'],
+                        ['observations', 'Observations table (raw data points from sources)'],
+                        ['events', 'Events table (aggregated stories linking observations)'],
+                        ['signals', 'Signals table (daily 4D scored output)'],
+                        ['run_history', 'Run history (for observability)'],
                     ]}
                 />
 
-                <h4 className="font-semibold mt-4 mb-2">验证脚本</h4>
-                <CodeBlock>{`# 验证数据库架构
+                <h4 className="font-bold uppercase tracking-wide text-xs mt-4 mb-2 border-b border-black pb-1">Verification Scripts</h4>
+                <CodeBlock>{`# Verify database schema
 python3 scripts/verify_db.py
 
-# 验证实体解析
+# Verify entity resolution
 python3 scripts/verify_entities.py
 
-# 验证信号生成
+# Verify signal generation
 python3 scripts/verify_signals.py
 
-# 验证事实生成
+# Verify fact generation
 python3 scripts/verify_facts.py`}</CodeBlock>
-
-                <h4 className="font-semibold mt-4 mb-2">实体解析</h4>
-                <p className="text-gray-600 mb-2">
-                    EntityResolver 负责将不同数据源的数据对齐到统一的实体 ID：
-                </p>
-                <ul className="list-disc list-inside text-gray-600">
-                    <li>从 SEC 同步 Ticker/CIK/公司名称</li>
-                    <li>解析文本中的实体（如 $AAPL）</li>
-                    <li>为每个实体分配唯一 UUID</li>
-                </ul>
             </Section>
 
-            <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-blue-800 text-sm">
-                    💡 <strong>提示</strong>: 完整版使用指南请查看 <code className="bg-blue-100 px-1 rounded">docs/USAGE_GUIDE_CN.md</code>
+            <div className="mt-6 p-4 bg-primary/20 border-2 border-black" style={{ boxShadow: '2px 2px 0 0 #000000' }}>
+                <p className="text-xs">
+                    <span className="font-bold">TIP:</span> For complete documentation, see <code className="bg-white px-1.5 py-0.5 border border-black">docs/USAGE_GUIDE_CN.md</code>
                 </p>
             </div>
 
-            <div className="mt-4 text-center text-sm text-gray-400">
-                最后更新：2026-01-20
+            <div className="mt-4 text-center text-xs text-gray-500">
+                Documentation version: 2026-01-20
             </div>
         </div>
     );

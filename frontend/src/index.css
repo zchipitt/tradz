@@ -1,22 +1,41 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --score-excellent: #00C805;
-  --score-good: #84cc16;
-  --score-moderate: #eab308;
-  --score-low: #f97316;
-  --score-poor: #ef4444;
+  /* Brutalist Color System */
+  --color-primary: #FFEB3B;
+  --color-primary-dark: #FDD835;
+  --color-black: #000000;
+  --color-white: #FFFFFF;
+  --color-gray: #9CA3AF;
+  --color-gray-light: #E5E5E5;
+
+  /* Status Colors */
+  --color-success: #22C55E;
+  --color-error: #EF4444;
+  --color-warning: #F59E0B;
+  --color-info: #3B82F6;
+
+  /* Grid Pattern */
+  --dot-size: 1px;
+  --dot-space: 24px;
+  --dot-color: rgba(0, 0, 0, 0.15);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   background-color: #FFFFFF;
-  color: #1A1A1A;
+  color: #000000;
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Space Mono', monospace;
+  font-size: 14px;
+  line-height: 1.6;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -26,21 +45,239 @@ body {
   min-height: 100vh;
 }
 
-/* Custom scrollbar - Light Mode */
+/* Dot Grid Background Pattern */
+.bg-dot-grid {
+  background-color: #FFFFFF;
+  background-image: radial-gradient(circle, var(--dot-color) var(--dot-size), transparent var(--dot-size));
+  background-size: var(--dot-space) var(--dot-space);
+}
+
+/* Text Selection - Yellow highlight */
+::selection {
+  background-color: #FFEB3B;
+  color: #000000;
+}
+
+/* Brutalist Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background-color: #F5F5F5;
+  background-color: #E5E5E5;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #D1D5DB;
-  border-radius: 4px;
+  background-color: #000000;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #9CA3AF;
+  background-color: #333333;
+}
+
+/* Component Layer */
+@layer components {
+  /* Brutalist Card */
+  .card-brutal {
+    @apply bg-white border-2 border-black;
+    box-shadow: 4px 4px 0 0 #000000;
+  }
+
+  .card-brutal:hover {
+    box-shadow: 6px 6px 0 0 #000000;
+    transform: translate(-2px, -2px);
+  }
+
+  .card-brutal-sm {
+    @apply bg-white border border-black;
+    box-shadow: 2px 2px 0 0 #000000;
+  }
+
+  /* Brutalist Buttons */
+  .btn-brutal {
+    @apply px-4 py-2 bg-primary border-2 border-black font-mono font-bold text-sm uppercase tracking-wider;
+    @apply cursor-pointer transition-all duration-100;
+    box-shadow: 4px 4px 0 0 #000000;
+  }
+
+  .btn-brutal:hover {
+    box-shadow: 6px 6px 0 0 #000000;
+    transform: translate(-2px, -2px);
+  }
+
+  .btn-brutal:active {
+    box-shadow: 2px 2px 0 0 #000000;
+    transform: translate(2px, 2px);
+  }
+
+  .btn-brutal-outline {
+    @apply px-4 py-2 bg-white border-2 border-black text-black font-mono font-bold text-sm uppercase tracking-wider;
+    @apply cursor-pointer transition-all duration-100;
+    box-shadow: 4px 4px 0 0 #000000;
+  }
+
+  .btn-brutal-outline:hover {
+    @apply bg-gray-100;
+    box-shadow: 6px 6px 0 0 #000000;
+    transform: translate(-2px, -2px);
+  }
+
+  .btn-brutal-sm {
+    @apply px-3 py-1.5 bg-primary border border-black font-mono font-bold text-xs uppercase tracking-wider;
+    @apply cursor-pointer transition-all duration-100;
+    box-shadow: 2px 2px 0 0 #000000;
+  }
+
+  .btn-brutal-sm:hover {
+    box-shadow: 3px 3px 0 0 #000000;
+    transform: translate(-1px, -1px);
+  }
+
+  /* Brutalist Input */
+  .input-brutal {
+    @apply w-full bg-white border-2 border-black px-4 py-3;
+    @apply text-black font-mono text-sm;
+    @apply focus:outline-none focus:ring-0;
+    @apply placeholder:text-gray-400;
+  }
+
+  .input-brutal:focus {
+    box-shadow: 4px 4px 0 0 #FFEB3B;
+  }
+
+  /* Brutalist Badge/Pill */
+  .badge-brutal {
+    @apply px-2 py-0.5 border border-black font-mono text-xs uppercase tracking-wider;
+    @apply inline-flex items-center;
+  }
+
+  .badge-brutal-yellow {
+    @apply bg-primary text-black;
+  }
+
+  .badge-brutal-outline {
+    @apply bg-white text-black;
+  }
+
+  .badge-brutal-gray {
+    @apply bg-gray-200 text-black border-gray-400;
+  }
+
+  /* Status Capsule */
+  .status-capsule {
+    @apply px-3 py-1 border border-black bg-gray-100 font-mono text-xs;
+    @apply inline-flex items-center gap-2;
+  }
+
+  /* Section Banner */
+  .section-banner {
+    @apply w-full bg-primary border-y-2 border-black py-4 px-6;
+    @apply text-center font-mono;
+  }
+
+  /* Large Title */
+  .title-brutal {
+    @apply text-3xl md:text-4xl font-bold font-mono tracking-tight;
+  }
+
+  .subtitle-brutal {
+    @apply text-lg font-mono text-gray-600;
+  }
+
+  /* Navigation Link */
+  .nav-link-brutal {
+    @apply font-mono text-sm text-black hover:text-black;
+    @apply cursor-pointer transition-colors duration-100;
+  }
+
+  .nav-link-brutal:hover {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .nav-link-brutal.active {
+    @apply font-bold;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  /* Table - Brutalist */
+  .table-brutal {
+    @apply w-full border-2 border-black font-mono text-sm;
+  }
+
+  .table-brutal th {
+    @apply px-4 py-3 text-left font-bold uppercase tracking-wider bg-gray-100 border-b-2 border-black;
+  }
+
+  .table-brutal td {
+    @apply px-4 py-3 border-b border-gray-300;
+  }
+
+  .table-brutal tr:hover td {
+    @apply bg-gray-50;
+  }
+
+  /* Divider */
+  .divider-brutal {
+    @apply w-full h-0.5 bg-black;
+  }
+
+  /* Panel Header */
+  .panel-header {
+    @apply flex items-center justify-between px-4 py-3 border-b-2 border-black bg-gray-100;
+  }
+
+  /* Score Display */
+  .score-bar {
+    @apply h-2 bg-gray-200 border border-black;
+  }
+
+  .score-fill {
+    @apply h-full;
+  }
+
+  /* Tool Count Badge */
+  .tool-count {
+    @apply px-2 py-0.5 bg-gray-100 border border-gray-400 font-mono text-xs;
+  }
+}
+
+/* Utility Classes */
+@layer utilities {
+  .border-brutal {
+    border: 2px solid #000000;
+  }
+
+  .shadow-brutal {
+    box-shadow: 4px 4px 0 0 #000000;
+  }
+
+  .shadow-brutal-sm {
+    box-shadow: 2px 2px 0 0 #000000;
+  }
+
+  .shadow-brutal-yellow {
+    box-shadow: 4px 4px 0 0 #FFEB3B;
+  }
+
+  .hover-lift {
+    transition: transform 100ms ease, box-shadow 100ms ease;
+  }
+
+  .hover-lift:hover {
+    transform: translate(-2px, -2px);
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

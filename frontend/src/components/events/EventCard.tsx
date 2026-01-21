@@ -1,7 +1,6 @@
 /**
  * Event card component for the Signal Inbox.
- * Displays event summary, scores, evidence, and actions.
- * Robinhood-style clean design with event state badges.
+ * Brutalist design aesthetic - black/white + yellow accent.
  */
 import { useState } from 'react';
 import {
@@ -28,44 +27,44 @@ interface EventCardProps {
   onOpen?: (event: Event) => void;
 }
 
-const stateConfig: Record<EventState, { label: string; color: string; bgColor: string }> = {
-  new: { label: 'New', color: 'text-primary', bgColor: 'bg-primary/10' },
-  ongoing: { label: 'Ongoing', color: 'text-blue-600', bgColor: 'bg-blue-50' },
-  stale: { label: 'Stale', color: 'text-amber-600', bgColor: 'bg-amber-50' },
-  resolved: { label: 'Resolved', color: 'text-text-muted', bgColor: 'bg-gray-100' },
-  dismissed: { label: 'Dismissed', color: 'text-text-muted', bgColor: 'bg-gray-100' },
+const stateConfig: Record<EventState, { label: string; bg: string; text: string }> = {
+  new: { label: 'NEW', bg: 'bg-primary', text: 'text-black' },
+  ongoing: { label: 'ONGOING', bg: 'bg-status-success/20', text: 'text-status-success' },
+  stale: { label: 'STALE', bg: 'bg-status-error/20', text: 'text-status-error' },
+  resolved: { label: 'RESOLVED', bg: 'bg-gray-200', text: 'text-gray-600' },
+  dismissed: { label: 'DISMISSED', bg: 'bg-gray-200', text: 'text-gray-600' },
 };
 
 const categoryConfig: Record<EventCategory, { label: string; icon: React.ElementType }> = {
-  congress_trade: { label: 'Congress', icon: TrendingUp },
-  hedgefund_filing: { label: '13F Filing', icon: BarChart3 },
-  polymarket_shift: { label: 'Polymarket', icon: Zap },
-  news_cluster: { label: 'News', icon: AlertTriangle },
-  price_anomaly: { label: 'Price', icon: TrendingUp },
-  volume_spike: { label: 'Volume', icon: BarChart3 },
+  congress_trade: { label: 'CONGRESS', icon: TrendingUp },
+  hedgefund_filing: { label: '13F FILING', icon: BarChart3 },
+  polymarket_shift: { label: 'POLYMARKET', icon: Zap },
+  news_cluster: { label: 'NEWS', icon: AlertTriangle },
+  price_anomaly: { label: 'PRICE', icon: TrendingUp },
+  volume_spike: { label: 'VOLUME', icon: BarChart3 },
   sec_filing: { label: 'SEC', icon: Shield },
 };
 
-function ScorePill({ label, value, color }: { label: string; value: number; color: string }) {
+function ScorePill({ label, value }: { label: string; value: number }) {
+  const getColor = (score: number) => {
+    if (score >= 80) return 'text-status-success';
+    if (score >= 60) return 'text-score-good';
+    if (score >= 40) return 'text-status-warning';
+    return 'text-gray-500';
+  };
+
   return (
-    <div className="flex items-center gap-1 text-xs">
-      <span className="text-text-muted">{label}</span>
-      <span className={cn('font-semibold', color)}>{value}</span>
+    <div className="flex items-center gap-1 font-mono text-xs">
+      <span className="text-gray-500">{label}:</span>
+      <span className={cn('font-bold', getColor(value))}>{value}</span>
     </div>
   );
 }
 
-function getScoreColor(score: number): string {
-  if (score >= 80) return 'text-primary';
-  if (score >= 60) return 'text-score-good';
-  if (score >= 40) return 'text-score-moderate';
-  return 'text-text-muted';
-}
-
-function getAttentionBgColor(score: number): string {
-  if (score >= 80) return 'bg-primary';
+function getAttentionBg(score: number): string {
+  if (score >= 80) return 'bg-status-success';
   if (score >= 60) return 'bg-score-good';
-  if (score >= 40) return 'bg-score-moderate';
+  if (score >= 40) return 'bg-status-warning';
   return 'bg-gray-400';
 }
 
@@ -77,9 +76,9 @@ function formatTimeAgo(dateString: string): string {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  return `${diffDays}d`;
 }
 
 export function EventCard({ event, onAction, onOpen }: EventCardProps) {
@@ -93,77 +92,72 @@ export function EventCard({ event, onAction, onOpen }: EventCardProps) {
   return (
     <div
       className={cn(
-        'bg-white rounded-xl border border-border',
-        'transition-all duration-200',
-        'hover:shadow-md hover:border-gray-300',
-        event.pinned && 'ring-2 ring-primary/20 border-primary/30',
+        'bg-white border-2 border-black overflow-hidden font-mono transition-all duration-100',
+        event.pinned && 'border-primary',
         !isActionable && 'opacity-60'
       )}
+      style={{ boxShadow: event.pinned ? '4px 4px 0 0 #FFEB3B' : '2px 2px 0 0 #000000' }}
     >
-      {/* Main Card Content */}
-      <div className="p-4">
-        {/* Header Row: State + Category + Time + Pin */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            {/* State Badge */}
-            <span
-              className={cn(
-                'px-2 py-0.5 rounded-full text-xs font-medium',
-                state.bgColor,
-                state.color
-              )}
-            >
-              {state.label}
-            </span>
+      {/* Header */}
+      <div className="px-4 py-2 bg-gray-100 border-b border-black flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {/* State Badge */}
+          <span className={cn('px-2 py-0.5 text-xs font-bold uppercase border border-black', state.bg, state.text)}>
+            {state.label}
+          </span>
 
-            {/* Category Badge */}
-            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-surface text-text-muted">
-              <CategoryIcon size={12} />
-              {category.label}
-            </span>
+          {/* Category Badge */}
+          <span className="flex items-center gap-1 text-xs text-gray-600">
+            <CategoryIcon size={12} />
+            <span>{category.label}</span>
+          </span>
 
-            {/* Evidence Count */}
-            <span className="text-xs text-text-muted">
-              {event.evidence_count} evidence
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Time */}
-            <span className="text-xs text-text-muted">{formatTimeAgo(event.last_updated)}</span>
-
-            {/* Pin indicator */}
-            {event.pinned && <Pin size={14} className="text-primary" />}
-          </div>
+          {/* Evidence Count */}
+          <span className="text-xs text-gray-500">
+            {event.evidence_count} sources
+          </span>
         </div>
 
+        <div className="flex items-center gap-3">
+          {/* Time */}
+          <span className="text-xs text-gray-500">{formatTimeAgo(event.last_updated)} ago</span>
+
+          {/* Pin indicator */}
+          {event.pinned && <Pin size={12} className="text-primary" />}
+        </div>
+      </div>
+
+      {/* Main Card Content */}
+      <div className="p-4">
         {/* Title + Attention Score Row */}
-        <div className="flex items-start gap-3 mb-3">
-          {/* Attention Score Circle */}
-          <div
-            className={cn(
-              'flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center',
-              getAttentionBgColor(event.attention_score)
-            )}
-          >
-            <span className="text-white font-bold text-lg">{event.attention_score}</span>
+        <div className="flex items-start gap-4 mb-4">
+          {/* Attention Score */}
+          <div className="flex-shrink-0 w-14 h-14 border-2 border-black flex flex-col items-center justify-center bg-gray-50">
+            <span className="text-2xl font-bold">{event.attention_score}</span>
+            <span className="text-[10px] text-gray-500 uppercase">ATT</span>
+            <div className="w-full h-1 mt-1">
+              <div
+                className={cn('h-full', getAttentionBg(event.attention_score))}
+                style={{ width: `${event.attention_score}%` }}
+              />
+            </div>
           </div>
 
           {/* Title + Assets */}
           <div className="flex-1 min-w-0">
             <h3
-              className="font-semibold text-text leading-tight cursor-pointer hover:text-primary transition-colors"
+              className="font-bold text-black text-lg leading-tight cursor-pointer hover:underline hover:underline-offset-4 transition-all"
               onClick={() => onOpen?.(event)}
             >
               {event.title}
             </h3>
-            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+            <div className="flex flex-wrap items-center gap-2 mt-2">
               {event.assets.map((asset) => (
                 <span
                   key={asset}
-                  className="px-1.5 py-0.5 rounded text-xs font-medium bg-surface text-text"
+                  className="px-2 py-0.5 text-xs font-bold bg-gray-100 border border-black"
                 >
-                  {asset}
+                  ${asset}
                 </span>
               ))}
             </div>
@@ -171,89 +165,90 @@ export function EventCard({ event, onAction, onOpen }: EventCardProps) {
         </div>
 
         {/* 4D Score Pills */}
-        <div className="flex items-center gap-4 mb-3 pb-3 border-b border-border">
-          <ScorePill label="A" value={event.anomaly_score} color={getScoreColor(event.anomaly_score)} />
-          <ScorePill label="C" value={event.catalyst_score} color={getScoreColor(event.catalyst_score)} />
-          <ScorePill label="F" value={event.flow_score} color={getScoreColor(event.flow_score)} />
-          <ScorePill label="Conf" value={event.confidence_score} color={getScoreColor(event.confidence_score)} />
+        <div className="flex items-center gap-6 mb-4 pb-3 border-b border-gray-200">
+          <ScorePill label="ANM" value={event.anomaly_score} />
+          <ScorePill label="CAT" value={event.catalyst_score} />
+          <ScorePill label="FLW" value={event.flow_score} />
+          <ScorePill label="CNF" value={event.confidence_score} />
         </div>
 
         {/* Summary */}
-        <p className="text-sm text-text-muted mb-3 line-clamp-2">{event.summary}</p>
+        <div className="mb-3">
+          <p className="text-sm text-gray-700 line-clamp-2">{event.summary}</p>
+        </div>
 
         {/* Latest Evidence Preview */}
         {event.evidence.length > 0 && (
-          <div className="text-xs text-text-muted mb-3">
-            <span className="font-medium">{event.evidence[0].source}:</span>{' '}
-            {event.evidence[0].summary}
+          <div className="text-xs text-gray-600 mb-3 pl-4 border-l-2 border-gray-300">
+            <span className="font-bold">[{event.evidence[0].source}]</span>{' '}
+            <span>{event.evidence[0].summary}</span>
           </div>
         )}
 
         {/* Trade Plan Preview (if high confidence) */}
         {event.trade_plan && event.confidence_score >= 70 && (
-          <div className="bg-primary/5 rounded-lg p-3 mb-3 border border-primary/10">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp size={14} className="text-primary" />
-              <span className="text-xs font-semibold text-primary">Trade Idea</span>
+          <div className="bg-primary/20 border-2 border-black p-3 mb-3">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-bold uppercase">Trade Idea</span>
               <span
                 className={cn(
-                  'px-1.5 py-0.5 rounded text-xs font-medium',
+                  'px-2 py-0.5 text-[10px] font-bold uppercase border border-black',
                   event.trade_plan.risk_level === 'low'
-                    ? 'bg-green-100 text-green-700'
+                    ? 'bg-status-success text-white'
                     : event.trade_plan.risk_level === 'medium'
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-red-100 text-red-700'
+                    ? 'bg-status-warning text-black'
+                    : 'bg-status-error text-white'
                 )}
               >
                 {event.trade_plan.risk_level} risk
               </span>
             </div>
-            <p className="text-sm text-text">{event.trade_plan.thesis}</p>
-            <p className="text-xs text-text-muted mt-1">
-              <span className="font-medium">Invalidation:</span> {event.trade_plan.invalidation}
+            <p className="text-xs text-gray-800">{event.trade_plan.thesis}</p>
+            <p className="text-xs text-gray-600 mt-1">
+              <span className="text-status-error font-bold">Invalidation:</span> {event.trade_plan.invalidation}
             </p>
           </div>
         )}
 
         {/* Expand/Collapse + Actions */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pt-2">
           <button
             onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-1 text-xs text-text-muted hover:text-text transition-colors cursor-pointer"
+            className="flex items-center gap-1 text-xs text-gray-600 hover:text-black transition-colors cursor-pointer font-bold uppercase"
           >
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            {expanded ? 'Less' : 'More'}
+            <span>{expanded ? 'Collapse' : 'Expand'}</span>
           </button>
 
           {isActionable && (
             <div className="flex items-center gap-1">
               <button
                 onClick={() => onAction?.(event.id, event.pinned ? 'unpin' : 'pin')}
-                className="p-1.5 rounded-lg hover:bg-surface text-text-muted hover:text-text transition-colors cursor-pointer"
+                className="p-2 text-gray-500 hover:text-black hover:bg-gray-100 transition-colors cursor-pointer border border-transparent hover:border-black"
                 title={event.pinned ? 'Unpin' : 'Pin'}
               >
-                {event.pinned ? <PinOff size={16} /> : <Pin size={16} />}
+                {event.pinned ? <PinOff size={14} /> : <Pin size={14} />}
               </button>
               <button
                 onClick={() => onAction?.(event.id, 'snooze')}
-                className="p-1.5 rounded-lg hover:bg-surface text-text-muted hover:text-text transition-colors cursor-pointer"
+                className="p-2 text-gray-500 hover:text-status-warning hover:bg-status-warning/10 transition-colors cursor-pointer border border-transparent hover:border-status-warning"
                 title="Snooze 24h"
               >
-                <Clock size={16} />
+                <Clock size={14} />
               </button>
               <button
                 onClick={() => onAction?.(event.id, 'resolve')}
-                className="p-1.5 rounded-lg hover:bg-surface text-text-muted hover:text-primary transition-colors cursor-pointer"
+                className="p-2 text-gray-500 hover:text-status-success hover:bg-status-success/10 transition-colors cursor-pointer border border-transparent hover:border-status-success"
                 title="Mark Resolved"
               >
-                <CheckCircle size={16} />
+                <CheckCircle size={14} />
               </button>
               <button
                 onClick={() => onAction?.(event.id, 'dismiss')}
-                className="p-1.5 rounded-lg hover:bg-surface text-text-muted hover:text-negative transition-colors cursor-pointer"
+                className="p-2 text-gray-500 hover:text-status-error hover:bg-status-error/10 transition-colors cursor-pointer border border-transparent hover:border-status-error"
                 title="Dismiss"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
           )}
@@ -262,30 +257,34 @@ export function EventCard({ event, onAction, onOpen }: EventCardProps) {
 
       {/* Expanded Evidence Timeline */}
       {expanded && (
-        <div className="border-t border-border px-4 py-3 bg-surface/50">
-          <h4 className="text-xs font-semibold text-text-muted mb-2 uppercase tracking-wide">
+        <div className="border-t-2 border-black px-4 py-4 bg-gray-50">
+          <h4 className="text-xs font-bold mb-3 uppercase tracking-wider">
             Evidence Timeline
           </h4>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {event.evidence.map((ev, i) => (
-              <div key={i} className="flex items-start gap-2 text-sm">
-                <div className="w-1.5 h-1.5 rounded-full bg-text-muted mt-2 flex-shrink-0" />
+              <div key={i} className="flex items-start gap-3 text-xs p-3 bg-white border border-gray-300">
+                <div className="w-2 h-2 bg-black mt-1.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-text">{ev.source}</span>
-                    <span className="text-xs text-text-light">{formatTimeAgo(ev.timestamp)}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold">[{ev.source}]</span>
+                    <span className="text-gray-500">{formatTimeAgo(ev.timestamp)} ago</span>
+                    <span className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-[10px] font-bold">
+                      CONF: {ev.confidence}%
+                    </span>
                     {ev.url && (
                       <a
                         href={ev.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-primary hover:underline"
+                        className="text-black hover:underline font-bold flex items-center gap-1"
                       >
-                        <ExternalLink size={12} />
+                        <ExternalLink size={10} />
+                        SOURCE
                       </a>
                     )}
                   </div>
-                  <p className="text-text-muted">{ev.summary}</p>
+                  <p className="text-gray-600 mt-1">{ev.summary}</p>
                 </div>
               </div>
             ))}
@@ -294,9 +293,9 @@ export function EventCard({ event, onAction, onOpen }: EventCardProps) {
           {/* Open Full Event Button */}
           <button
             onClick={() => onOpen?.(event)}
-            className="mt-3 w-full py-2 rounded-lg border border-border text-sm font-medium text-text hover:bg-white transition-colors cursor-pointer"
+            className="mt-4 w-full py-2 text-xs font-bold uppercase tracking-wider border-2 border-black hover:bg-primary transition-colors cursor-pointer"
           >
-            Open Event Details
+            Open Full Details
           </button>
         </div>
       )}

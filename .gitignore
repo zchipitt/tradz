@@ -53,3 +53,11 @@ reports/
 .shared/
 .cursor/
 .agent/
+
+
+# MCP
+.playwright-mcp
+
+# local
+prompt.md
+scripts
