@@ -72,8 +72,8 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit df7e675. Created FactType enum (23 types), updated FactTableEntry dataclass with new fields and backward compatibility, created fact_extractor.py with extractors for all source types. 40 unit tests pass."
     },
     {
       "id": "US-004a",

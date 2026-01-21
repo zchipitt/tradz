@@ -13,6 +13,9 @@
 - Use `get_default_provider(config)` to auto-detect available LLM provider
 - OpenRouter API key: `OPENROUTER_API_KEY` env var
 - Tests use `from src.tradz.events import ...` pattern for imports
+- Use `FactType` enum for fact type classification (PRICE, VOLUME, HEADLINE, POLITICIAN, etc.)
+- Fact extraction via `extract_facts(observation)` dispatches to source-specific extractors
+- Fact IDs use format: `{obs_id[:8]}_{fact_type}` for uniqueness
 
 ---
 
@@ -73,4 +76,37 @@
   - Event model already has `title_template` and `title_source` fields ready
   - httpx used for OpenRouter API (already in requirements)
   - Use `provider.is_available()` to check availability before `generate()`
+---
+
+## 2026-01-21 - US-001d
+- **What was implemented**: FactTableEntry extraction from observations
+  - Created `FactType` enum with 23 fact types for all observation sources
+  - Updated `FactTableEntry` dataclass with new fields: fact_id, fact_type, label, value, unit, source, timestamp, observation_id
+  - Maintained backward compatibility with category, ticker, source_url legacy fields
+  - Added `from_dict()` class method for deserialization
+  - Created `src/tradz/events/fact_extractor.py` module with extractors for all source types:
+    - `extract_congress_facts()`: politician, party, trade_type, amount_range, ticker, trade_date
+    - `extract_sec_facts()`: filing_type, filed_date, form_url, key_items
+    - `extract_news_facts()`: headline, publisher, published_at, sentiment_score
+    - `extract_market_facts()`: price, change_pct, volume, volume_vs_avg (equities/crypto)
+    - `extract_polymarket_facts()`: market_question, probability, probability_change
+    - `extract_hedgefund_facts()`: fund_name, position_change, shares, value
+  - Utility functions: `update_observation_with_facts()`, `batch_extract_facts()`
+  - Added 40 unit tests covering all fact extraction scenarios
+
+- **Files changed**:
+  - `src/tradz/models.py` (updated FactTableEntry, added FactType enum)
+  - `src/tradz/events/__init__.py` (updated exports)
+  - `src/tradz/events/fact_extractor.py` (new)
+  - `tests/test_fact_extractor.py` (new)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - Use `FactType` enum values when creating facts for consistency
+  - Fact IDs are prefixed with first 8 chars of observation_id for uniqueness
+  - Polymarket probability values are auto-converted from decimal (0-1) to percentage (0-100)
+  - `update_observation_with_facts()` modifies observation in-place and returns it
+  - Database schema already has `fact_entries JSON` column in observations table
+  - The existing `FactTable` and `FactTableEntry` in models.py are used by report generation
+  - All fact extractors return `List[FactTableEntry]` for consistency
 ---
