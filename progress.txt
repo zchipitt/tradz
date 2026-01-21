@@ -154,3 +154,41 @@
   - The database has `event_observations` junction table for linking events to observations
   - Use `from api.schemas.events import ...` for schema imports in tests
 ---
+
+## 2026-01-21 - US-007a
+- **What was implemented**: System Status API endpoint for data source health monitoring
+  - Created `api/schemas/system.py` with Pydantic schemas:
+    - `SourceStatus` enum for health status (ok/degraded/error)
+    - `SourceHealth` model with name, display_name, status, last_success_at, last_error, record_count_24h, freshness_indicator
+    - `OverallHealth` model with total_sources, healthy_count, degraded_count, error_count
+    - `SystemStatusResponse` combining overall summary and per-source details
+  - Created `api/services/system_service.py` with SystemService class:
+    - `get_system_status()` returns health status for all 7 data sources
+    - Status determination: ok (success < 1h), degraded (1-24h), error (> 24h or no success)
+    - Freshness indicator: fresh/stale/unknown based on last success timestamp
+    - Queries observations table for counts and timestamps per source
+    - Queries run_history for recent errors per source
+  - Created `api/routers/system.py` with single endpoint:
+    - `GET /api/system/status` returns SystemStatusResponse
+  - Updated `api/main.py` and `api/routers/__init__.py` to register system router
+  - Added 16 unit tests covering all status scenarios
+
+- **Files changed**:
+  - `api/schemas/system.py` (new)
+  - `api/services/system_service.py` (new)
+  - `api/routers/system.py` (new)
+  - `api/main.py` (added system_router)
+  - `api/routers/__init__.py` (exported system_router)
+  - `api/schemas/__init__.py` (exported system schemas)
+  - `tests/test_system_api.py` (new)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - System status determines health from observations table last_success timestamps
+  - ALL_SOURCES constant defines 7 data sources: equities, crypto, congress, hedgefund, polymarket, news, sec
+  - SOURCE_DISPLAY_NAMES maps source names to human-readable display names
+  - Error messages extracted from run_history.errors JSON array
+  - Use `datetime.now(timezone.utc)` for timestamp comparisons (not utcnow())
+  - Ensure datetimes are timezone-aware before comparison
+  - Tests mock `system_service` in the router using `patch("api.routers.system.system_service")`
+---
