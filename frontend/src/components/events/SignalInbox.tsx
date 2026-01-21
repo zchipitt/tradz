@@ -1,22 +1,87 @@
 /**
  * Signal Inbox component - Event list with filtering.
  * Brutalist design aesthetic - black/white + yellow accent.
+ *
+ * US-004b: Displays events from GET /api/events with:
+ * - Tab switcher for Active/Resolved/All views
+ * - Loading state with skeleton placeholders
+ * - Error state with retry button
+ * - Empty state with helpful message
+ * - Auto-refresh every 5 minutes via TanStack Query
  */
 import { useState } from 'react';
-import { Inbox, Eye, EyeOff } from 'lucide-react';
+import { Inbox, Eye, EyeOff, RefreshCw, AlertCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { EventCard } from './EventCard';
 import type { Event } from '../../api/types';
 
 interface SignalInboxProps {
   events: Event[];
+  isLoading?: boolean;
+  isError?: boolean;
+  error?: Error | null;
+  onRetry?: () => void;
   onAction?: (eventId: string, action: 'dismiss' | 'snooze' | 'pin' | 'unpin' | 'resolve') => void;
   onOpenEvent?: (event: Event) => void;
 }
 
 type FilterState = 'active' | 'all' | 'resolved';
 
-export function SignalInbox({ events, onAction, onOpenEvent }: SignalInboxProps) {
+/**
+ * Skeleton placeholder for loading state.
+ */
+function EventCardSkeleton() {
+  return (
+    <div className="bg-white border-2 border-black overflow-hidden animate-pulse">
+      {/* Header */}
+      <div className="px-4 py-2 bg-gray-100 border-b border-black flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-16 bg-gray-300" />
+          <div className="h-4 w-20 bg-gray-200" />
+          <div className="h-4 w-16 bg-gray-200" />
+        </div>
+        <div className="h-4 w-12 bg-gray-200" />
+      </div>
+
+      {/* Main Content */}
+      <div className="p-4">
+        <div className="flex items-start gap-4 mb-4">
+          {/* Score box */}
+          <div className="flex-shrink-0 w-14 h-14 border-2 border-gray-200 bg-gray-100" />
+          {/* Title + assets */}
+          <div className="flex-1 min-w-0">
+            <div className="h-6 w-3/4 bg-gray-300 mb-2" />
+            <div className="flex items-center gap-2 mt-2">
+              <div className="h-5 w-16 bg-gray-200" />
+              <div className="h-5 w-16 bg-gray-200" />
+            </div>
+          </div>
+        </div>
+
+        {/* Score pills */}
+        <div className="flex items-center gap-6 mb-4 pb-3 border-b border-gray-200">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-4 w-12 bg-gray-200" />
+          ))}
+        </div>
+
+        {/* Summary */}
+        <div className="h-4 w-full bg-gray-200 mb-2" />
+        <div className="h-4 w-2/3 bg-gray-200" />
+      </div>
+    </div>
+  );
+}
+
+export function SignalInbox({
+  events,
+  isLoading = false,
+  isError = false,
+  error = null,
+  onRetry,
+  onAction,
+  onOpenEvent,
+}: SignalInboxProps) {
   const [filter, setFilter] = useState<FilterState>('active');
   const [showResolved, setShowResolved] = useState(false);
 
@@ -59,6 +124,84 @@ export function SignalInbox({ events, onAction, onOpenEvent }: SignalInboxProps)
   );
 
   const activeCount = stateCounts.new + stateCounts.ongoing + stateCounts.stale;
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="bg-white border-2 border-black font-mono">
+        {/* Header */}
+        <div className="px-4 py-3 bg-gray-100 border-b-2 border-black flex items-center justify-between">
+          <span className="text-sm font-bold uppercase tracking-wider">
+            Signal Inbox
+          </span>
+        </div>
+
+        {/* Error content */}
+        <div className="p-8 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 border-2 border-status-error mb-4">
+            <AlertCircle size={32} className="text-status-error" />
+          </div>
+          <p className="text-lg font-bold uppercase tracking-wider text-status-error">
+            Failed to Load Events
+          </p>
+          <p className="text-sm text-gray-500 mt-2 mb-6">
+            {error?.message || 'Unable to fetch events from the server. Please try again.'}
+          </p>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="inline-flex items-center gap-2 px-4 py-2 border-2 border-black font-bold text-sm uppercase tracking-wider hover:bg-primary transition-colors cursor-pointer"
+            >
+              <RefreshCw size={14} />
+              Retry
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="bg-white border-2 border-black font-mono">
+        {/* Header */}
+        <div className="px-4 py-3 bg-gray-100 border-b-2 border-black flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-bold uppercase tracking-wider">
+              Signal Inbox
+            </span>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <RefreshCw size={12} className="animate-spin" />
+              Loading...
+            </div>
+          </div>
+
+          {/* Disabled filter controls during loading */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center border-2 border-gray-300 opacity-50">
+              {(['active', 'resolved', 'all'] as FilterState[]).map((f) => (
+                <button
+                  key={f}
+                  disabled
+                  className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide bg-white text-gray-400 cursor-not-allowed"
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Skeleton placeholders */}
+        <div className="p-4 space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <EventCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white border-2 border-black font-mono">

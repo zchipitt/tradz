@@ -9,7 +9,7 @@ import { SystemStatus } from '../components/events/SystemStatus';
 import { SignalInbox } from '../components/events/SignalInbox';
 import { DailyBrief } from '../components/events/DailyBrief';
 import { MarketSnapshot } from '../components/events/MarketSnapshot';
-import { AlertCircle, Loader2, X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { Event, Signal } from '../api/types';
 
@@ -21,7 +21,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onEventOpen, onSignalClick, onRefresh, isRefreshing }: DashboardProps) {
-  const { data: eventsData, isLoading: eventsLoading, error: eventsError } = useEvents();
+  const { data: eventsData, isLoading: eventsLoading, error: eventsError, refetch: refetchEvents } = useEvents();
   const { data: signalsData } = useSignals();
   const eventAction = useEventAction();
 
@@ -49,49 +49,29 @@ export function Dashboard({ onEventOpen, onSignalClick, onRefresh, isRefreshing 
     onEventOpen?.(event);
   };
 
-  // Loading state - Brutalist style
-  if (eventsLoading && !eventsData) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="bg-white border-2 border-black p-8 shadow-brutal">
-          <div className="flex items-center gap-4 font-mono">
-            <Loader2 className="animate-spin text-black" size={24} />
-            <span className="text-lg font-bold">Loading events...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state - Brutalist style
-  if (eventsError) {
-    return (
-      <div className="bg-white border-2 border-black p-6 shadow-brutal">
-        <div className="flex items-center gap-4">
-          <AlertCircle className="text-status-error" size={24} />
-          <div className="font-mono">
-            <p className="font-bold text-lg text-black">ERROR: Event load failed</p>
-            <p className="text-gray-600 text-sm mt-1">
-              {eventsError instanceof Error ? eventsError.message : 'Unknown error'}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!eventsData) {
-    return null;
-  }
-
-  const { events, daily_brief } = eventsData;
+  // Get events and daily_brief, using empty defaults when loading or error
+  const events = eventsData?.events ?? [];
+  const daily_brief = eventsData?.daily_brief ?? {
+    date: new Date().toISOString().split('T')[0],
+    executive_summary: [],
+    top_events: [],
+    trade_ideas: [],
+    data_quality: {
+      sources_ok: 0,
+      sources_total: 7,
+      errors: [],
+      stalest_source: '',
+      stalest_age_hours: 0,
+    },
+    open_loops: [],
+  };
 
   return (
     <div className="space-y-8">
       {/* Section 1: System Status Header */}
       <SystemStatus
         dataQuality={daily_brief.data_quality}
-        lastUpdated={eventsData.generated_at}
+        lastUpdated={eventsData?.generated_at ?? new Date().toISOString()}
         isRefreshing={isRefreshing}
         onRefresh={onRefresh}
         onGenerateBrief={() => {
@@ -105,6 +85,10 @@ export function Dashboard({ onEventOpen, onSignalClick, onRefresh, isRefreshing 
       {/* Section 2: Signal Inbox (Primary) */}
       <SignalInbox
         events={events}
+        isLoading={eventsLoading && !eventsData}
+        isError={!!eventsError}
+        error={eventsError instanceof Error ? eventsError : null}
+        onRetry={() => refetchEvents()}
         onAction={handleEventAction}
         onOpenEvent={handleOpenEvent}
       />

@@ -137,10 +137,25 @@ export interface HealthResponse {
   version: string;
 }
 
-// Event-centric types for the new dashboard
+// Event-centric types for the new dashboard (matches backend EventListItem schema)
 
 export type EventState = 'new' | 'ongoing' | 'stale' | 'resolved' | 'dismissed';
 
+export type EventType =
+  | 'catalyst'
+  | 'risk'
+  | 'flow'
+  | 'macro'
+  | 'market_anomaly'
+  | 'catalyst_news'
+  | 'catalyst_filing'
+  | 'flow_congress'
+  | 'flow_13f'
+  | 'prediction_shift'
+  | 'mixed'
+  | 'uncertain';
+
+// Legacy category mapping for UI components
 export type EventCategory =
   | 'congress_trade'
   | 'hedgefund_filing'
@@ -149,6 +164,13 @@ export type EventCategory =
   | 'price_anomaly'
   | 'volume_spike'
   | 'sec_filing';
+
+export interface FourDScores {
+  anomaly_score: number;
+  catalyst_score: number;
+  flow_score: number;
+  confidence_score: number;
+}
 
 export interface EventEvidence {
   source: string;
@@ -165,6 +187,39 @@ export interface TradePlan {
   risk_level: 'low' | 'medium' | 'high';
 }
 
+/**
+ * EventListItem matches backend GET /api/events response.
+ */
+export interface EventListItem {
+  event_id: string;
+  entity_id: string | null;
+  ticker: string | null;
+  title: string;
+  event_type: EventType;
+  status: EventState;
+  attention_score: number;
+  scores: FourDScores;
+  observation_count: number;
+  last_update_at: string;
+  start_at: string;
+  pinned: boolean;
+  snoozed_until: string | null;
+}
+
+/**
+ * API response for GET /api/events endpoint.
+ */
+export interface EventsListResponse {
+  events: EventListItem[];
+  total_count: number;
+  offset: number;
+  limit: number;
+}
+
+/**
+ * Legacy Event interface for backwards compatibility with existing UI.
+ * Maps from EventListItem for display in SignalInbox/EventCard.
+ */
 export interface Event {
   id: string;
   title: string;

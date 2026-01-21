@@ -4,15 +4,9 @@
  */
 import { useState } from 'react';
 import {
-  LayoutDashboard,
-  TrendingUp,
-  Newspaper,
   RefreshCw,
   Menu,
   X,
-  BookOpen,
-  BarChart3,
-  FileText,
   Zap,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
