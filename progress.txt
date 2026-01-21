@@ -19,6 +19,11 @@
 - API pattern: routers in `api/routers/`, schemas in `api/schemas/`, services in `api/services/`
 - API tests use `from api.routers.X import router` and `TestClient(app)` for HTTP testing
 - Register new routers in both `api/routers/__init__.py` and `api/main.py`
+- Frontend API client in `frontend/src/api/client.ts` - add transformer functions for backend-to-UI mapping
+- Frontend types in `frontend/src/api/types.ts` - add both backend schema types and legacy UI types
+- Frontend hooks use TanStack Query with 5-min staleTime and refetchInterval for auto-refresh
+- Use `EventCardSkeleton` component pattern for loading states with `animate-pulse` class
+- Pass `isLoading`, `isError`, `error`, `onRetry` props to components for proper state handling
 
 ---
 
@@ -191,4 +196,36 @@
   - Use `datetime.now(timezone.utc)` for timestamp comparisons (not utcnow())
   - Ensure datetimes are timezone-aware before comparison
   - Tests mock `system_service` in the router using `patch("api.routers.system.system_service")`
+---
+
+## 2026-01-21 - US-004b
+- **What was implemented**: Signal Inbox UI component with loading/error states
+  - Updated `api/types.ts` with `EventListItem` and `EventsListResponse` types matching backend
+  - Added `EventType` enum for new backend event types
+  - Added `FourDScores` interface for nested score structure
+  - Updated `api/client.ts` with `getEventsFromApi()` to call backend GET /api/events
+  - Added `mapEventTypeToCategory()` to transform backend EventType to legacy UI EventCategory
+  - Added `transformEventListItem()` to convert backend response to legacy Event format
+  - Updated `getEvents()` to call actual API instead of returning mock data
+  - Added `EventCardSkeleton` component for loading state with animated placeholders
+  - Added error state with AlertCircle icon, error message, and retry button
+  - Updated `SignalInbox` props: `isLoading`, `isError`, `error`, `onRetry`
+  - Updated `Dashboard.tsx` to pass loading/error states and refetch function to SignalInbox
+  - Fixed unused imports in `Layout.tsx` to pass strict typecheck
+
+- **Files changed**:
+  - `frontend/src/api/types.ts` (added EventListItem, EventsListResponse, FourDScores, EventType)
+  - `frontend/src/api/client.ts` (added getEventsFromApi, transformer functions)
+  - `frontend/src/components/events/SignalInbox.tsx` (added skeleton, error state)
+  - `frontend/src/components/layout/Layout.tsx` (removed unused imports)
+  - `frontend/src/pages/Dashboard.tsx` (pass loading/error states to SignalInbox)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - Backend EventListItem uses `event_type` (snake_case) while UI uses `category` - need transformation
+  - Backend returns scores in nested `scores` object, UI expects flat scores - flatten in transformer
+  - React Query's `refetch` function can be passed to child components for retry functionality
+  - EventCardSkeleton uses CSS `animate-pulse` class for loading animation
+  - When integrating with backend, always null-coalesce optional fields in transformer
+  - Layout.tsx had unused imports from lucide-react causing build failures with `noUnusedLocals: true`
 ---
