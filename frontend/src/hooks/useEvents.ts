@@ -2,11 +2,10 @@
  * React Query hooks for events data.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getEvents, updateEventAction, getSourcesHealth } from '../api/client';
+import { getEvents, updateEventAction, getSystemStatus } from '../api/client';
 import type { EventAction } from '../api/types';
 
 export const EVENTS_QUERY_KEY = ['events'];
-export const SOURCES_HEALTH_KEY = ['sources', 'health'];
 
 /**
  * Hook to fetch all events and daily brief.
@@ -36,16 +35,19 @@ export function useEventAction() {
   });
 }
 
+export const SYSTEM_STATUS_KEY = ['system', 'status'];
+
 /**
- * Hook to fetch source health status.
+ * Hook to fetch system status from GET /api/system/status.
+ * Auto-refreshes every 5 minutes with 5-minute stale time.
  */
-export function useSourcesHealth(enabled = true) {
+export function useSystemStatus(enabled = true) {
   return useQuery({
-    queryKey: SOURCES_HEALTH_KEY,
-    queryFn: () => getSourcesHealth(),
+    queryKey: SYSTEM_STATUS_KEY,
+    queryFn: () => getSystemStatus(),
     enabled,
-    staleTime: 60 * 1000, // 1 minute
-    refetchInterval: 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 5 * 60 * 1000, // Auto-refresh every 5 minutes
   });
 }
 

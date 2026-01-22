@@ -3,7 +3,7 @@
  * Black/white + yellow accent, hard borders, dot grid background.
  */
 import { useState } from 'react';
-import { useEvents, useEventAction } from '../hooks/useEvents';
+import { useEvents, useEventAction, useSystemStatus } from '../hooks/useEvents';
 import { useSignals } from '../hooks/useSignals';
 import { SystemStatus } from '../components/events/SystemStatus';
 import { SignalInbox } from '../components/events/SignalInbox';
@@ -23,6 +23,7 @@ interface DashboardProps {
 export function Dashboard({ onEventOpen, onSignalClick, onRefresh, isRefreshing }: DashboardProps) {
   const { data: eventsData, isLoading: eventsLoading, error: eventsError, refetch: refetchEvents } = useEvents();
   const { data: signalsData } = useSignals();
+  const { data: systemStatusData, isLoading: statusLoading, error: statusError, refetch: refetchStatus } = useSystemStatus();
   const eventAction = useEventAction();
 
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -70,10 +71,17 @@ export function Dashboard({ onEventOpen, onSignalClick, onRefresh, isRefreshing 
     <div className="space-y-8">
       {/* Section 1: System Status Header */}
       <SystemStatus
-        dataQuality={daily_brief.data_quality}
-        lastUpdated={eventsData?.generated_at ?? new Date().toISOString()}
+        systemStatus={systemStatusData}
+        isLoading={statusLoading && !systemStatusData}
+        isError={!!statusError}
+        error={statusError instanceof Error ? statusError : null}
+        lastUpdated={eventsData?.generated_at}
         isRefreshing={isRefreshing}
-        onRefresh={onRefresh}
+        onRefresh={() => {
+          onRefresh?.();
+          refetchStatus();
+        }}
+        onRetry={() => refetchStatus()}
         onGenerateBrief={() => {
           console.log('Generate brief');
         }}

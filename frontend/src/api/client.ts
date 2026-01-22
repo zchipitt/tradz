@@ -86,9 +86,9 @@ import type {
   EventListItem,
   Event,
   EventAction,
-  SourceHealth,
   EventCategory,
   EventType,
+  SystemStatusResponse,
 } from './types';
 
 /**
@@ -193,8 +193,10 @@ export const updateEventAction = async (_action: EventAction): Promise<Event> =>
   throw new Error('Events action API not yet implemented');
 };
 
-export const getSourcesHealth = async (): Promise<SourceHealth[]> => {
-  // Backend source health endpoint not yet implemented
-  // Return empty array for now
-  return [];
+/**
+ * Fetches system status from GET /api/system/status endpoint.
+ */
+export const getSystemStatus = async (): Promise<SystemStatusResponse> => {
+  const { data } = await apiClient.get<SystemStatusResponse>('/system/status');
+  return data;
 };
