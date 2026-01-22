@@ -22,6 +22,7 @@ from .models import (
     Signal,
     DailyBrief,
     EventTypeHistory,
+    EventAction, EventActionType,
 )
 
 logger = logging.getLogger(__name__)
@@ -263,6 +264,35 @@ class Database:
         # Create index for event_type_history event lookups
         self.conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_event_type_history_event ON event_type_history(event_id)
+        """)
+
+        # Event actions table (for logging user actions on events)
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS event_actions (
+                id VARCHAR PRIMARY KEY,
+                event_id VARCHAR NOT NULL,
+                action_type VARCHAR NOT NULL,
+                performed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                duration_hours INTEGER,
+                reason VARCHAR,
+                previous_status VARCHAR,
+                new_status VARCHAR,
+                previous_pinned BOOLEAN,
+                new_pinned BOOLEAN,
+                snoozed_until TIMESTAMP,
+                user_id VARCHAR,
+                user_agent VARCHAR,
+                ip_address VARCHAR,
+                FOREIGN KEY (event_id) REFERENCES events(id)
+            )
+        """)
+
+        # Create indexes for event_actions queries
+        self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_event_actions_event ON event_actions(event_id)
+        """)
+        self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_event_actions_performed_at ON event_actions(performed_at)
         """)
 
         # Run migrations to add new columns to existing tables
@@ -855,6 +885,117 @@ class Database:
             new_type=row[3],
             changed_at=row[4],
             trigger_observation_id=UUID(row[5]) if row[5] else None,
+        )
+
+    # =========================================================================
+    # Event Action Operations
+    # =========================================================================
+
+    def insert_event_action(self, action: EventAction) -> str:
+        """
+        Insert event action log record.
+
+        Args:
+            action: EventAction object with action details
+
+        Returns:
+            Action ID string
+        """
+        self.conn.execute("""
+            INSERT INTO event_actions (
+                id, event_id, action_type, performed_at, duration_hours,
+                reason, previous_status, new_status, previous_pinned,
+                new_pinned, snoozed_until, user_id, user_agent, ip_address
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, [
+            str(action.id),
+            str(action.event_id),
+            action.action_type.value,
+            action.performed_at,
+            action.duration_hours,
+            action.reason,
+            action.previous_status,
+            action.new_status,
+            action.previous_pinned,
+            action.new_pinned,
+            action.snoozed_until,
+            action.user_id,
+            action.user_agent,
+            action.ip_address,
+        ])
+        return str(action.id)
+
+    def get_event_action_history(
+        self,
+        event_id: UUID,
+        limit: int = 50
+    ) -> List[EventAction]:
+        """
+        Get action history for an event.
+
+        Args:
+            event_id: Event UUID
+            limit: Maximum number of records to return
+
+        Returns:
+            List of EventAction objects sorted by performed_at DESC
+        """
+        results = self.conn.execute("""
+            SELECT id, event_id, action_type, performed_at, duration_hours,
+                   reason, previous_status, new_status, previous_pinned,
+                   new_pinned, snoozed_until, user_id, user_agent, ip_address
+            FROM event_actions
+            WHERE event_id = ?
+            ORDER BY performed_at DESC
+            LIMIT ?
+        """, [str(event_id), limit]).fetchall()
+        return [self._row_to_event_action(r) for r in results]
+
+    def get_recent_event_actions(
+        self,
+        hours: int = 24,
+        limit: int = 100
+    ) -> List[EventAction]:
+        """
+        Get recent actions across all events.
+
+        Args:
+            hours: Number of hours to look back
+            limit: Maximum number of records to return
+
+        Returns:
+            List of EventAction objects sorted by performed_at DESC
+        """
+        # DuckDB requires INTERVAL syntax to be constructed as a string
+        results = self.conn.execute(f"""
+            SELECT id, event_id, action_type, performed_at, duration_hours,
+                   reason, previous_status, new_status, previous_pinned,
+                   new_pinned, snoozed_until, user_id, user_agent, ip_address
+            FROM event_actions
+            WHERE performed_at >= CURRENT_TIMESTAMP - INTERVAL '{hours} hours'
+            ORDER BY performed_at DESC
+            LIMIT ?
+        """, [limit]).fetchall()
+        return [self._row_to_event_action(r) for r in results]
+
+    def _row_to_event_action(self, row) -> EventAction:
+        """Convert database row to EventAction object."""
+        return EventAction(
+            id=UUID(row[0]),
+            event_id=UUID(row[1]),
+            action_type=EventActionType(row[2]),
+            performed_at=row[3],
+            duration_hours=row[4],
+            reason=row[5],
+            previous_status=row[6],
+            new_status=row[7],
+            previous_pinned=row[8],
+            new_pinned=row[9],
+            snoozed_until=row[10],
+            user_id=row[11],
+            user_agent=row[12],
+            ip_address=row[13],
         )
 
     # =========================================================================

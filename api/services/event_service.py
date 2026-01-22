@@ -12,7 +12,12 @@ from uuid import UUID
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from tradz.database import get_database
-from tradz.models import Event, Observation, EventType as ModelEventType, EventStatus as ModelEventStatus
+from tradz.models import (
+    Event, Observation,
+    EventType as ModelEventType,
+    EventStatus as ModelEventStatus,
+    EventAction, EventActionType,
+)
 from tradz.events.quality_gate import TradeIdeaGenerator
 
 logger = logging.getLogger(__name__)
@@ -232,6 +237,9 @@ class EventService:
         action: str,
         duration_hours: int = 24,
         reason: Optional[str] = None,
+        user_id: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Perform an action on an event.
@@ -241,6 +249,9 @@ class EventService:
             action: Action type - "pin", "unpin", "snooze", "dismiss", "resolve"
             duration_hours: Duration for snooze in hours (default 24)
             reason: Optional reason for dismiss action
+            user_id: Optional user ID for audit logging
+            user_agent: Optional user agent for audit logging
+            ip_address: Optional IP address for audit logging
 
         Returns:
             Dict with action result including success, message, and updated fields
@@ -271,6 +282,11 @@ class EventService:
             "snoozed_until": None,
         }
 
+        # Track state changes for action logging
+        new_status: Optional[str] = None
+        new_pinned: Optional[bool] = None
+        snoozed_until_dt: Optional[datetime] = None
+
         if action == "pin":
             if current_pinned:
                 response["message"] = "Event is already pinned"
@@ -281,6 +297,7 @@ class EventService:
                 )
                 response["message"] = "Event pinned successfully"
                 response["pinned"] = True
+                new_pinned = True
 
         elif action == "unpin":
             if not current_pinned:
@@ -292,16 +309,17 @@ class EventService:
                 )
                 response["message"] = "Event unpinned successfully"
                 response["pinned"] = False
+                new_pinned = False
 
         elif action == "snooze":
             from datetime import timedelta
-            snoozed_until = now + timedelta(hours=duration_hours)
+            snoozed_until_dt = now + timedelta(hours=duration_hours)
             db.conn.execute(
                 "UPDATE events SET snoozed_until = ? WHERE id = ?",
-                [snoozed_until.isoformat(), event_id],
+                [snoozed_until_dt.isoformat(), event_id],
             )
             response["message"] = f"Event snoozed for {duration_hours} hours"
-            response["snoozed_until"] = snoozed_until.isoformat()
+            response["snoozed_until"] = snoozed_until_dt.isoformat()
 
         elif action == "dismiss":
             if current_status == "dismissed":
@@ -313,6 +331,7 @@ class EventService:
                 )
                 response["message"] = "Event dismissed"
                 response["new_status"] = "dismissed"
+                new_status = "dismissed"
 
         elif action == "resolve":
             if current_status == "resolved":
@@ -324,11 +343,90 @@ class EventService:
                 )
                 response["message"] = "Event marked as resolved"
                 response["new_status"] = "resolved"
+                new_status = "resolved"
 
         else:
             raise ValueError(f"Invalid action: {action}")
 
+        # Log the action to event_actions table
+        self._log_event_action(
+            db=db,
+            event_id=event_id,
+            action=action,
+            performed_at=now,
+            duration_hours=duration_hours if action == "snooze" else None,
+            reason=reason if action == "dismiss" else None,
+            previous_status=current_status,
+            new_status=new_status,
+            previous_pinned=current_pinned,
+            new_pinned=new_pinned,
+            snoozed_until=snoozed_until_dt,
+            user_id=user_id,
+            user_agent=user_agent,
+            ip_address=ip_address,
+        )
+
         return response
+
+    def _log_event_action(
+        self,
+        db,
+        event_id: str,
+        action: str,
+        performed_at: datetime,
+        duration_hours: Optional[int] = None,
+        reason: Optional[str] = None,
+        previous_status: Optional[str] = None,
+        new_status: Optional[str] = None,
+        previous_pinned: Optional[bool] = None,
+        new_pinned: Optional[bool] = None,
+        snoozed_until: Optional[datetime] = None,
+        user_id: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        ip_address: Optional[str] = None,
+    ) -> None:
+        """
+        Log an event action to the event_actions table.
+
+        Args:
+            db: Database instance
+            event_id: Event UUID string
+            action: Action type string
+            performed_at: When the action was performed
+            duration_hours: Duration for snooze actions
+            reason: Reason for dismiss actions
+            previous_status: Status before action
+            new_status: Status after action
+            previous_pinned: Pinned state before action
+            new_pinned: Pinned state after action
+            snoozed_until: Snooze expiry timestamp
+            user_id: User ID for audit
+            user_agent: User agent for audit
+            ip_address: IP address for audit
+        """
+        try:
+            from uuid import UUID as UUIDType, uuid4
+            event_action = EventAction(
+                id=uuid4(),
+                event_id=UUIDType(event_id),
+                action_type=EventActionType(action),
+                performed_at=performed_at,
+                duration_hours=duration_hours,
+                reason=reason,
+                previous_status=previous_status,
+                new_status=new_status,
+                previous_pinned=previous_pinned,
+                new_pinned=new_pinned,
+                snoozed_until=snoozed_until,
+                user_id=user_id,
+                user_agent=user_agent,
+                ip_address=ip_address,
+            )
+            db.insert_event_action(event_action)
+            logger.debug(f"Logged action {action} for event {event_id}")
+        except Exception as e:
+            # Log but don't fail the action if logging fails
+            logger.warning(f"Failed to log action {action} for event {event_id}: {e}")
 
     def get_event_timeline(
         self,
