@@ -572,8 +572,8 @@
         "Typecheck passes"
       ],
       "priority": 32,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented GET/PUT/DELETE /api/settings/gates endpoints. Created SettingsService for config.yaml read/write. Validation via Pydantic (0-100 for scores, 1-10 for min_sources). 25 tests pass."
     },
     {
       "id": "US-025b",

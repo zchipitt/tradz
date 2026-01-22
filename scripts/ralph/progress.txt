@@ -320,3 +320,34 @@ Started: Wed Jan 21 06:13:41 PST 2026
   - Import react-router-dom Link for internal navigation links
   - Relative time formatting helps users quickly understand staleness
 ---
+
+## 2026-01-22 - US-025
+- What was implemented:
+  - Created GET /api/settings/gates endpoint to retrieve current quality gate thresholds
+  - Created PUT /api/settings/gates endpoint to update thresholds with partial update support
+  - Created DELETE /api/settings/gates endpoint to reset all thresholds to defaults
+  - SettingsService class with thread-safe config.yaml read/write operations:
+    - get_quality_gate_settings() - returns current or default settings
+    - update_quality_gate_settings() - partial update with validation
+    - reset_quality_gate_settings() - removes quality_gates section from config
+    - get_quality_gate_config() - bridge to QualityGateConfig object
+  - Pydantic schemas with validation:
+    - QualityGateSettings: min_confidence/min_anomaly/min_catalyst (0-100), min_sources (1-10), require_invalidation (bool)
+    - UpdateQualityGateSettingsRequest: all fields optional for partial updates
+    - QualityGateSettingsResponse: includes both current settings and defaults
+  - Settings stored in quality_gates section of config.yaml, preserving other sections
+  - 25 comprehensive tests covering API endpoints, service layer, and integration
+- Files changed:
+  - api/schemas/settings.py - New Pydantic schemas
+  - api/services/settings_service.py - New service with config.yaml read/write
+  - api/routers/settings.py - New router with GET/PUT/DELETE endpoints
+  - api/routers/__init__.py - Added settings_router export
+  - api/main.py - Added settings router to app
+  - tests/test_settings_api.py - New test file with 25 tests
+- **Learnings for future iterations:**
+  - Use threading.Lock for thread-safe file operations (settings_service uses _lock)
+  - Pydantic Field validators (ge/le) enforce ranges at schema level (422 validation error)
+  - Partial updates: use Optional[T] with None default, only update non-None fields
+  - Config preservation: read entire config, modify section, write back to preserve other sections
+  - Service singleton pattern: instantiate at module level for shared state
+---
