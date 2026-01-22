@@ -167,7 +167,7 @@ To enable crypto data, configure trading pairs in `config.yaml` / 要启用加�
 ```yaml
 crypto:
   # Exchange to use (binance, coinbase, kraken) / 使用的交易所
-  exchange: "binance"
+  exchange: "kraken"
   
   # Trading pairs - MUST be a list, not commented out! / 交易对列表 - 必须是列表格式，不能注释掉！
   pairs:
@@ -410,7 +410,21 @@ tradz/
 │   ├── verify_db.py         # Database verification / 数据库验证
 │   ├── verify_entities.py   # Entity resolution verification / 实体解析验证
 │   ├── verify_signals.py    # Signal generation verification / 信号生成验证
-│   └── verify_facts.py      # Fact generation verification / 事实生成验证
+│   ├── verify_facts.py      # Fact generation verification / 事实生成验证
+│   └── ralph/               # Autonomous AI agent / 自动化 AI 代理
+│       ├── ralph.sh         # Agent loop script / 代理循环脚本
+│       ├── CLAUDE.md        # Agent instructions / 代理指令
+│       └── progress.txt     # Agent progress log / 代理进度日志
+├── tests/                    # Unit tests / 单元测试
+│   ├── test_event_builder.py    # EventBuilder tests
+│   ├── test_events_api.py       # Events API tests
+│   ├── test_fact_extractor.py   # Fact extraction tests
+│   ├── test_llm_provider.py     # LLM provider tests
+│   ├── test_system_api.py       # System API tests
+│   └── test_title_generator.py  # Title generation tests
+├── tasks/                    # Development tasks / 开发任务
+│   └── prd-tradz-vnext.md   # Product requirements document / 产品需求文档
+├── prd.json                  # PRD with user stories for Ralph agent / Ralph 代理用户故事
 ├── prompts/                  # Claude prompt templates / Claude 提示词模板
 │   ├── report_system.md     # System prompt / 系统提示词
 │   └── report_user.md       # User prompt template / 用户提示词模板
@@ -426,12 +440,18 @@ tradz/
 │   ├── routers/             # API route handlers / API 路由
 │   │   ├── signals.py       # Signals endpoints / 信号接口
 │   │   ├── sources.py       # Data sources endpoints / 数据源接口
-│   │   └── reports.py       # Reports endpoints / 报告接口
+│   │   ├── reports.py       # Reports endpoints / 报告接口
+│   │   ├── events.py        # Events endpoints / 事件接口
+│   │   └── system.py        # System status endpoint / 系统状态接口
 │   ├── schemas/             # Pydantic models / Pydantic 模型
+│   │   ├── events.py        # Event schemas / 事件模型
+│   │   └── system.py        # System health schemas / 系统健康模型
 │   └── services/            # Business logic / 业务逻辑
 │       ├── signal_service.py
 │       ├── aggregator_service.py
-│       └── cache_service.py
+│       ├── cache_service.py
+│       ├── event_service.py      # Event queries and actions / 事件查询和操作
+│       └── system_service.py     # System health checks / 系统健康检查
 ├── frontend/                 # React dashboard (event-centric design) / React 仪表盘（事件中心化设计）
 │   ├── src/
 │   │   ├── App.tsx          # Root component / 根组件
@@ -456,18 +476,23 @@ tradz/
         ├── run_nightly.py    # Main entry point / 主入口
         ├── aggregator.py     # Multi-source data aggregator / 多源数据聚合器
         ├── database.py       # DuckDB database layer / DuckDB 数据库层
-        ├── models.py         # Data models (Entity, Observation, Event, Signal) / 数据模型
+        ├── models.py         # Data models (Entity, Observation, Event, Signal, FactType) / 数据模型
         ├── entity_resolver.py # Entity resolution / 实体解析
         ├── scoring.py        # 4-dimensional signal scoring / 4维信号评分
         ├── signals.py        # Signal generation logic / 信号生成逻辑
         ├── claude_reporter.py # Claude Code CLI integration / Claude Code CLI 集成
         ├── report.py         # Template-based report rendering / 模板报告渲染
         ├── emailer.py        # SMTP email sender / SMTP 邮件发送
+        ├── events/           # Event-driven system (vNext) / 事件驱动系统
+        │   ├── builder.py        # EventBuilder: aggregates observations / 事件聚合
+        │   ├── fact_extractor.py # Extracts facts from observations / 事实提取
+        │   ├── llm_provider.py   # LLM abstraction (Claude/OpenRouter) / LLM 抽象
+        │   └── title_generator.py # LLM title generation / 标题生成
         ├── reporting/
         │   └── fact_generator.py # Fact table generation / 事实表生成
         └── sources/
             ├── equities.py   # yfinance wrapper / yfinance 封装
-            ├── crypto.py     # ccxt wrapper / ccxt 封装
+            ├── crypto.py     # ccxt wrapper (Kraken default) / ccxt 封装
             ├── congress.py   # Congress trading disclosures / 国会交易披露
             ├── hedgefunds.py # 13F filings from SEC / SEC 13F 文件
             ├── polymarket.py # Prediction market data / 预测市场数据
@@ -570,14 +595,14 @@ pip install -r requirements.txt
 ```yaml
 # ❌ Wrong (pairs commented out) / 错误（交易对被注释）:
 crypto:
-  exchange: "binance"
+  exchange: "kraken"
   pairs:
     # - BTC/USDT
     # - ETH/USDT
 
 # ✅ Correct (pairs as active list) / 正确（交易对为活跃列表）:
 crypto:
-  exchange: "binance"
+  exchange: "kraken"
   pairs:
     - BTC/USDT
     - ETH/USDT
@@ -816,6 +841,23 @@ For issues, questions, or contributions / 如有问题、疑问或贡献:
 - [x] Event-centric dashboard design / 事件中心化仪表盘设计
 - [x] Event state machine (New/Ongoing/Stale/Resolved/Dismissed) / 事件状态机
 - [x] Event actions (Pin/Snooze/Resolve/Dismiss) / 事件操作
+- [x] EventBuilder for observation aggregation / 观察聚合事件构建器
+- [x] LLM title generation with fallback (Claude CLI/OpenRouter) / LLM 标题生成
+- [x] Fact extraction from observations / 观察事实提取
+- [x] Events API with filtering/sorting/pagination / 事件 API
+- [x] System status API for data source health / 系统状态 API
+- [x] SystemStatus UI with health grid / 系统状态 UI
+- [x] SignalInbox with loading/error states / 信号收件箱
+- [x] EventCard with 4D score bars and action labels / 事件卡片
+- [x] Unit test suite (pytest) / 单元测试套件
+- [x] Ralph autonomous AI agent / Ralph 自动化 AI 代理
+
+**In Development (vNext) / 开发中功能:**
+- [ ] Event detail page with evidence timeline / 事件详情页面
+- [ ] Quality gates for trade ideas / 交易建议质量门
+- [ ] Daily brief generation / 每日简报生成
+- [ ] Open loops tracking / 未解决问题追踪
+- [ ] Multi-asset support (Equity/Crypto/Polymarket) / 多资产支持
 
 **Future enhancements / 待开发功能:**
 - [ ] Social media (X/Twitter) trends / 社交媒体趋势

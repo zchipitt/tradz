@@ -63,7 +63,7 @@ tradz/
 ├── src/tradz/                    # Core Python backend
 │   ├── sources/                  # Data source fetchers
 │   │   ├── equities.py           # yfinance integration
-│   │   ├── crypto.py             # ccxt multi-exchange
+│   │   ├── crypto.py             # ccxt multi-exchange (Kraken default)
 │   │   ├── congress.py           # Congressional trades (Capitol Trades + fallbacks)
 │   │   ├── hedgefunds.py         # SEC 13F filings
 │   │   ├── polymarket.py         # Prediction markets
@@ -72,9 +72,14 @@ tradz/
 │   │   └── brokers/              # Broker integrations
 │   │       ├── base.py           # Base broker interface
 │   │       └── ibkr.py           # Interactive Brokers (optional)
+│   ├── events/                   # Event-driven system (vNext)
+│   │   ├── builder.py            # EventBuilder: aggregates observations into events
+│   │   ├── fact_extractor.py     # Extracts FactTableEntry from observations
+│   │   ├── llm_provider.py       # LLM abstraction (Claude CLI, OpenRouter, Mock)
+│   │   └── title_generator.py    # LLM title generation with template fallback
 │   ├── reporting/                # Report generation
 │   │   └── fact_generator.py     # Deterministic fact extraction for LLM
-│   ├── models.py                 # Core data models
+│   ├── models.py                 # Core data models (Entity, Observation, Event, Signal, FactType)
 │   ├── database.py               # DuckDB persistence layer
 │   ├── entity_resolver.py        # Ticker/CIK/Name mapping
 │   ├── scoring.py                # 4-dimensional signal scoring
@@ -90,14 +95,20 @@ tradz/
 │   ├── routers/                  # REST endpoints
 │   │   ├── signals.py            # Signal endpoints
 │   │   ├── sources.py            # Data source endpoints
-│   │   └── reports.py            # Report endpoints
+│   │   ├── reports.py            # Report endpoints
+│   │   ├── events.py             # Event endpoints (list, detail, actions)
+│   │   └── system.py             # System status endpoint
 │   ├── schemas/                  # Pydantic models
 │   │   ├── signals.py
-│   │   └── sources.py
+│   │   ├── sources.py
+│   │   ├── events.py             # Event request/response schemas
+│   │   └── system.py             # System health schemas
 │   └── services/                 # Business logic
 │       ├── signal_service.py     # Signal caching (5-min TTL)
 │       ├── aggregator_service.py # Data aggregation
-│       └── cache_service.py      # In-memory caching
+│       ├── cache_service.py      # In-memory caching
+│       ├── event_service.py      # Event queries and actions
+│       └── system_service.py     # System health checks
 ├── frontend/                     # React + TypeScript
 │   └── src/
 │       ├── App.tsx               # Root with TanStack Query
@@ -109,17 +120,32 @@ tradz/
 │       │   └── UsageGuide.tsx    # Interactive guide
 │       ├── components/
 │       │   ├── layout/Layout.tsx # Header + sidebar + tabs
-│       │   ├── events/           # Event components
+│       │   ├── events/           # Event components (EventCard, SignalInbox, SystemStatus)
 │       │   ├── signals/          # Signal components
 │       │   └── sources/          # Source panels
 │       ├── hooks/                # React Query hooks
 │       │   ├── useSignals.ts     # 5-min auto-refresh
-│       │   ├── useEvents.ts      # Event actions
+│       │   ├── useEvents.ts      # Event actions + useSystemStatus
 │       │   └── useSources.ts     # Source health
 │       └── api/                  # API client
-│           ├── client.ts         # Axios instance
+│           ├── client.ts         # Axios + API functions
 │           └── types.ts          # TypeScript interfaces
+├── tests/                        # Unit tests
+│   ├── test_event_builder.py    # EventBuilder tests
+│   ├── test_events_api.py       # Events API tests
+│   ├── test_fact_extractor.py   # Fact extraction tests
+│   ├── test_llm_provider.py     # LLM provider tests
+│   ├── test_system_api.py       # System API tests
+│   └── test_title_generator.py  # Title generation tests
 ├── scripts/                      # Utility scripts
+│   ├── ralph/                    # Autonomous AI agent
+│   │   ├── ralph.sh              # Agent loop script
+│   │   ├── CLAUDE.md             # Agent instructions
+│   │   └── progress.txt          # Agent progress log
+│   └── ...                       # Other scripts
+├── tasks/                        # Development tasks
+│   └── prd-tradz-vnext.md        # Product requirements document
+├── prd.json                      # PRD with user stories (for Ralph agent)
 ├── data/                         # DuckDB + JSON data
 ├── reports/                      # Generated reports
 ├── prompts/                      # Claude AI prompts
@@ -192,6 +218,10 @@ DataAggregator → EntityResolver → Scorer → SignalGenerator → ReportGener
 | `/api/signals` | GET | All signals (optional `?refresh=true`) |
 | `/api/signals/top` | GET | Top 5 equity + crypto |
 | `/api/signals/{symbol}` | GET | Single signal |
+| `/api/events` | GET | Event list with status/sort/pagination |
+| `/api/events/{event_id}` | GET | Event detail with observations |
+| `/api/events/{event_id}/actions` | POST | Event actions (pin/unpin/snooze/dismiss/resolve) |
+| `/api/system/status` | GET | Data source health status |
 | `/api/sources` | GET | All source data |
 | `/api/sources/equities` | GET | Equities data |
 | `/api/sources/crypto` | GET | Crypto data |
@@ -201,6 +231,8 @@ DataAggregator → EntityResolver → Scorer → SignalGenerator → ReportGener
 | `/api/sources/news` | GET | News articles |
 | `/api/sources/sec` | GET | SEC filings |
 | `/api/reports` | GET | Historical reports |
+| `/api/reports/latest` | GET | Most recent report |
+| `/api/reports/{date}` | GET | Report by date (YYYY-MM-DD) |
 
 **Frontend** (`frontend/`):
 - **Tech**: React 18 + TypeScript + Vite + TanStack Query + Tailwind CSS
@@ -231,7 +263,7 @@ equities:
   tickers: [AAPL, MSFT, GOOGL, AMZN, NVDA, META, TSLA, JPM, BAC, GS, JNJ, UNH, SPY, QQQ]
 
 crypto:
-  exchange: "binance"
+  exchange: "kraken"  # Default exchange (kraken/binance/coinbase)
   pairs: [BTC/USDT, ETH/USDT, BNB/USDT, SOL/USDT, ADA/USDT, XRP/USDT, DOGE/USDT, AVAX/USDT, MATIC/USDT, DOT/USDT]
 
 thresholds:
@@ -263,6 +295,8 @@ claude:
 **`.env`**: Sensitive credentials
 - `DRY_RUN=1` - Prevents actual email sending
 - `SMTP_*` - Email configuration
+- `ANTHROPIC_API_KEY` - For Claude Code CLI
+- `OPENROUTER_API_KEY` - Alternative LLM provider for title generation
 - `NEWSAPI_KEY` - Optional, falls back to Yahoo
 - `QUIVER_API_KEY`, `FINNHUB_API_KEY` - Optional fallbacks
 
@@ -282,7 +316,29 @@ claude:
 - **Fact-Constrained LLM**: FactTable prevents AI fabrication in reports
 - **Dual-Channel Reporting**: Template fallback ensures reports always generated
 - **Entity Resolution**: Canonical ID mapping across all sources
-- **4D Scoring**: Composite attention_score for ranking
+- **4D Scoring**: Composite `attention_score = 0.3×anomaly + 0.3×catalyst + 0.25×flow + 0.15×confidence + coverage_bonus`
+- **Coverage Bonus**: +5 per unique source, max +20
 - **Services Layer**: Business logic abstracted from route handlers
 - **TanStack Query**: 5-minute auto-refresh with caching
-- **Event State Machine**: 5-state tracking with user actions
+- **Event State Machine**: 5-state tracking (new → ongoing → stale, resolved, dismissed)
+- **LLM Providers**: Abstract base class pattern with `generate()` method (ClaudeCLI, OpenRouter, Mock)
+- **Title Generation**: Returns `(title, source)` tuple where source is 'llm' or 'template'
+- **Fact Extraction**: Use `FactType` enum (23 types) via `extract_facts(observation)`
+- **API Tests**: Use `from api.routers.X import router` and `TestClient(app)` pattern
+- **Action Labels**: Confidence thresholds - >=70: Act (green), >=40: Investigate (yellow), <40: Monitor (gray)
+
+## Running Tests
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run specific test file
+pytest tests/test_event_builder.py
+
+# Run with verbose output
+pytest -v tests/
+
+# Run tests matching pattern
+pytest -k "test_build_events" tests/
+```
