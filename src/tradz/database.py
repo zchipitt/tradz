@@ -619,6 +619,16 @@ class Database:
         results = self.conn.execute(query, params).fetchall()
         return [self._row_to_event(r) for r in results]
     
+    def get_event_by_id(self, event_id: UUID) -> Optional[Event]:
+        """Get a single event by ID."""
+        result = self.conn.execute("""
+            SELECT * FROM events WHERE id = ?
+        """, [str(event_id)]).fetchone()
+
+        if result is None:
+            return None
+        return self._row_to_event(result)
+
     def update_event_status(self, event_id: UUID, status: EventStatus):
         """Update event status."""
         self.conn.execute("""
