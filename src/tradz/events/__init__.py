@@ -8,6 +8,7 @@ Also provides:
 - LLM-based title generation with template fallback
 - Fact extraction from observations for structured reports
 - Quality gate evaluation for trade ideas
+- Daily brief generation with structured content
 
 LLM Providers:
 - LLMProvider: Abstract base class for LLM providers
@@ -24,6 +25,10 @@ Quality Gates:
 - TradeIdea: Actionable trade recommendations for events passing gates
 - ResearchPlan: Research questions for events failing gates
 - TradeIdeaGenerator: Generates appropriate recommendations based on gate results
+
+Daily Brief:
+- DailyBriefContent: Structured content for daily briefs
+- DailyBriefGenerator: Generates daily briefs from events and system status
 """
 from .builder import EventBuilder
 from .fact_extractor import (
@@ -60,6 +65,16 @@ from .quality_gate import (
     TradeIdeaGenerator,
 )
 from .title_generator import TitleGenerator, generate_event_title
+from .daily_brief_generator import (
+    DailyBriefContent,
+    DailyBriefGenerator,
+    DataQualitySummary,
+    EventSummary,
+    OpenLoop,
+    ResearchIdeaSummary,
+    SourceHealthSummary,
+    TradeIdeaSummary,
+)
 
 __all__ = [
     "EventBuilder",
@@ -97,4 +112,13 @@ __all__ = [
     "TradeIdeaGenerator",
     "TradeDirection",
     "TimeHorizon",
+    # Daily brief generation
+    "DailyBriefContent",
+    "DailyBriefGenerator",
+    "DataQualitySummary",
+    "EventSummary",
+    "OpenLoop",
+    "ResearchIdeaSummary",
+    "SourceHealthSummary",
+    "TradeIdeaSummary",
 ]
