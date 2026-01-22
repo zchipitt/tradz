@@ -18,6 +18,9 @@ from api.schemas.events import (
     EventActionType,
     EventActionRequest,
     EventActionResponse,
+    TimelineSourceFilter,
+    TimelineObservation,
+    TimelineResponse,
 )
 from api.services.event_service import event_service
 
@@ -183,6 +186,78 @@ async def perform_event_action(
             new_status=EventStatusResponse(result["new_status"]) if result.get("new_status") else None,
             pinned=result.get("pinned"),
             snoozed_until=result.get("snoozed_until"),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{event_id}/timeline", response_model=TimelineResponse)
+async def get_event_timeline(
+    event_id: str,
+    source: TimelineSourceFilter = Query(
+        TimelineSourceFilter.ALL,
+        description="Filter by source: all, market, news, sec, congress, 13f, polymarket"
+    ),
+    limit: int = Query(
+        20,
+        ge=1,
+        le=100,
+        description="Maximum number of observations to return (1-100)"
+    ),
+    offset: int = Query(
+        0,
+        ge=0,
+        description="Number of observations to skip for pagination"
+    ),
+) -> TimelineResponse:
+    """
+    Get chronological timeline of observations for an event.
+
+    Returns observations sorted by timestamp descending, with optional source filtering
+    and pagination support.
+
+    Source filters:
+    - all: All observations (default)
+    - market: Equities and crypto observations
+    - news: News articles
+    - sec: SEC filings
+    - congress: Congressional trades
+    - 13f: 13F hedge fund filings
+    - polymarket: Prediction market observations
+    """
+    try:
+        observations_data, total_count = event_service.get_event_timeline(
+            event_id=event_id,
+            source_filter=source.value,
+            limit=limit,
+            offset=offset,
+        )
+
+        observations = []
+        for obs_dict in observations_data:
+            fact_entries = [
+                FactEntry(**fact) for fact in obs_dict.get("fact_entries", [])
+            ]
+            obs_item = TimelineObservation(
+                observation_id=obs_dict["observation_id"],
+                source=obs_dict["source"],
+                observation_type=obs_dict.get("observation_type", ""),
+                timestamp=obs_dict["timestamp"],
+                title=obs_dict.get("title"),
+                summary=obs_dict.get("summary", ""),
+                fact_entries=fact_entries,
+                source_url=obs_dict.get("source_url"),
+            )
+            observations.append(obs_item)
+
+        return TimelineResponse(
+            event_id=event_id,
+            observations=observations,
+            total_count=total_count,
+            offset=offset,
+            limit=limit,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

@@ -15,6 +15,17 @@ class EventStatusFilter(str, Enum):
     ALL = "all"
 
 
+class TimelineSourceFilter(str, Enum):
+    """Timeline observation source filter options."""
+    ALL = "all"
+    MARKET = "market"  # equities, crypto
+    NEWS = "news"
+    SEC = "sec"
+    CONGRESS = "congress"
+    HEDGEFUND = "13f"  # alias for hedgefund/13f
+    POLYMARKET = "polymarket"
+
+
 class EventSortBy(str, Enum):
     """Event sort options."""
     ATTENTION_SCORE = "attention_score"
@@ -254,5 +265,61 @@ class EventDetail(BaseModel):
                 "parent_event_id": None,
                 "observation_count": 5,
                 "observations": []
+            }
+        }
+
+
+class TimelineObservation(BaseModel):
+    """Observation item for timeline response."""
+    observation_id: str = Field(..., description="Observation UUID")
+    source: str = Field(..., description="Source type (equities, crypto, news, sec, congress, hedgefund, polymarket)")
+    observation_type: str = Field("", description="Specific observation type within source")
+    timestamp: datetime = Field(..., description="Observation timestamp (observed_at)")
+    title: Optional[str] = Field(None, description="Observation title")
+    summary: str = Field("", description="Observation summary")
+    fact_entries: List[FactEntry] = Field(default_factory=list, description="Extracted facts")
+    source_url: Optional[str] = Field(None, description="Source URL for external link")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "observation_id": "123e4567-e89b-12d3-a456-426614174000",
+                "source": "news",
+                "observation_type": "article",
+                "timestamp": "2026-01-21T10:30:00Z",
+                "title": "NVDA Beats Q4 Earnings Expectations",
+                "summary": "NVIDIA reported Q4 revenue of $22.1B, beating estimates...",
+                "fact_entries": [
+                    {
+                        "fact_id": "12345678_headline",
+                        "fact_type": "headline",
+                        "label": "Headline",
+                        "value": "NVDA Beats Q4 Earnings Expectations",
+                        "unit": None,
+                        "source": "news",
+                        "timestamp": "2026-01-21T10:30:00Z"
+                    }
+                ],
+                "source_url": "https://example.com/article/123"
+            }
+        }
+
+
+class TimelineResponse(BaseModel):
+    """Response for GET /api/events/{event_id}/timeline."""
+    event_id: str = Field(..., description="Event UUID")
+    observations: List[TimelineObservation] = Field(..., description="Observations sorted by timestamp desc")
+    total_count: int = Field(..., description="Total number of observations matching filter")
+    offset: int = Field(..., description="Current offset")
+    limit: int = Field(..., description="Current limit")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "event_id": "123e4567-e89b-12d3-a456-426614174000",
+                "observations": [],
+                "total_count": 15,
+                "offset": 0,
+                "limit": 20
             }
         }
