@@ -5,12 +5,13 @@ Handles queries to daily_briefs table including:
 - Retrieving brief by date
 - Retrieving latest brief
 - Listing all available briefs
+- Comparing briefs between dates
 """
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Add src to path to import tradz modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -256,6 +257,201 @@ class BriefService:
         except Exception as e:
             logger.error(f"Error checking brief existence: {e}")
             return False
+
+    def compare_briefs(
+        self,
+        date_str: str,
+        baseline_str: Optional[str] = None,
+        score_change_threshold: float = 5.0,
+    ) -> Dict[str, Any]:
+        """
+        Compare two briefs and return the differences.
+
+        Args:
+            date_str: Comparison date in YYYY-MM-DD format
+            baseline_str: Baseline date in YYYY-MM-DD format (default: yesterday)
+            score_change_threshold: Minimum score change to report (default 5.0)
+
+        Returns:
+            Dictionary with diff data including new_events, resolved_events,
+            score_changes, new_trade_ideas, closed_loops
+
+        Raises:
+            ValueError: If date format is invalid
+        """
+        # Parse and validate dates
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError("Date must be in YYYY-MM-DD format")
+
+        if baseline_str is None:
+            # Default to yesterday
+            baseline_obj = date_obj - timedelta(days=1)
+            baseline_str = baseline_obj.strftime("%Y-%m-%d")
+        else:
+            try:
+                baseline_obj = datetime.strptime(baseline_str, "%Y-%m-%d").date()
+            except ValueError:
+                raise ValueError("Baseline date must be in YYYY-MM-DD format")
+
+        # Get both briefs
+        current_brief = self.get_brief_by_date(date_str)
+        baseline_brief = self.get_brief_by_date(baseline_str)
+
+        has_baseline = baseline_brief is not None
+
+        # Initialize result
+        result: Dict[str, Any] = {
+            "date": date_str,
+            "baseline": baseline_str,
+            "has_baseline": has_baseline,
+            "new_events": [],
+            "resolved_events": [],
+            "score_changes": [],
+            "new_trade_ideas": [],
+            "closed_loops": [],
+            "total_new_events": 0,
+            "total_resolved": 0,
+            "total_score_changes": 0,
+            "total_new_trade_ideas": 0,
+            "total_closed_loops": 0,
+        }
+
+        # If no current brief, return empty result
+        if current_brief is None:
+            return result
+
+        # Extract events from both briefs
+        current_events = current_brief.get("top_events", [])
+        baseline_events = baseline_brief.get("top_events", []) if baseline_brief else []
+
+        # Build event ID sets
+        current_event_ids: Set[str] = {
+            e.get("event_id", "") for e in current_events if e.get("event_id")
+        }
+        baseline_event_ids: Set[str] = {
+            e.get("event_id", "") for e in baseline_events if e.get("event_id")
+        }
+
+        # Build event ID to event mapping
+        current_events_map: Dict[str, Dict[str, Any]] = {
+            e.get("event_id", ""): e for e in current_events if e.get("event_id")
+        }
+        baseline_events_map: Dict[str, Dict[str, Any]] = {
+            e.get("event_id", ""): e for e in baseline_events if e.get("event_id")
+        }
+
+        # Find new events (in current but not in baseline)
+        new_event_ids = current_event_ids - baseline_event_ids
+        for event_id in new_event_ids:
+            event = current_events_map.get(event_id, {})
+            if event:
+                result["new_events"].append({
+                    "event_id": event_id,
+                    "title": event.get("title", ""),
+                    "ticker": event.get("ticker"),
+                    "event_type": event.get("event_type", "unknown"),
+                    "attention_score": event.get("attention_score", 0),
+                })
+
+        # Find resolved events (in baseline but not in current)
+        resolved_event_ids = baseline_event_ids - current_event_ids
+        for event_id in resolved_event_ids:
+            event = baseline_events_map.get(event_id, {})
+            if event:
+                result["resolved_events"].append({
+                    "event_id": event_id,
+                    "title": event.get("title", ""),
+                    "ticker": event.get("ticker"),
+                    "resolution_type": "resolved",  # Default, actual resolution from DB would be better
+                    "final_score": event.get("attention_score", 0),
+                })
+
+        # Find score changes (events in both)
+        common_event_ids = current_event_ids & baseline_event_ids
+        for event_id in common_event_ids:
+            current_event = current_events_map.get(event_id, {})
+            baseline_event = baseline_events_map.get(event_id, {})
+
+            current_score = current_event.get("attention_score", 0)
+            previous_score = baseline_event.get("attention_score", 0)
+            delta = current_score - previous_score
+
+            # Only include if delta exceeds threshold
+            if abs(delta) >= score_change_threshold:
+                direction = "up" if delta > 0 else "down" if delta < 0 else "unchanged"
+                result["score_changes"].append({
+                    "event_id": event_id,
+                    "title": current_event.get("title", ""),
+                    "ticker": current_event.get("ticker"),
+                    "previous_score": previous_score,
+                    "current_score": current_score,
+                    "delta": round(delta, 2),
+                    "direction": direction,
+                })
+
+        # Compare trade ideas
+        current_trade_ideas = current_brief.get("trade_ideas", [])
+        baseline_trade_ideas = baseline_brief.get("trade_ideas", []) if baseline_brief else []
+
+        baseline_trade_event_ids: Set[str] = {
+            t.get("event_id", "") for t in baseline_trade_ideas if t.get("event_id")
+        }
+
+        for trade in current_trade_ideas:
+            trade_event_id = trade.get("event_id", "")
+            if trade_event_id and trade_event_id not in baseline_trade_event_ids:
+                result["new_trade_ideas"].append({
+                    "event_id": trade_event_id,
+                    "ticker": trade.get("ticker"),
+                    "direction": trade.get("direction", "unknown"),
+                    "entry_zone": trade.get("entry_zone", ""),
+                    "target": trade.get("target", ""),
+                })
+
+        # Compare open loops
+        current_loops = current_brief.get("open_loops", [])
+        baseline_loops = baseline_brief.get("open_loops", []) if baseline_brief else []
+
+        current_loop_ids: Set[str] = {
+            lo.get("loop_id", "") for lo in current_loops if lo.get("loop_id")
+        }
+        baseline_loops_map: Dict[str, Dict[str, Any]] = {
+            lo.get("loop_id", ""): lo for lo in baseline_loops if lo.get("loop_id")
+        }
+
+        # Find closed loops (in baseline but not in current, or status changed to resolved)
+        for loop_id, loop in baseline_loops_map.items():
+            if loop_id not in current_loop_ids:
+                result["closed_loops"].append({
+                    "loop_id": loop_id,
+                    "question": loop.get("question", ""),
+                    "event_id": loop.get("event_id"),
+                    "resolution": "closed",
+                })
+            else:
+                # Check if status changed to resolved
+                for current_loop in current_loops:
+                    if current_loop.get("loop_id") == loop_id:
+                        if (loop.get("status") != "resolved" and
+                            current_loop.get("status") == "resolved"):
+                            result["closed_loops"].append({
+                                "loop_id": loop_id,
+                                "question": loop.get("question", ""),
+                                "event_id": loop.get("event_id"),
+                                "resolution": "resolved",
+                            })
+                        break
+
+        # Update totals
+        result["total_new_events"] = len(result["new_events"])
+        result["total_resolved"] = len(result["resolved_events"])
+        result["total_score_changes"] = len(result["score_changes"])
+        result["total_new_trade_ideas"] = len(result["new_trade_ideas"])
+        result["total_closed_loops"] = len(result["closed_loops"])
+
+        return result
 
 
 # Singleton instance
