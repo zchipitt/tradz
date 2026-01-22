@@ -26,6 +26,8 @@
 - Pass `isLoading`, `isError`, `error`, `onRetry` props to components for proper state handling
 - Action labels use confidence thresholds: >=70 = Act (green), >=40 = Investigate (yellow), <40 = Monitor (gray)
 - Hover effects with brutalist style: `hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.8)]` + translate
+- Event actions use `POST /api/events/{event_id}/actions` with `action` field (pin, unpin, snooze, dismiss, resolve)
+- Optimistic updates pattern: `onMutate` cancels queries + caches previous data, `onError` rolls back, `onSettled` invalidates
 
 ---
 
@@ -290,4 +292,36 @@
   - Hover tooltips use absolute positioning with `top-full mt-1` for dropdown below element
   - Status indicator colors: ok=status-success (green), degraded=status-warning (yellow), error=status-error (red)
   - Source icons map: equities=TrendingUp, crypto=Bitcoin, congress=Building2, hedgefund/polymarket=BarChart3, news=Newspaper, sec=FileCheck, default=Database
+---
+
+## 2026-01-22 - US-006
+- **What was implemented**: Event Card user actions (pin, unpin, snooze, dismiss, resolve)
+  - Created `EventActionType` enum with 5 action types
+  - Created `EventActionRequest` Pydantic model with action, duration_hours, reason fields
+  - Created `EventActionResponse` Pydantic model with success, message, and updated fields
+  - Added `perform_action()` method to EventService to persist actions to DuckDB
+  - Added `POST /api/events/{event_id}/actions` endpoint to events router
+  - Updated frontend API client with `performEventAction()` function
+  - Implemented optimistic UI updates with TanStack Query mutation and rollback on error
+  - Added `useEventActions()` convenience hook with typed helper methods (pin, unpin, snooze, dismiss, resolve)
+  - Added 15 new API tests for all action types and validation scenarios
+
+- **Files changed**:
+  - `api/schemas/events.py` (added EventActionType, EventActionRequest, EventActionResponse)
+  - `api/services/event_service.py` (added perform_action method)
+  - `api/routers/events.py` (added POST /actions endpoint)
+  - `frontend/src/api/types.ts` (added EventActionType, EventActionRequest, EventActionResponse types)
+  - `frontend/src/api/client.ts` (added performEventAction, updated updateEventAction)
+  - `frontend/src/hooks/useEvents.ts` (added optimistic mutation, useEventActions hook)
+  - `tests/test_events_api.py` (added TestEventActions class with 15 tests)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - Use `useMutation` with `onMutate` for optimistic updates - return context for rollback
+  - TanStack Query's `cancelQueries` prevents race conditions during optimistic updates
+  - Action endpoints return success/message/updated fields for UI feedback
+  - Snooze duration validation: min 1 hour, max 168 hours (1 week)
+  - EventCard already had action buttons implemented in US-005 - this story just added backend
+  - Use `queryClient.invalidateQueries` in `onSettled` to refresh after mutation settles
+  - Pytest fixture names must match exactly - underscore prefix doesn't work for unused fixtures
 ---
