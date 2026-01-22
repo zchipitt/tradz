@@ -25,6 +25,15 @@ class EntityType(str, Enum):
     MARKET = "market"
 
 
+class AssetType(str, Enum):
+    """Asset types for multi-asset support."""
+    EQUITY = "equity"
+    CRYPTO = "crypto"
+    POLYMARKET = "polymarket"
+    INDEX = "index"
+    COMMODITY = "commodity"
+
+
 class SourceType(str, Enum):
     """Data source types."""
     EQUITIES = "equities"
@@ -91,11 +100,19 @@ class OpenLoopStatus(str, Enum):
 class Entity:
     """
     Entity represents a mappable object across data sources.
-    
+
     Examples:
     - A stock ticker (AAPL) with CIK (0000320193) and name (Apple Inc.)
     - A Congress member with standardized name
     - A hedge fund with CIK
+    - A crypto asset (BTC) with coingecko_id
+    - A Polymarket market with market_id
+
+    Multi-asset support:
+    - asset_type: equity, crypto, polymarket, index, commodity
+    - identifiers: asset-specific IDs (ticker/cik for equity, coingecko_id for crypto, market_id for polymarket)
+    - metadata: asset-specific data (sector for equity, category for crypto, end_date for polymarket)
+    - related_entities: cross-asset relationships (e.g., crypto ETF -> underlying crypto)
     """
     id: UUID = field(default_factory=uuid4)
     entity_type: EntityType = EntityType.TICKER
@@ -104,7 +121,13 @@ class Entity:
     name: Optional[str] = None
     aliases: List[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.utcnow)
-    
+
+    # Multi-asset support fields
+    asset_type: AssetType = AssetType.EQUITY  # Asset classification
+    identifiers: Dict[str, str] = field(default_factory=dict)  # Asset-specific IDs
+    metadata: Dict[str, Any] = field(default_factory=dict)  # Asset-specific data
+    related_entities: List[UUID] = field(default_factory=list)  # Cross-asset relationships
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": str(self.id),
@@ -114,6 +137,10 @@ class Entity:
             "name": self.name,
             "aliases": self.aliases,
             "created_at": self.created_at.isoformat(),
+            "asset_type": self.asset_type.value,
+            "identifiers": self.identifiers,
+            "metadata": self.metadata,
+            "related_entities": [str(e) for e in self.related_entities],
         }
 
 

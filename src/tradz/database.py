@@ -16,7 +16,7 @@ from uuid import UUID
 import duckdb
 
 from .models import (
-    Entity, EntityType,
+    Entity, EntityType, AssetType,
     Observation, SourceType,
     Event, EventType, EventStatus,
     Signal,
@@ -86,7 +86,11 @@ class Database:
                 cik VARCHAR,
                 name VARCHAR,
                 aliases JSON,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                asset_type VARCHAR DEFAULT 'equity',
+                identifiers JSON,
+                metadata JSON,
+                related_entities JSON
             )
         """)
         
@@ -353,6 +357,11 @@ class Database:
             ("events", "catalyst_score", "DOUBLE DEFAULT 50.0"),
             ("events", "flow_score", "DOUBLE DEFAULT 50.0"),
             ("events", "confidence_score", "DOUBLE DEFAULT 50.0"),
+            # Entities table new columns for multi-asset support
+            ("entities", "asset_type", "VARCHAR DEFAULT 'equity'"),
+            ("entities", "identifiers", "JSON"),
+            ("entities", "metadata", "JSON"),
+            ("entities", "related_entities", "JSON"),
         ]
 
         for table, column, col_type in migrations:
@@ -373,13 +382,20 @@ class Database:
     def insert_entity(self, entity: Entity) -> str:
         """Insert an entity, returning its ID."""
         self.conn.execute("""
-            INSERT INTO entities (id, entity_type, ticker, cik, name, aliases, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO entities (
+                id, entity_type, ticker, cik, name, aliases, created_at,
+                asset_type, identifiers, metadata, related_entities
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (id) DO UPDATE SET
                 ticker = EXCLUDED.ticker,
                 cik = EXCLUDED.cik,
                 name = EXCLUDED.name,
-                aliases = EXCLUDED.aliases
+                aliases = EXCLUDED.aliases,
+                asset_type = EXCLUDED.asset_type,
+                identifiers = EXCLUDED.identifiers,
+                metadata = EXCLUDED.metadata,
+                related_entities = EXCLUDED.related_entities
         """, [
             str(entity.id),
             entity.entity_type.value,
@@ -388,45 +404,102 @@ class Database:
             entity.name,
             json.dumps(entity.aliases),
             entity.created_at,
+            entity.asset_type.value,
+            json.dumps(entity.identifiers),
+            json.dumps(entity.metadata),
+            json.dumps([str(e) for e in entity.related_entities]),
         ])
         return str(entity.id)
     
     def get_entity_by_ticker(self, ticker: str) -> Optional[Entity]:
         """Get entity by ticker symbol."""
         result = self.conn.execute("""
-            SELECT id, entity_type, ticker, cik, name, aliases, created_at
+            SELECT id, entity_type, ticker, cik, name, aliases, created_at,
+                   asset_type, identifiers, metadata, related_entities
             FROM entities WHERE ticker = ?
         """, [ticker]).fetchone()
-        
+
         if result:
-            return Entity(
-                id=UUID(result[0]),
-                entity_type=EntityType(result[1]),
-                ticker=result[2],
-                cik=result[3],
-                name=result[4],
-                aliases=json.loads(result[5]) if result[5] else [],
-                created_at=result[6],
-            )
+            return self._row_to_entity(result)
         return None
+
+    def _row_to_entity(self, row) -> Entity:
+        """Convert database row to Entity object."""
+        entity = Entity(
+            id=UUID(row[0]),
+            entity_type=EntityType(row[1]),
+            ticker=row[2],
+            cik=row[3],
+            name=row[4],
+            aliases=json.loads(row[5]) if row[5] else [],
+            created_at=row[6],
+        )
+        # New multi-asset fields (may not exist in older rows)
+        if len(row) > 7:
+            asset_type_str = row[7] if row[7] else "equity"
+            try:
+                entity.asset_type = AssetType(asset_type_str)
+            except ValueError:
+                entity.asset_type = AssetType.EQUITY
+            entity.identifiers = json.loads(row[8]) if row[8] else {}
+            entity.metadata = json.loads(row[9]) if row[9] else {}
+            entity.related_entities = (
+                [UUID(e) for e in json.loads(row[10])] if row[10] else []
+            )
+        return entity
     
     def get_entity_by_cik(self, cik: str) -> Optional[Entity]:
         """Get entity by CIK number."""
         result = self.conn.execute("""
-            SELECT id, entity_type, ticker, cik, name, aliases, created_at
+            SELECT id, entity_type, ticker, cik, name, aliases, created_at,
+                   asset_type, identifiers, metadata, related_entities
             FROM entities WHERE cik = ?
         """, [cik]).fetchone()
-        
+
         if result:
-            return Entity(
-                id=UUID(result[0]),
-                entity_type=EntityType(result[1]),
-                ticker=result[2],
-                cik=result[3],
-                name=result[4],
-                aliases=json.loads(result[5]) if result[5] else [],
-                created_at=result[6],
-            )
+            return self._row_to_entity(result)
+        return None
+
+    def get_entities_by_asset_type(
+        self,
+        asset_type: AssetType,
+        limit: int = 100
+    ) -> List[Entity]:
+        """Get entities by asset type."""
+        results = self.conn.execute("""
+            SELECT id, entity_type, ticker, cik, name, aliases, created_at,
+                   asset_type, identifiers, metadata, related_entities
+            FROM entities WHERE asset_type = ?
+            ORDER BY ticker
+            LIMIT ?
+        """, [asset_type.value, limit]).fetchall()
+        return [self._row_to_entity(r) for r in results]
+
+    def get_entity_by_identifier(
+        self,
+        key: str,
+        value: str
+    ) -> Optional[Entity]:
+        """
+        Get entity by a specific identifier key-value pair.
+
+        Args:
+            key: Identifier key (e.g., 'coingecko_id', 'market_id')
+            value: Identifier value
+
+        Returns:
+            Entity if found, None otherwise
+        """
+        # Use JSON extraction to search within identifiers column
+        results = self.conn.execute("""
+            SELECT id, entity_type, ticker, cik, name, aliases, created_at,
+                   asset_type, identifiers, metadata, related_entities
+            FROM entities
+            WHERE json_extract_string(identifiers, ?) = ?
+        """, [f"$.{key}", value]).fetchall()
+
+        if results:
+            return self._row_to_entity(results[0])
         return None
     
     # =========================================================================
