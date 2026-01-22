@@ -5,10 +5,15 @@ Defines the core data structures: Entity, Observation, Event, Signal.
 These models map to DuckDB tables and are used throughout the data pipeline.
 """
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
+
+
+def _utcnow() -> datetime:
+    """Helper for timezone-aware UTC datetime (for dataclass default_factory)."""
+    return datetime.now(timezone.utc)
 
 
 class EntityType(str, Enum):
@@ -63,6 +68,15 @@ class EventStatus(str, Enum):
     STALE = "stale"  # No updates for 72h+
     RESOLVED = "resolved"  # User marked resolved
     DISMISSED = "dismissed"  # User dismissed
+
+
+class EventActionType(str, Enum):
+    """Types of user actions on events."""
+    PIN = "pin"
+    UNPIN = "unpin"
+    SNOOZE = "snooze"
+    DISMISS = "dismiss"
+    RESOLVE = "resolve"
 
 
 @dataclass
@@ -496,4 +510,50 @@ class EventTypeHistory:
             "new_type": self.new_type,
             "changed_at": self.changed_at.isoformat(),
             "trigger_observation_id": str(self.trigger_observation_id) if self.trigger_observation_id else None,
+        }
+
+
+@dataclass
+class EventAction:
+    """
+    Records user actions on events for audit and history.
+
+    Stored in the event_actions table.
+    All actions are logged with timestamp and optional user context.
+    """
+    id: UUID = field(default_factory=uuid4)
+    event_id: UUID = field(default_factory=uuid4)
+    action_type: EventActionType = EventActionType.PIN
+    performed_at: datetime = field(default_factory=_utcnow)
+
+    # Action-specific fields
+    duration_hours: Optional[int] = None  # For snooze action
+    reason: Optional[str] = None  # For dismiss action
+    previous_status: Optional[str] = None  # Status before action
+    new_status: Optional[str] = None  # Status after action
+    previous_pinned: Optional[bool] = None  # Pinned state before action
+    new_pinned: Optional[bool] = None  # Pinned state after action
+    snoozed_until: Optional[datetime] = None  # For snooze action
+
+    # User context (for future multi-user support)
+    user_id: Optional[str] = None
+    user_agent: Optional[str] = None
+    ip_address: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "event_id": str(self.event_id),
+            "action_type": self.action_type.value,
+            "performed_at": self.performed_at.isoformat(),
+            "duration_hours": self.duration_hours,
+            "reason": self.reason,
+            "previous_status": self.previous_status,
+            "new_status": self.new_status,
+            "previous_pinned": self.previous_pinned,
+            "new_pinned": self.new_pinned,
+            "snoozed_until": self.snoozed_until.isoformat() if self.snoozed_until else None,
+            "user_id": self.user_id,
+            "user_agent": self.user_agent,
+            "ip_address": self.ip_address,
         }
