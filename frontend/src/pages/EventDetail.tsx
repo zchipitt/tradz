@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useEventDetail, useEventActions } from '../hooks/useEvents';
+import { ScoreBreakdown } from '../components/events/ScoreBreakdown';
 import type { EventState, EventType, ObservationSummary } from '../api/types';
 
 // State badge configuration
@@ -53,20 +54,6 @@ const eventTypeConfig: Record<EventType, { label: string; icon: React.ElementTyp
   flow: { label: 'FLOW', icon: TrendingUp },
   macro: { label: 'MACRO', icon: BarChart3 },
 };
-
-function getScoreColor(score: number): string {
-  if (score >= 80) return 'text-status-success';
-  if (score >= 60) return 'text-score-good';
-  if (score >= 40) return 'text-status-warning';
-  return 'text-gray-500';
-}
-
-function getScoreBg(score: number): string {
-  if (score >= 80) return 'bg-status-success';
-  if (score >= 60) return 'bg-score-good';
-  if (score >= 40) return 'bg-status-warning';
-  return 'bg-gray-400';
-}
 
 function formatTimeAgo(dateString: string): string {
   const date = new Date(dateString);
@@ -389,34 +376,12 @@ export function EventDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left: Main content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* 4D Score Grid */}
-          <div className="p-4 bg-gray-50 border-2 border-black">
-            <h3 className="text-sm font-bold uppercase tracking-wider mb-4 text-black">
-              Score Breakdown
-            </h3>
-            <div className="grid grid-cols-5 gap-4">
-              {[
-                { label: 'ATT', score: Math.round(event.attention_score) },
-                { label: 'ANM', score: Math.round(event.scores.anomaly_score) },
-                { label: 'CAT', score: Math.round(event.scores.catalyst_score) },
-                { label: 'FLW', score: Math.round(event.scores.flow_score) },
-                { label: 'CNF', score: Math.round(event.scores.confidence_score) },
-              ].map(({ label, score }) => (
-                <div key={label} className="text-center">
-                  <div className={cn('text-2xl lg:text-3xl font-bold', getScoreColor(score))}>
-                    {score}
-                  </div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide mt-1">{label}</div>
-                  <div className="w-full h-1.5 bg-gray-200 border border-black mt-2">
-                    <div
-                      className={cn('h-full', getScoreBg(score))}
-                      style={{ width: `${score}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* 4D Score Breakdown */}
+          <ScoreBreakdown
+            attentionScore={event.attention_score}
+            scores={event.scores}
+            observations={event.observations}
+          />
 
           {/* Event Timeline/Observations */}
           <div>
