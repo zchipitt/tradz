@@ -87,3 +87,30 @@ Started: Wed Jan 21 06:13:41 PST 2026
   - Quality gate thresholds can be configured per-user via QualityGateConfig dataclass
   - Gate score calculation uses weighted average: confidence (30%), sources (20%), anomaly (20%), catalyst (20%), invalidation (10%)
 ---
+
+## 2026-01-21 - US-012
+- What was implemented:
+  - Created ActionPanel component with TradeIdea and ResearchPlan views:
+    - TradeIdea view: direction badge (LONG/SHORT/NEUTRAL), entry/target/stop price levels with percentage, invalidation condition, confidence meter, copy to clipboard
+    - ResearchPlan view: questions checklist, evidence to watch, next check date, gaps identified, gate score display
+    - GateEvaluationSummary: shows all 5 gates with pass/fail indicators, progress bars, and improvement suggestions for failed gates
+  - Added /api/events/{event_id}/recommendation endpoint that evaluates quality gates and returns appropriate recommendation
+  - Added TypeScript types for RecommendationResponse, TradeIdea, ResearchPlan, QualityGateEvaluation, GateResult
+  - Added useEventRecommendation hook with TanStack Query (5-min stale time, no retry on 404)
+  - Integrated ActionPanel into EventDetail page between FactSpotlight and EvidenceTimeline
+- Files changed:
+  - frontend/src/components/events/ActionPanel.tsx - New component (created)
+  - frontend/src/api/types.ts - Added recommendation types
+  - frontend/src/api/client.ts - Added getEventRecommendation function
+  - frontend/src/hooks/useEvents.ts - Added useEventRecommendation hook
+  - frontend/src/pages/EventDetail.tsx - Integrated ActionPanel
+  - api/routers/events.py - Added recommendation endpoint
+  - api/schemas/events.py - Added Pydantic schemas for recommendation
+  - api/services/event_service.py - Added get_event_recommendation method
+- **Learnings for future iterations:**
+  - Entity IDs in database are not always valid UUIDs (e.g., 'tsla-entity-001') - wrap UUID parsing in try/except
+  - When a method is defined outside its class (wrong indentation), TypeScript/pyright reports "Cannot access attribute" error
+  - For API types that return None for optional fields, TypeScript interfaces should use `field: Type | null` not `field?: Type`
+  - Brutalist design aesthetic: black/white with yellow accent, bold borders (border-2), uppercase labels, box-shadow (shadow-brutal-sm)
+  - GateResult type needs both 'name' (display) and 'key' (identifier) fields for proper rendering
+---
