@@ -223,6 +223,110 @@ class EventService:
             },
         }
 
+    def perform_action(
+        self,
+        event_id: str,
+        action: str,
+        duration_hours: int = 24,
+        reason: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Perform an action on an event.
+
+        Args:
+            event_id: Event UUID string
+            action: Action type - "pin", "unpin", "snooze", "dismiss", "resolve"
+            duration_hours: Duration for snooze in hours (default 24)
+            reason: Optional reason for dismiss action
+
+        Returns:
+            Dict with action result including success, message, and updated fields
+
+        Raises:
+            ValueError: If event not found or action invalid
+        """
+        db = get_database()
+
+        # Verify event exists
+        check_query = "SELECT id, status, pinned FROM events WHERE id = ?"
+        result = db.conn.execute(check_query, [event_id]).fetchone()
+
+        if not result:
+            raise ValueError(f"Event {event_id} not found")
+
+        current_status = result[1]
+        current_pinned = result[2] if result[2] is not None else False
+
+        now = datetime.now(timezone.utc)
+        response: Dict[str, Any] = {
+            "event_id": event_id,
+            "action": action,
+            "success": True,
+            "message": "",
+            "new_status": None,
+            "pinned": None,
+            "snoozed_until": None,
+        }
+
+        if action == "pin":
+            if current_pinned:
+                response["message"] = "Event is already pinned"
+            else:
+                db.conn.execute(
+                    "UPDATE events SET pinned = TRUE WHERE id = ?",
+                    [event_id],
+                )
+                response["message"] = "Event pinned successfully"
+                response["pinned"] = True
+
+        elif action == "unpin":
+            if not current_pinned:
+                response["message"] = "Event is not pinned"
+            else:
+                db.conn.execute(
+                    "UPDATE events SET pinned = FALSE WHERE id = ?",
+                    [event_id],
+                )
+                response["message"] = "Event unpinned successfully"
+                response["pinned"] = False
+
+        elif action == "snooze":
+            from datetime import timedelta
+            snoozed_until = now + timedelta(hours=duration_hours)
+            db.conn.execute(
+                "UPDATE events SET snoozed_until = ? WHERE id = ?",
+                [snoozed_until.isoformat(), event_id],
+            )
+            response["message"] = f"Event snoozed for {duration_hours} hours"
+            response["snoozed_until"] = snoozed_until.isoformat()
+
+        elif action == "dismiss":
+            if current_status == "dismissed":
+                response["message"] = "Event is already dismissed"
+            else:
+                db.conn.execute(
+                    "UPDATE events SET status = 'dismissed', dismissed_reason = ? WHERE id = ?",
+                    [reason, event_id],
+                )
+                response["message"] = "Event dismissed"
+                response["new_status"] = "dismissed"
+
+        elif action == "resolve":
+            if current_status == "resolved":
+                response["message"] = "Event is already resolved"
+            else:
+                db.conn.execute(
+                    "UPDATE events SET status = 'resolved', resolved_at = ? WHERE id = ?",
+                    [now.isoformat(), event_id],
+                )
+                response["message"] = "Event marked as resolved"
+                response["new_status"] = "resolved"
+
+        else:
+            raise ValueError(f"Invalid action: {action}")
+
+        return response
+
     def _row_to_observation_dict(self, row) -> Dict[str, Any]:
         """Convert database row to observation dictionary."""
         # Row structure: id, source, entity_id, entity_ticker, effective_at, observed_at,

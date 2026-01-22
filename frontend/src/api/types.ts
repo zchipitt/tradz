@@ -242,10 +242,35 @@ export interface Event {
   snoozed_until?: string;
 }
 
+export type EventActionType = 'pin' | 'unpin' | 'snooze' | 'dismiss' | 'resolve';
+
 export interface EventAction {
   event_id: string;
-  action: 'dismiss' | 'snooze' | 'pin' | 'unpin' | 'resolve';
+  action: EventActionType;
   snooze_hours?: number;
+  reason?: string;
+}
+
+/**
+ * Request body for POST /api/events/{event_id}/actions
+ */
+export interface EventActionRequest {
+  action: EventActionType;
+  duration_hours?: number;
+  reason?: string;
+}
+
+/**
+ * Response from POST /api/events/{event_id}/actions
+ */
+export interface EventActionResponse {
+  event_id: string;
+  action: EventActionType;
+  success: boolean;
+  message: string;
+  new_status: EventState | null;
+  pinned: boolean | null;
+  snoozed_until: string | null;
 }
 
 export interface DailyBrief {

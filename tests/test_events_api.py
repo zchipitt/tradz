@@ -484,3 +484,306 @@ class TestEventSorting:
         response = client.get("/api/events?sort=invalid")
 
         assert response.status_code == 422  # Validation error
+
+
+class TestEventActions:
+    """Tests for POST /api/events/{event_id}/actions endpoint."""
+
+    def test_pin_event_success(self, client, mock_event_service):
+        """Test pinning an event successfully."""
+        event_id = str(uuid4())
+        mock_event_service.perform_action.return_value = {
+            "event_id": event_id,
+            "action": "pin",
+            "success": True,
+            "message": "Event pinned successfully",
+            "new_status": None,
+            "pinned": True,
+            "snoozed_until": None,
+        }
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={"action": "pin"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["action"] == "pin"
+        assert data["pinned"] is True
+        mock_event_service.perform_action.assert_called_once_with(
+            event_id=event_id,
+            action="pin",
+            duration_hours=24,
+            reason=None,
+        )
+
+    def test_unpin_event_success(self, client, mock_event_service):
+        """Test unpinning an event successfully."""
+        event_id = str(uuid4())
+        mock_event_service.perform_action.return_value = {
+            "event_id": event_id,
+            "action": "unpin",
+            "success": True,
+            "message": "Event unpinned successfully",
+            "new_status": None,
+            "pinned": False,
+            "snoozed_until": None,
+        }
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={"action": "unpin"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["action"] == "unpin"
+        assert data["pinned"] is False
+
+    def test_snooze_event_default_duration(self, client, mock_event_service):
+        """Test snoozing an event with default 24h duration."""
+        event_id = str(uuid4())
+        snoozed_until = "2026-01-22T10:00:00Z"
+        mock_event_service.perform_action.return_value = {
+            "event_id": event_id,
+            "action": "snooze",
+            "success": True,
+            "message": "Event snoozed for 24 hours",
+            "new_status": None,
+            "pinned": None,
+            "snoozed_until": snoozed_until,
+        }
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={"action": "snooze"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["action"] == "snooze"
+        assert data["snoozed_until"] == snoozed_until
+        mock_event_service.perform_action.assert_called_once_with(
+            event_id=event_id,
+            action="snooze",
+            duration_hours=24,
+            reason=None,
+        )
+
+    def test_snooze_event_custom_duration(self, client, mock_event_service):
+        """Test snoozing an event with custom duration."""
+        event_id = str(uuid4())
+        mock_event_service.perform_action.return_value = {
+            "event_id": event_id,
+            "action": "snooze",
+            "success": True,
+            "message": "Event snoozed for 48 hours",
+            "new_status": None,
+            "pinned": None,
+            "snoozed_until": "2026-01-23T10:00:00Z",
+        }
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={"action": "snooze", "duration_hours": 48},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        mock_event_service.perform_action.assert_called_once_with(
+            event_id=event_id,
+            action="snooze",
+            duration_hours=48,
+            reason=None,
+        )
+
+    def test_dismiss_event_success(self, client, mock_event_service):
+        """Test dismissing an event successfully."""
+        event_id = str(uuid4())
+        mock_event_service.perform_action.return_value = {
+            "event_id": event_id,
+            "action": "dismiss",
+            "success": True,
+            "message": "Event dismissed",
+            "new_status": "dismissed",
+            "pinned": None,
+            "snoozed_until": None,
+        }
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={"action": "dismiss"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["action"] == "dismiss"
+        assert data["new_status"] == "dismissed"
+
+    def test_dismiss_event_with_reason(self, client, mock_event_service):
+        """Test dismissing an event with a reason."""
+        event_id = str(uuid4())
+        mock_event_service.perform_action.return_value = {
+            "event_id": event_id,
+            "action": "dismiss",
+            "success": True,
+            "message": "Event dismissed",
+            "new_status": "dismissed",
+            "pinned": None,
+            "snoozed_until": None,
+        }
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={"action": "dismiss", "reason": "Not relevant to my portfolio"},
+        )
+
+        assert response.status_code == 200
+        mock_event_service.perform_action.assert_called_once_with(
+            event_id=event_id,
+            action="dismiss",
+            duration_hours=24,
+            reason="Not relevant to my portfolio",
+        )
+
+    def test_resolve_event_success(self, client, mock_event_service):
+        """Test resolving an event successfully."""
+        event_id = str(uuid4())
+        mock_event_service.perform_action.return_value = {
+            "event_id": event_id,
+            "action": "resolve",
+            "success": True,
+            "message": "Event marked as resolved",
+            "new_status": "resolved",
+            "pinned": None,
+            "snoozed_until": None,
+        }
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={"action": "resolve"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["action"] == "resolve"
+        assert data["new_status"] == "resolved"
+
+    def test_action_event_not_found(self, client, mock_event_service):
+        """Test 404 when event not found."""
+        event_id = str(uuid4())
+        mock_event_service.perform_action.side_effect = ValueError(f"Event {event_id} not found")
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={"action": "pin"},
+        )
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_action_invalid_action(self, client):
+        """Test validation error for invalid action."""
+        event_id = str(uuid4())
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={"action": "invalid_action"},
+        )
+
+        assert response.status_code == 422  # Validation error
+
+    def test_action_missing_action(self, client):
+        """Test validation error when action is missing."""
+        event_id = str(uuid4())
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={},
+        )
+
+        assert response.status_code == 422  # Validation error
+
+    def test_snooze_duration_validation_min(self, client):
+        """Test that snooze duration must be at least 1 hour."""
+        event_id = str(uuid4())
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={"action": "snooze", "duration_hours": 0},
+        )
+
+        assert response.status_code == 422  # Validation error
+
+    def test_snooze_duration_validation_max(self, client):
+        """Test that snooze duration must be at most 168 hours (1 week)."""
+        event_id = str(uuid4())
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={"action": "snooze", "duration_hours": 200},
+        )
+
+        assert response.status_code == 422  # Validation error
+
+    def test_action_service_error(self, client, mock_event_service):
+        """Test error handling when service fails."""
+        event_id = str(uuid4())
+        mock_event_service.perform_action.side_effect = Exception("Database error")
+
+        response = client.post(
+            f"/api/events/{event_id}/actions",
+            json={"action": "pin"},
+        )
+
+        assert response.status_code == 500
+        assert "Database error" in response.json()["detail"]
+
+    def test_pinned_events_sort_to_top(self, client, mock_event_service):
+        """Test that pinned events are returned first when sorting by attention_score."""
+        unpinned_event = create_mock_event_dict(
+            ticker="AAPL",
+            anomaly_score=90.0,
+            pinned=False,
+        )
+        pinned_event = create_mock_event_dict(
+            ticker="NVDA",
+            anomaly_score=50.0,
+            pinned=True,
+        )
+        # Return pinned first despite lower attention score
+        mock_event_service.get_events.return_value = ([pinned_event, unpinned_event], 2)
+
+        response = client.get("/api/events?sort=attention_score")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["events"]) == 2
+        # Pinned event should be first
+        assert data["events"][0]["pinned"] is True
+
+    def test_snoozed_events_hidden_from_active(self, client, mock_event_service):
+        """Test that snoozed events are filtered from active status."""
+        # Only create active event - snoozed events are filtered by service logic
+        active_event = create_mock_event_dict(
+            ticker="NVDA",
+            status="new",
+            snoozed_until=None,
+        )
+        # Service should only return non-snoozed events for active filter
+        mock_event_service.get_events.return_value = ([active_event], 1)
+
+        response = client.get("/api/events?status=active")
+
+        assert response.status_code == 200
+        data = response.json()
+        # Only the non-snoozed event should be returned
+        assert len(data["events"]) == 1
+        assert data["events"][0]["ticker"] == "NVDA"
