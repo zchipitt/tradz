@@ -7,6 +7,8 @@ Started: Wed Jan 21 06:13:41 PST 2026
 - Row conversion: Use `len(row) > N` pattern to handle both old and new schema rows
 - Enum extensions: New enum values can be added without breaking existing data
 - Foreign keys: Make nullable (no foreign key constraint) if record may not exist yet
+- Datetime: Use `datetime.now(timezone.utc)` not deprecated `datetime.utcnow()`
+- Unused parameters: Prefix with underscore (`_param`) to satisfy linters while keeping interface
 
 ---
 
@@ -56,4 +58,32 @@ Started: Wed Jan 21 06:13:41 PST 2026
   - FilterChip pattern: use active state with cn() for conditional classes
   - Expandable entries: track expanded IDs in a Set for multiple expanded items
   - Always clear expanded state when filter changes for better UX
+---
+
+## 2026-01-21 - US-011
+- What was implemented:
+  - Created QualityGate class with 5 configurable thresholds:
+    - min_confidence (70): Minimum confidence score
+    - min_sources (2): Minimum unique data sources
+    - min_anomaly (50): Minimum anomaly score
+    - min_catalyst (40): Minimum catalyst score
+    - has_invalidation (true): Require invalidation condition
+  - QualityGateEvaluation dataclass returns: passed, gate_score (0-100), failed_gates list, improvement_suggestions
+  - TradeIdea dataclass with: direction (long/short/neutral), entry_zone, target, stop_loss, invalidation, time_horizon
+  - ResearchPlan dataclass with: questions_to_verify, evidence_to_watch, next_check_date, current_score, gaps_identified
+  - TradeIdeaGenerator class: evaluates gates and returns TradeIdea (gates pass) or ResearchPlan (gates fail)
+  - Direction determination logic based on flow score and observation types (purchase/sale signals)
+  - Price level calculation with entry zone, target (5-15% based on confidence), stop loss (3-7%)
+  - Time horizon determination based on event type (filing → position, news → swing)
+  - 34 comprehensive unit tests covering all quality gate evaluation scenarios
+- Files changed:
+  - src/tradz/events/quality_gate.py - New file with all quality gate logic
+  - src/tradz/events/__init__.py - Added exports for new classes
+  - tests/test_quality_gate.py - New test file with 34 tests
+- **Learnings for future iterations:**
+  - Use `datetime.now(timezone.utc)` instead of deprecated `datetime.utcnow()`
+  - For dataclass default factories with current time, create a helper function `_utcnow()`
+  - Prefix unused parameters with underscore (`_observations`) to satisfy linters while keeping interface flexibility
+  - Quality gate thresholds can be configured per-user via QualityGateConfig dataclass
+  - Gate score calculation uses weighted average: confidence (30%), sources (20%), anomaly (20%), catalyst (20%), invalidation (10%)
 ---
