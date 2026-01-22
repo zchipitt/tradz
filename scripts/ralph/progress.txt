@@ -114,3 +114,34 @@ Started: Wed Jan 21 06:13:41 PST 2026
   - Brutalist design aesthetic: black/white with yellow accent, bold borders (border-2), uppercase labels, box-shadow (shadow-brutal-sm)
   - GateResult type needs both 'name' (display) and 'key' (identifier) fields for proper rendering
 ---
+
+## 2026-01-21 - US-013a
+- What was implemented:
+  - Created DailyBriefContent dataclass with structured content for daily briefs:
+    - executive_summary: 3 sentences summarizing top 3 events
+    - top_events: Top 5 events by attention_score (EventSummary list)
+    - trade_ideas: Events that passed quality gates (TradeIdeaSummary list)
+    - research_ideas: Events that failed gates but have high potential (ResearchIdeaSummary list)
+    - open_loops: Unresolved questions from research plans (OpenLoop list)
+    - data_quality: Summary of source health (DataQualitySummary)
+    - generation_method: 'claude' or 'template'
+  - Implemented DailyBriefGenerator class with generate() method:
+    - Sorts events by attention_score descending
+    - Evaluates quality gates to separate trade ideas from research plans
+    - Generates template-based executive summary from top 3 events
+    - Creates open loops from research plan questions
+    - Processes system status into data quality summary
+    - Converts DailyBriefContent to DailyBrief model for database storage
+  - Added supporting dataclasses: EventSummary, TradeIdeaSummary, ResearchIdeaSummary, OpenLoop, SourceHealthSummary, DataQualitySummary
+  - 23 comprehensive unit tests covering all functionality
+- Files changed:
+  - src/tradz/events/daily_brief_generator.py - New file with DailyBriefGenerator and dataclasses
+  - src/tradz/events/__init__.py - Added exports for new classes
+  - tests/test_daily_brief_generator.py - New test file with 23 tests
+- **Learnings for future iterations:**
+  - Use `from src.tradz...` not `from tradz...` in test files (matches existing test patterns)
+  - Event.attention_score is a property that calculates from 4D scores, can be used for sorting
+  - Quality gates return Recommendation with type field to distinguish trade_idea vs research_plan
+  - DataQualitySummary tracks overall_status (ok/degraded/error) based on source health counts
+  - Research ideas only included if potential_score >= HIGH_POTENTIAL_THRESHOLD (50.0)
+---
