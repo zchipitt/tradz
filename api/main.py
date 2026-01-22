@@ -10,6 +10,7 @@ from api.routers import (
     events_router,
     loops_router,
     reports_router,
+    settings_router,
     signals_router,
     sources_router,
     system_router,
@@ -53,6 +54,7 @@ app.include_router(events_router, prefix="/api/events", tags=["events"])
 app.include_router(system_router, prefix="/api/system", tags=["system"])
 app.include_router(briefs_router, prefix="/api/briefs", tags=["briefs"])
 app.include_router(loops_router, prefix="/api/loops", tags=["loops"])
+app.include_router(settings_router, prefix="/api/settings", tags=["settings"])
 
 
 @app.get("/")
