@@ -61,3 +61,6 @@ reports/
 # local
 prompt.md
 scripts
+
+# TypeScript
+*.tsbuildinfo
