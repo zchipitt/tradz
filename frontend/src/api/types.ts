@@ -493,3 +493,103 @@ export interface RecommendationResponse {
   research_plan: ResearchPlan | null;
   gate_evaluation: QualityGateEvaluation | null;
 }
+
+/**
+ * Daily Brief Summary Item.
+ * Response from GET /api/briefs (list briefs endpoint)
+ */
+export interface BriefSummaryItem {
+  id: string;
+  date: string;
+  generation_method: string;
+  created_at: string;
+  event_count: number;
+  trade_idea_count: number;
+  top_entity: string | null;
+  report_path_md: string | null;
+  report_path_json: string | null;
+  run_id: string | null;
+}
+
+export interface BriefSummaryResponse {
+  briefs: BriefSummaryItem[];
+  total_count: number;
+}
+
+/**
+ * Daily Brief Detail
+ * Response from GET /api/briefs/{date} or GET /api/briefs/latest
+ */
+export interface EventSummaryItem {
+  event_id: string;
+  title: string;
+  ticker: string | null;
+  event_type: string;
+  attention_score: number;
+  anomaly_score: number;
+  catalyst_score: number;
+  flow_score: number;
+  confidence_score: number;
+  observation_count: number;
+  last_update_at: string | null;
+}
+
+export interface TradeIdeaItem {
+  event_id: string;
+  ticker: string | null;
+  direction: string;
+  entry_zone: string;
+  target: string;
+  stop_loss: string;
+  confidence_level: number;
+  rationale: string;
+}
+
+export interface ResearchIdeaItem {
+  event_id: string;
+  ticker: string | null;
+  questions: string[];
+  evidence_to_watch: string[];
+  current_score: number;
+  potential_score: number;
+}
+
+export interface OpenLoopItem {
+  loop_id: string;
+  event_id: string | null;
+  question: string;
+  created_at: string;
+  status: string;
+}
+
+export interface SourceHealthItem {
+  name: string;
+  display_name: string;
+  status: string;
+  record_count_24h: number;
+  freshness_indicator: string;
+}
+
+export interface DataQualitySection {
+  total_sources: number;
+  healthy_count: number;
+  degraded_count: number;
+  error_count: number;
+  sources: SourceHealthItem[];
+  overall_status: string;
+  quality_message: string;
+}
+
+export interface BriefDetail {
+  id: string;
+  date: string;
+  executive_summary: string;
+  top_events: EventSummaryItem[];
+  trade_ideas: TradeIdeaItem[];
+  research_ideas: ResearchIdeaItem[];
+  open_loops: OpenLoopItem[];
+  data_quality: DataQualitySection | null;
+  generation_method: string;
+  created_at: string;
+  run_id: string | null;
+}

@@ -17,7 +17,7 @@
 - Fact extraction via `extract_facts(observation)` dispatches to source-specific extractors
 - Fact IDs use format: `{obs_id[:8]}_{fact_type}` for uniqueness
 - API pattern: routers in `api/routers/`, schemas in `api/schemas/`, services in `api/services/`
-- API tests use `from api.routers.X import router` and `TestClient(app)` for HTTP testing
+- API tests use `from api.main import app` and `TestClient(app)` for HTTP testing (not router-specific)
 - Register new routers in both `api/routers/__init__.py` and `api/main.py`
 - Frontend API client in `frontend/src/api/client.ts` - add transformer functions for backend-to-UI mapping
 - Frontend types in `frontend/src/api/types.ts` - add both backend schema types and legacy UI types
@@ -471,3 +471,213 @@
   - Type annotation `Optional["ClassName"]` fails before class is defined - use lazy init instead
   - Facts formatted as "- {fact_type}: {label} = {value} {unit}" for LLM prompts
 ---
+---
+
+## 2026-01-21 - US-013c
+- **What was implemented**: Daily Brief persistence to files and database
+  - Created `src/tradz/events/daily_brief_persister.py` with `DailyBriefPersister` class:
+    - `persist()`: Main entry point for combined file and database persistence
+    - `save_to_files()`: Saves markdown to `reports/{date}.md` and JSON to `reports/{date}.json`
+    - `save_to_database()`: Inserts/updates record in `daily_briefs` table with UPSERT
+    - `_render_markdown()`: Generates full markdown report with all sections
+    - `_prepare_json()`: Includes metadata (brief_id, generated_at, version)
+  - `PersistenceResult` dataclass encapsulates persistence status with paths and error handling
+  - Idempotent regeneration: Overwrites existing files and updates DB record via ON CONFLICT UPDATE
+  - File paths use ISO date format (YYYY-MM-DD) for consistent sorting
+  - Optional `run_id` parameter links to `run_history` table
+  - Generation method ('claude' or 'template') tracked for monitoring
+  - Created comprehensive test suite with 41 tests covering:
+    - File persistence (markdown and JSON formats)
+    - Database operations with mock DB
+    - Idempotent behavior (regeneration overwrites)
+    - Error handling (file write errors, DB errors)
+    - Edge cases (empty content, minimal fields)
+  - Updated `src/tradz/events/__init__.py` to export `DailyBriefPersister` and `PersistenceResult`
+  - Updated `CLAUDE.md` with persistence patterns for future iterations
+
+- **Files changed**:
+  - `src/tradz/events/daily_brief_persister.py` (new - 400 lines)
+  - `tests/test_daily_brief_persister.py` (new - 710 lines)
+  - `src/tradz/events/__init__.py` (updated exports)
+  - `CLAUDE.md` (added persistence patterns)
+  - `prd.json` (updated US-013c passes: true)
+
+- **Learnings for future iterations**:
+  - DailyBriefPersister uses lazy DB initialization via property to avoid circular imports
+  - Markdown rendering follows consistent structure: Header → Executive Summary → Sections → Metadata
+  - JSON output includes metadata section for programmatic access to brief_id and timestamps
+  - UPSERT pattern (INSERT ... ON CONFLICT DO UPDATE) ensures idempotent regeneration
+  - Tests use `MagicMock` for database operations and `tempfile.TemporaryDirectory` for file isolation
+  - File paths are resolved with `Path()` to handle both string and Path inputs
+  - Report generation can handle minimal/empty content gracefully (shows "No events to report")
+  - `PersistenceResult.to_dict()` provides clean serialization for API responses
+  - Database schema already has all required columns for daily_briefs table
+  - Generation method tracking enables monitoring LLM vs template usage
+
+---
+
+
+## 2026-01-22 - US-014
+- **What was implemented**: Daily Brief API endpoints for retrieving daily briefs
+  - Created `api/schemas/briefs.py` with Pydantic schemas for request/response validation:
+    - `BriefDetail` - Full daily brief response with all sections
+    - `BriefSummary` - Summary view for listing briefs
+    - `GetBriefResponse`, `GetLatestBriefResponse`, `ListBriefsResponse` - Endpoint response wrappers
+    - Error schemas: `BriefNotFoundError`, `InvalidDateError`
+  - Created `api/services/brief_service.py` with `BriefService` class:
+    - `get_brief_by_date()` - Retrieves brief for specific date (YYYY-MM-DD format)
+    - `get_latest_brief()` - Retrieves most recent brief
+    - `list_briefs()` - Lists available briefs with pagination (limit/offset)
+    - Helper methods for converting database rows to API responses
+  - Created `api/routers/briefs.py` with three REST endpoints:
+    - `GET /api/briefs/{date}` - Get brief by date, returns 404 if not found
+    - `GET /api/briefs/latest` - Get most recent brief, returns 404 if none exist
+    - `GET /api/briefs/` - List briefs with pagination, returns total count
+  - Registered briefs router in `api/main.py` and `api/routers/__init__.py`
+  - Created comprehensive test suite in `tests/test_briefs_api.py` with 15 tests covering:
+    - Success cases for all endpoints
+    - Error handling (404 for not found, 400 for invalid date, 422 for validation)
+    - Pagination and filtering
+    - Response structure validation
+
+- **Files changed**:
+  - `api/schemas/briefs.py` (new - 140 lines)
+  - `api/services/brief_service.py` (new - 290 lines)
+  - `api/routers/briefs.py` (new - 140 lines)
+  - `api/main.py` (added briefs_router import and registration)
+  - `api/routers/__init__.py` (added briefs_router export)
+  - `tests/test_briefs_api.py` (new - 460 lines)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - When creating new API routers, use `APIRouter()` without prefix (prefix is added in `api/main.py`)
+  - Use `TestClient(app)` not `TestClient(router)` for testing - routers need to be mounted on app
+  - Database service pattern: query in service layer, transform to Pydantic models in router
+  - Date validation should happen in service layer for better error messages
+  - Pydantic models handle JSON serialization automatically - no need for manual to_dict()
+  - Use ISO format dates (YYYY-MM-DD) consistently across API
+  - Briefs table queries use `DATE(date) = ?` to ignore time components
+  - JSON fields in DuckDB (summary_json) need careful parsing with type checks
+  - Generation method validation can be done at Pydantic model level (no decorator needed)
+  - Pagination pattern: return (items, total_count) tuple from service, use Query params in router
+
+---
+
+## 2026-01-22 - US-015
+- **What was implemented**: Daily Brief UI component with structured sections
+  - Updated `frontend/src/api/types.ts` with new Daily Brief types (BriefSummaryItem, BriefDetail, EventSummaryItem, TradeIdeaItem, ResearchIdeaItem, OpenLoopItem, DataQualitySection)
+  - Added `frontend/src/api/client.ts` Daily Brief API functions (getLatestBrief, getBriefByDate, getAvailableBriefs)
+  - Created `frontend/src/hooks/useDailyBrief.ts` with React Query hooks (useLatestBrief, useBriefByDate, useAvailableBriefs, refetch helpers)
+  - Replaced `frontend/src/components/events/DailyBrief.tsx` with updated version using BriefDetail types
+  - Implemented subcomponents with brutalist design:
+    - TradeIdeaCard: Shows entry/target/stop levels with direction badges (long/short/neutral) and copy button
+    - ResearchIdeaCard: Displays questions to verify and evidence to watch with yellow border styling
+    - OpenLoopCard: Shows open questions with status badges (open/in_progress/resolved)
+    - DataQualityCard: Displays source health with colored status badges (ok/degraded/error)
+  - Updated `frontend/src/pages/Dashboard.tsx` to fetch Daily Brief via useLatestBrief hook instead of bundled in events response
+  - Typecheck passes with no errors
+
+- **Files changed**:
+  - `frontend/src/api/types.ts` (added BriefDetail types)
+  - `frontend/src/api/client.ts` (added Daily Brief API functions)
+  - `frontend/src/hooks/useDailyBrief.ts` (created)
+  - `frontend/src/components/events/DailyBrief.tsx` (rewritten with new types)
+  - `frontend/src/pages/Dashboard.tsx` (updated to use useLatestBrief)
+
+- **Learnings for future iterations**:
+  - Always export the component name that matches the import in index.ts to avoid TS export errors
+  - Use `skipLibCheck: true` in tsconfig or `--skipLibCheck` flag to avoid external library type issues
+  - Match React component naming: Export should be exactly what you import elsewhere (e.g., `export { DailyBrief }` not `export { DailyBriefNew }`)
+  - When fetching data that may not exist (brief before generation), use `.optional()?.` chains or empty state UI
+  - The new Daily Brief API endpoints (/api/briefs/latest, /api/briefs/{date}) are already implemented by US-014
+  - Frontend API transforms: unwrap `{ brief: BriefDetail }` response in client, map to plain BriefDetail for component
+  - Generation method tracking (claude/template) is useful for UI badges to show users how brief was generated
+  - Trade idea copy button UX: show success state for 2 seconds with <Check> icon before reverting
+  - Research ideas styling: use yellow borders/backgrounds to differentiate from trade ideas (actionable)
+  - Open loops display: use ⚠️ emoji and status badges for quick visual scanning of unresolved items
+  - Top events compact view: show 4D scores in small colored blocks (red/blue/green/gray) for quick attention scoring
+  - Data quality grid: responsive 2-column layout on desktop, collapses to 1 column on mobile via `grid-cols-1 md:grid-cols-2`
+  - Executive summary: placed at top in its own section with copy button - most important for quick scanning
+  - Component structure: DailyBrief as container with inline subcomponents (no separate files) keeps related code together
+  - Hydration: use `useState` for collapsed state and copy states to ensure client-side only state
+
+
+## 2026-01-22 - US-016
+- What was implemented: Reports archive page for browsing historical daily briefs
+  - Created reusable `ControlGroup` component for form inputs with error state support
+  - Created reusable `Button` component with variant (primary/secondary/outline/danger) and size (xs/sm/md) support
+  - Updated `Reports.tsx` with full implementation:
+    - List view showing all available briefs from GET /api/briefs endpoint
+    - Each brief card displays: date, generation method badge (LLM/TEMPLATE), event count, top entity, trade idea count
+    - Download buttons for Markdown and JSON formats with actual file fetching
+    - Click-to-open functionality navigates to full-screen Markdown viewer
+    - Markdown viewer overlay with back button, download button, and proper markdown rendering
+    - Simple markdown parser supports: headers (#, ##, ###), code blocks (```), lists (-), and basic text
+    - Date filter input for quick date lookup (opens report directly when date selected)
+    - Pagination controls with Previous/Next buttons and page indicator
+    - Loading state with skeleton placeholders using animate-pulse
+    - Error state with red border and retry button
+    - Empty state with Archive icon and helpful message
+    - Responsive design matching brutalist aesthetic (hard borders, black/white/yellow)
+  - Integrated with existing API hooks:
+    - `useAvailableBriefs` for fetching paginated brief list (auto-refreshes every 5 min)
+    - Direct file fetching for Markdown content from /reports/{date}.md
+  - Component organization:
+    - `BriefListItem`: Individual report card component
+    - `MarkdownViewer`: Full-screen overlay for reading reports
+    - `Reports`: Main page component with state management
+  - All API integration uses existing endpoints from US-014
+
+- Files changed:
+  - `frontend/src/components/common/Button.tsx` (new)
+  - `frontend/src/components/common/ControlGroup.tsx` (new)
+  - `frontend/src/components/common/index.ts` (new)
+  - `frontend/src/pages/Reports.tsx` (complete rewrite with >400 lines)
+  - `frontend/src/components/events/index.ts` (fixed DailyBrief export)
+
+- **Learnings for future iterations**:
+  - BriefSummaryItem type from backend includes: id, date, generation_method, created_at, event_count, trade_idea_count, top_entity, report_path_md, report_path_json, run_id
+  - BriefSummaryItem does NOT include avg_attention_score - use event_count and trade_idea_count instead
+  - Markdown files are served statically from /reports/ directory - fetch with relative URL
+  - Date input type="date" provides native browser date picker - format is YYYY-MM-DD
+  - When using ControlGroup with input elements, ensure input has proper border styling to match design system
+  - Button component should support leftIcon and rightIcon props for icons
+  - TanStack Query's refetch() can be called manually for refresh button functionality
+  - Pagination pattern: track currentPage state, calculate offset, pass to useAvailableBriefs hook
+  - Overlay components (MarkdownViewer) should use fixed positioning with high z-index (z-50)
+  - Back button in overlay should use ChevronRight with rotate-180 for consistent iconography
+  - Download functionality can be implemented with Blob and createObjectURL for browser compatibility
+  - Type-safe format parameter: use literal union type `'md' | 'json'` instead of `string`
+  - When components don't exist (ControlGroup, Button), create them in common/ directory for reuse
+  - Always create index.ts barrel files in component directories for clean imports
+
+---
+
+## 2026-01-22 - HTML Endpoint Implementation
+- **What was implemented**: HTML endpoint for traditional web interface
+  - Added Jinja2 dependency to requirements.txt
+  - Created HTML template at api/templates/daily_brief.html with responsive design
+  - Added GET /api/reports/{date}/html endpoint returning styled HTML
+  - Added GET /api/reports/latest/html endpoint for most recent report
+  - Template renders: executive summary, top events with 4D scores, trade ideas, research ideas, data quality grid
+  - Fallback support for legacy data formats from aggregator service
+  - Comprehensive error handling (400 invalid date, 404 not found, 500 template error)
+  - Created test suite with 5 test cases covering all scenarios
+
+- **Files changed**:
+  - requirements.txt (added jinja2>=3.1.0)
+  - api/templates/daily_brief.html (created)
+  - api/routers/reports.py (added HTML endpoints)
+  - tests/test_reports_html.py (created)
+  - HTML_ENDPOINT_TEST_RESULTS.md (created)
+
+- **Learnings for future iterations**:
+  - Use response_class=HTMLResponse in FastAPI route decorators for HTML endpoints
+  - Consolidate multiple data sources (brief_service, aggregator) with try/except fallback
+  - Template data preparation should handle both dict and object structures with hasattr checks
+  - Use datetime.now(datetime.timezone.utc) instead of deprecated datetime.utcnow()
+  - Mock brief_service at the router level (api.routers.reports.brief_service) not the module level
+  - HTML templates should be self-contained (no external CSS/JS) for easy sharing
+  - Test HTML endpoints with both valid data and error scenarios
+  - Use MIME type text/html; charset=utf-8 for proper browser rendering
+  - Template path resolution: Path(__file__).parent.parent / "templates" / "filename.html"

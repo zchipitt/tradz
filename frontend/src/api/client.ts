@@ -11,6 +11,8 @@ import type {
   PolymarketResponse,
   NewsResponse,
   HealthResponse,
+  BriefDetail,
+  BriefSummaryItem,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8002/api';
@@ -274,6 +276,54 @@ export const getEventRecommendation = async (
 ): Promise<RecommendationResponse> => {
   const { data } = await apiClient.get<RecommendationResponse>(
     `/events/${encodeURIComponent(eventId)}/recommendation`
+  );
+  return data;
+};
+
+// Daily Brief API
+
+/**
+ * Fetches the latest Daily Brief from GET /api/briefs/latest endpoint.
+ */
+export const getLatestBrief = async (
+  refresh = false
+): Promise<BriefDetail> => {
+  const { data } = await apiClient.get<{ brief: BriefDetail }>('/briefs/latest', {
+    params: { refresh },
+  });
+  return data.brief;
+};
+
+/**
+ * Fetches a Daily Brief by date from GET /api/briefs/{date} endpoint.
+ * Date should be in YYYY-MM-DD format.
+ */
+export const getBriefByDate = async (
+  date: string,
+  refresh = false
+): Promise<BriefDetail> => {
+  const { data } = await apiClient.get<{ brief: BriefDetail }>(
+    `/briefs/${encodeURIComponent(date)}`,
+    {
+      params: { refresh },
+    }
+  );
+  return data.brief;
+};
+
+/**
+ * Fetches a list of available Daily Briefs from GET /api/briefs endpoint.
+ * Supports pagination with limit and offset.
+ */
+export const getAvailableBriefs = async (
+  limit = 20,
+  offset = 0
+): Promise<{ briefs: BriefSummaryItem[]; total_count: number }> => {
+  const { data } = await apiClient.get<{ briefs: BriefSummaryItem[]; total_count: number }>(
+    '/briefs',
+    {
+      params: { limit, offset },
+    }
   );
   return data;
 };

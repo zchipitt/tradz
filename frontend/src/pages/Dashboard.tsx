@@ -4,6 +4,7 @@
  */
 import { useEvents, useEventAction, useSystemStatus } from '../hooks/useEvents';
 import { useSignals } from '../hooks/useSignals';
+import { useLatestBrief } from '../hooks/useDailyBrief';
 import { SystemStatus } from '../components/events/SystemStatus';
 import { SignalInbox } from '../components/events/SignalInbox';
 import { DailyBrief } from '../components/events/DailyBrief';
@@ -44,22 +45,12 @@ export function Dashboard({ onEventOpen, onSignalClick, onRefresh, isRefreshing 
     onEventOpen?.(event);
   };
 
-  // Get events and daily_brief, using empty defaults when loading or error
+  // Get events using the events hook
   const events = eventsData?.events ?? [];
-  const daily_brief = eventsData?.daily_brief ?? {
-    date: new Date().toISOString().split('T')[0],
-    executive_summary: [],
-    top_events: [],
-    trade_ideas: [],
-    data_quality: {
-      sources_ok: 0,
-      sources_total: 7,
-      errors: [],
-      stalest_source: '',
-      stalest_age_hours: 0,
-    },
-    open_loops: [],
-  };
+
+  // Get the latest brief using the separate brief API
+  const { data: briefData } = useLatestBrief();
+  const brief = briefData?.brief;
 
   return (
     <div className="space-y-8">
@@ -96,26 +87,9 @@ export function Dashboard({ onEventOpen, onSignalClick, onRefresh, isRefreshing 
       />
 
       {/* Section 3: Daily Brief Snapshot */}
-      <DailyBrief
-        brief={daily_brief}
-        onOpenFullReport={() => {
-          console.log('Open full report');
-        }}
-        onDownloadJson={() => {
-          const blob = new Blob([JSON.stringify(eventsData, null, 2)], {
-            type: 'application/json',
-          });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `tradz-events-${daily_brief.date}.json`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }}
-        onCompareYesterday={() => {
-          console.log('Compare with yesterday');
-        }}
-      />
+      {brief && (
+        <DailyBrief brief={brief} />
+      )}
 
       {/* Section 4: Market Snapshot */}
       {signalsData && signalsData.all_signals.length > 0 && (

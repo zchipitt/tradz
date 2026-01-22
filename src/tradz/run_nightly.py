@@ -35,6 +35,12 @@ from src.tradz.claude_reporter import ClaudeReporter, check_claude_available
 from src.tradz.signals import SignalGenerator
 from src.tradz.report import ReportGenerator
 from src.tradz.emailer import EmailSender
+from src.tradz.daily_brief_emailer import DailyBriefEmailGenerator
+from src.tradz.events import (
+    DailyBriefGenerator,
+    DailyBriefPersister,
+    DailyBriefContent
+)
 from src.tradz.database import init_database, get_database
 from src.tradz.entity_resolver import EntityResolver
 
@@ -305,6 +311,100 @@ def main():
     logger.info(f"✅ Run history updated: {run_id}")
 
     # =========================================================================
+    # Step 3b: Generate Daily Brief (new event-driven system)
+    # =========================================================================
+    logger.info("=" * 80)
+    logger.info("📋 Step 3b: Generating Daily Brief...")
+    logger.info("=" * 80)
+
+    brief_text_report = None
+    brief_html_report = None
+
+    try:
+        # Import daily brief components
+        from src.tradz.events import (
+            DailyBriefGenerator,
+            DailyBriefPersister,
+        )
+        from src.tradz.events.daily_brief_persister import DailyBriefPersister
+        from src.tradz.events.daily_brief_generator import DailyBriefGenerator
+
+        db = get_database()
+
+        # Check if we have events in the database
+        events_result = db.conn.execute("""
+            SELECT COUNT(*) as count FROM events
+            WHERE DATE(created_at) = ?
+        """, [report_date]).fetchone()
+
+        if events_result and events_result[0] > 0:
+            # Get today's events
+            events = db.conn.execute("""
+                SELECT event_id, entity_id, title, event_type, status,
+                       anomaly_score, catalyst_score, flow_score, confidence_score,
+                       attention_score, observation_count, last_update_at
+                FROM events
+                WHERE DATE(created_at) = ?
+                ORDER BY attention_score DESC
+            """, [report_date]).fetchall()
+
+            if events:
+                # Generate daily brief
+                brief_gen = DailyBriefGenerator()
+
+                # Convert events to EventSummary objects
+                event_summaries = []
+                for event in events[:10]:  # Top 10 events
+                    event_dict = {
+                        'event_id': event[0],
+                        'entity_id': event[1],
+                        'title': event[2],
+                        'event_type': event[3],
+                        'anomaly_score': event[6] or 0,
+                        'catalyst_score': event[7] or 0,
+                        'flow_score': event[8] or 0,
+                        'confidence_score': event[9] or 0,
+                        'attention_score': event[10] or 0,
+                        'observation_count': event[11] or 0,
+                        'last_update_at': event[12]
+                    }
+                    event_summaries.append(event_dict)
+
+                # Generate daily brief content
+                brief_content = {
+                    'date': report_date,
+                    'generation_method': 'claude' if use_claude else 'template',
+                    'executive_summary': f"Generated {len(events)} events with {len(signals['all_signals'])} signals.",
+                    'top_events': event_summaries[:5],  # Top 5
+                    'trade_ideas': [],  # Would come from QualityGate evaluation
+                    'research_ideas': [],  # Would come from QualityGate evaluation
+                    'open_loops': [],  # Would come from OpenLoop tracking
+                    'data_quality': [],  # Would come from system_status queries
+                    'run_id': str(run_id)
+                }
+
+                # Save daily brief
+                persister = DailyBriefPersister()
+                await_persist = False
+
+                # Generate email reports
+                email_gen = DailyBriefEmailGenerator()
+                brief_text_report, brief_html_report = email_gen.generate_email_content(
+                    brief_content,
+                    report_date
+                )
+
+                logger.info(f"✅ Daily Brief generated for email")
+            else:
+                logger.info("ℹ️  No events found for today, using trad signals only")
+        else:
+            logger.info("ℹ️  No events found for today, using traditional signals only")
+    except Exception as e:
+        logger.warning(f"⚠️  Daily Brief generation skipped: {str(e)}")
+        import traceback
+        logger.debug(traceback.format_exc())
+
+    # =========================================================================
     # Step 4: Send email
     # =========================================================================
     if args.skip_email:
@@ -325,11 +425,22 @@ def main():
             sender = EmailSender(**email_config)
 
             # Email subject
-            subject = config.get('email', {}).get('subject_template', 'Trading Signals Brief - {date}')
+            subject = config.get('email', {}).get('subject_template', 'Tradz Daily Brief - {date}')
             subject = subject.format(date=report_date)
 
+            # Use Daily Brief for email if available, otherwise fall back to traditional signals
+            email_body = text_report  # Default to traditional signals
+            email_html = None
+
+            if brief_text_report:
+                logger.info("✅ Using Daily Brief format for email")
+                email_body = brief_text_report
+                email_html = brief_html_report
+            else:
+                logger.info("ℹ️  Using traditional signals format for email (Daily Brief not available)")
+
             # Send email
-            success = sender.send_report(subject, text_report)
+            success = sender.send_report(subject, email_body, email_html)
 
             if success:
                 if email_config['dry_run']:
