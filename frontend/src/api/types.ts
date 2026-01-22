@@ -593,3 +593,90 @@ export interface BriefDetail {
   created_at: string;
   run_id: string | null;
 }
+
+// =====================================================
+// Brief Diff Types (US-021)
+// =====================================================
+
+/**
+ * Summary of an event that appeared in the current brief but not baseline.
+ */
+export interface NewEventSummary {
+  event_id: string;
+  title: string;
+  ticker: string | null;
+  event_type: string;
+  attention_score: number;
+}
+
+/**
+ * Summary of an event that was resolved between baseline and current.
+ */
+export interface ResolvedEventSummary {
+  event_id: string;
+  title: string;
+  ticker: string | null;
+  resolution_type: string;
+  final_score: number;
+}
+
+/**
+ * Score change for an event between two dates.
+ */
+export interface EventScoreChange {
+  event_id: string;
+  title: string;
+  ticker: string | null;
+  previous_score: number;
+  current_score: number;
+  delta: number;
+  direction: 'up' | 'down' | 'unchanged';
+}
+
+/**
+ * Summary of a new trade idea that appeared since baseline.
+ */
+export interface NewTradeIdeaSummary {
+  event_id: string;
+  ticker: string | null;
+  direction: string;
+  entry_zone: string;
+  target: string;
+}
+
+/**
+ * Summary of an open loop that was closed since baseline.
+ */
+export interface ClosedLoopSummary {
+  loop_id: string;
+  question: string;
+  event_id: string | null;
+  resolution: string;
+}
+
+/**
+ * Response for GET /api/reports/diff comparing two briefs.
+ */
+export interface BriefDiffResponse {
+  date: string;
+  baseline: string;
+  has_baseline: boolean;
+
+  // Event changes
+  new_events: NewEventSummary[];
+  resolved_events: ResolvedEventSummary[];
+  score_changes: EventScoreChange[];
+
+  // Trade idea changes
+  new_trade_ideas: NewTradeIdeaSummary[];
+
+  // Loop changes
+  closed_loops: ClosedLoopSummary[];
+
+  // Summary stats
+  total_new_events: number;
+  total_resolved: number;
+  total_score_changes: number;
+  total_new_trade_ideas: number;
+  total_closed_loops: number;
+}

@@ -469,8 +469,8 @@
         "Typecheck passes"
       ],
       "priority": 26,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit 8036714. Added EventActionType enum and EventAction dataclass. Created event_actions table with indexes. Added insert_event_action, get_event_action_history, get_recent_event_actions methods. EventService.perform_action now logs all actions with user context. 20 unit tests pass."
     },
     {
       "id": "US-020",
@@ -485,8 +485,8 @@
         "Typecheck passes"
       ],
       "priority": 27,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit 8e5239c. Added GET /api/reports/diff endpoint with date/baseline params, BriefDiffResponse schema, compare_briefs service method. 19 tests pass."
     },
     {
       "id": "US-021",
@@ -503,8 +503,8 @@
         "Verify in browser  "
       ],
       "priority": 28,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented CompareYesterday component with collapsible UI, stat cards showing counts, NEW badge for new events, up/down arrows for score changes with delta, strikethrough for resolved events, and toggle for full details. Added BriefDiffResponse types, getBriefDiff API function, and useBriefDiff hook. Build passes."
     },
     {
       "id": "US-022",
