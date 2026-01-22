@@ -15,6 +15,9 @@ from api.schemas.events import (
     FactEntry,
     EventTypeResponse,
     EventStatusResponse,
+    EventActionType,
+    EventActionRequest,
+    EventActionResponse,
 )
 from api.services.event_service import event_service
 
@@ -145,5 +148,43 @@ async def get_event_by_id(event_id: str) -> EventDetail:
         )
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{event_id}/actions", response_model=EventActionResponse)
+async def perform_event_action(
+    event_id: str,
+    request: EventActionRequest,
+) -> EventActionResponse:
+    """
+    Perform an action on an event.
+
+    Supported actions:
+    - pin: Pin event to top of list
+    - unpin: Remove pin from event
+    - snooze: Hide event for specified duration (default 24h)
+    - dismiss: Mark event as dismissed with optional reason
+    - resolve: Mark event as resolved
+    """
+    try:
+        result = event_service.perform_action(
+            event_id=event_id,
+            action=request.action.value,
+            duration_hours=request.duration_hours,
+            reason=request.reason,
+        )
+
+        return EventActionResponse(
+            event_id=result["event_id"],
+            action=EventActionType(result["action"]),
+            success=result["success"],
+            message=result["message"],
+            new_status=EventStatusResponse(result["new_status"]) if result.get("new_status") else None,
+            pinned=result.get("pinned"),
+            snoozed_until=result.get("snoozed_until"),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -86,6 +86,8 @@ import type {
   EventListItem,
   Event,
   EventAction,
+  EventActionRequest,
+  EventActionResponse,
   EventCategory,
   EventType,
   SystemStatusResponse,
@@ -188,9 +190,36 @@ export const getEvents = async (_refresh = false): Promise<EventsResponse> => {
   }
 };
 
-export const updateEventAction = async (_action: EventAction): Promise<Event> => {
-  // Backend events action endpoint not yet implemented (US-006)
-  throw new Error('Events action API not yet implemented');
+/**
+ * Performs an action on an event (pin, unpin, snooze, dismiss, resolve).
+ * Calls POST /api/events/{event_id}/actions
+ */
+export const performEventAction = async (
+  eventId: string,
+  action: EventAction['action'],
+  options?: { duration_hours?: number; reason?: string }
+): Promise<EventActionResponse> => {
+  const request: EventActionRequest = {
+    action,
+    duration_hours: options?.duration_hours ?? 24,
+    reason: options?.reason,
+  };
+  const { data } = await apiClient.post<EventActionResponse>(
+    `/events/${encodeURIComponent(eventId)}/actions`,
+    request
+  );
+  return data;
+};
+
+/**
+ * Legacy function for backwards compatibility.
+ * @deprecated Use performEventAction instead
+ */
+export const updateEventAction = async (action: EventAction): Promise<EventActionResponse> => {
+  return performEventAction(action.event_id, action.action, {
+    duration_hours: action.snooze_hours,
+    reason: action.reason,
+  });
 };
 
 /**

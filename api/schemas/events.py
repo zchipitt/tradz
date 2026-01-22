@@ -146,6 +146,55 @@ class ObservationSummary(BaseModel):
     fact_entries: List[FactEntry] = Field(default_factory=list, description="Extracted facts")
 
 
+class EventActionType(str, Enum):
+    """Allowed event actions."""
+    PIN = "pin"
+    UNPIN = "unpin"
+    SNOOZE = "snooze"
+    DISMISS = "dismiss"
+    RESOLVE = "resolve"
+
+
+class EventActionRequest(BaseModel):
+    """Request body for POST /api/events/{event_id}/actions."""
+    action: EventActionType = Field(..., description="Action to perform")
+    duration_hours: int = Field(24, ge=1, le=168, description="Snooze duration in hours (for snooze action)")
+    reason: Optional[str] = Field(None, max_length=500, description="Reason for dismiss action")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "action": "snooze",
+                "duration_hours": 24,
+                "reason": None
+            }
+        }
+
+
+class EventActionResponse(BaseModel):
+    """Response for POST /api/events/{event_id}/actions."""
+    event_id: str = Field(..., description="Event UUID")
+    action: EventActionType = Field(..., description="Action that was performed")
+    success: bool = Field(..., description="Whether action succeeded")
+    message: str = Field(..., description="Human-readable result message")
+    new_status: Optional[EventStatusResponse] = Field(None, description="New event status if changed")
+    pinned: Optional[bool] = Field(None, description="New pinned state if changed")
+    snoozed_until: Optional[datetime] = Field(None, description="New snooze timestamp if snoozed")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "event_id": "123e4567-e89b-12d3-a456-426614174000",
+                "action": "snooze",
+                "success": True,
+                "message": "Event snoozed for 24 hours",
+                "new_status": None,
+                "pinned": None,
+                "snoozed_until": "2026-01-22T10:30:00Z"
+            }
+        }
+
+
 class EventDetail(BaseModel):
     """Detailed event response for GET /api/events/{event_id}."""
     event_id: str = Field(..., description="Event UUID")
