@@ -9,6 +9,7 @@ Also provides:
 - Fact extraction from observations for structured reports
 - Quality gate evaluation for trade ideas
 - Daily brief generation with structured content
+- Event state management with automatic transitions
 
 LLM Providers:
 - LLMProvider: Abstract base class for LLM providers
@@ -25,6 +26,11 @@ Quality Gates:
 - TradeIdea: Actionable trade recommendations for events passing gates
 - ResearchPlan: Research questions for events failing gates
 - TradeIdeaGenerator: Generates appropriate recommendations based on gate results
+
+Event State Management:
+- EventStateManager: Manages automatic event state transitions
+- State transitions: new → ongoing → stale based on activity
+- Optional: resolved/dismissed → ongoing with new evidence
 
 Daily Brief:
 - DailyBriefContent: Structured content for daily briefs
@@ -86,6 +92,10 @@ from .daily_brief_persister import (
     DailyBriefPersister,
     PersistenceResult,
 )
+from .state_manager import (
+    EventStateManager,
+    run_state_transitions,
+)
 
 __all__ = [
     "EventBuilder",
@@ -123,6 +133,9 @@ __all__ = [
     "TradeIdeaGenerator",
     "TradeDirection",
     "TimeHorizon",
+    # Event state management
+    "EventStateManager",
+    "run_state_transitions",
     # Daily brief generation
     "DailyBriefContent",
     "DailyBriefGenerator",
