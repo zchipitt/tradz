@@ -29,6 +29,7 @@ Quality Gates:
 Daily Brief:
 - DailyBriefContent: Structured content for daily briefs
 - DailyBriefGenerator: Generates daily briefs from events and system status
+- DailyBriefPersister: Saves briefs to files and database
 """
 from .builder import EventBuilder
 from .fact_extractor import (
@@ -81,6 +82,10 @@ from .narrative_generator import (
     NarrativeMetrics,
     generate_brief_with_llm,
 )
+from .daily_brief_persister import (
+    DailyBriefPersister,
+    PersistenceResult,
+)
 
 __all__ = [
     "EventBuilder",
@@ -132,4 +137,7 @@ __all__ = [
     "NarrativeMetrics",
     "GenerationResult",
     "generate_brief_with_llm",
+    # Daily brief persistence
+    "DailyBriefPersister",
+    "PersistenceResult",
 ]

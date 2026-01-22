@@ -432,3 +432,42 @@
   - Timeline observations sorted by observed_at DESC (most recent first)
   - Tests for validation errors (limit min/max, offset negative) don't need mock_event_service fixture
 ---
+
+## 2026-01-21 - US-013b
+- **What was implemented**: Daily Brief LLM narrative generation with fallback
+  - Created `src/tradz/events/narrative_generator.py` with NarrativeGenerator class:
+    - `generate_executive_summary()` - Creates executive summary from top events and facts
+    - `generate_section_narrative()` - Creates natural language narrative for brief sections
+    - `_generate_template_summary()` - Bullet-point fallback when LLM fails
+    - `_format_facts_for_prompt()` - Formats FactTableEntry data for LLM prompts
+    - LLM prompt prevents fabrication: "Use ONLY the facts provided"
+  - Created `GenerationResult` dataclass with: text, source ('llm'/'template'), generation_time_ms, error
+  - Created `NarrativeMetrics` dataclass for tracking: llm_calls, llm_successes, fallback_count, total_generation_time_ms
+  - Added `generate_brief_with_llm()` convenience function for one-shot generation
+  - Updated `DailyBriefGenerator` with:
+    - `use_llm` and `llm_config` parameters for LLM configuration
+    - `narrative_generator` property with lazy initialization (avoids circular imports)
+    - `_extract_facts_by_event()` helper to collect facts from observations
+    - Integration in `generate()` method to use LLM when enabled
+  - Fallback triggers: LLM timeout, API error, empty response
+  - Generation time logged in `NarrativeMetrics` for monitoring
+  - Added 35 unit tests covering LLM success, fallback paths, metrics tracking
+
+- **Files changed**:
+  - `src/tradz/events/narrative_generator.py` (new - ~350 lines)
+  - `src/tradz/events/daily_brief_generator.py` (added use_llm, llm_config, narrative_generator)
+  - `src/tradz/events/__init__.py` (exported NarrativeGenerator, NarrativeMetrics, GenerationResult, generate_brief_with_llm)
+  - `tests/test_narrative_generator.py` (new - 35 tests)
+  - `tests/test_daily_brief_generator.py` (added use_llm=False to existing tests for determinism)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - Use lazy initialization via property for NarrativeGenerator to avoid circular imports
+  - LLM prompts must explicitly say "Use ONLY the facts provided" to prevent fabrication
+  - Template fallback uses bullet-point format with fact type labels
+  - GenerationResult.source can be 'llm' or 'template' for tracking
+  - NarrativeMetrics tracks: llm_calls, llm_successes, fallback_count, total_generation_time_ms
+  - When adding LLM features, update existing tests to use_llm=False for deterministic behavior
+  - Type annotation `Optional["ClassName"]` fails before class is defined - use lazy init instead
+  - Facts formatted as "- {fact_type}: {label} = {value} {unit}" for LLM prompts
+---

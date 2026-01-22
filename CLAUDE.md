@@ -326,6 +326,11 @@ claude:
 - **Fact Extraction**: Use `FactType` enum (23 types) via `extract_facts(observation)`
 - **API Tests**: Use `from api.routers.X import router` and `TestClient(app)` pattern
 - **Action Labels**: Confidence thresholds - >=70: Act (green), >=40: Investigate (yellow), <40: Monitor (gray)
+- **Daily Brief Persistence**: Use `DailyBriefPersister.persist()` for idempotent save to files and database:
+  - Files saved to `reports/{YYYY-MM-DD}.md` (markdown) and `reports/{YYYY-MM-DD}.json` (structured data)
+  - Database insert uses UPSERT (ON CONFLICT UPDATE) for idempotent regeneration
+  - Link to run_history via optional `run_id` parameter
+  - Generation method tracked ('claude' or 'template') for monitoring
 
 ## Running Tests
 
