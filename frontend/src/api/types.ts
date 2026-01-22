@@ -321,3 +321,61 @@ export interface SystemStatusResponse {
   sources: SourceHealth[];
   last_check_at: string;
 }
+
+/**
+ * Entity brief information for event detail.
+ */
+export interface EntityBrief {
+  entity_id: string | null;
+  ticker: string | null;
+  name: string | null;
+}
+
+/**
+ * Fact entry from observations.
+ */
+export interface FactEntry {
+  fact_id: string;
+  fact_type: string;
+  label: string;
+  value: unknown;
+  unit: string | null;
+  source: string;
+  timestamp: string | null;
+}
+
+/**
+ * Observation summary for event detail.
+ */
+export interface ObservationSummary {
+  observation_id: string;
+  source: string;
+  title: string | null;
+  summary: string;
+  timestamp: string;
+  source_url: string | null;
+  fact_entries: FactEntry[];
+}
+
+/**
+ * Event detail response from GET /api/events/{event_id}.
+ */
+export interface EventDetailResponse {
+  event_id: string;
+  entity: EntityBrief;
+  title: string;
+  event_type: EventType;
+  status: EventState;
+  attention_score: number;
+  scores: FourDScores;
+  start_at: string;
+  last_update_at: string;
+  resolved_at: string | null;
+  pinned: boolean;
+  snoozed_until: string | null;
+  dismissed_reason: string | null;
+  title_source: string;
+  parent_event_id: string | null;
+  observation_count: number;
+  observations: ObservationSummary[];
+}

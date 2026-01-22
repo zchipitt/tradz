@@ -2,8 +2,8 @@
  * React Query hooks for events data.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getEvents, performEventAction, getSystemStatus } from '../api/client';
-import type { EventAction, EventsResponse, Event, EventState } from '../api/types';
+import { getEvents, performEventAction, getSystemStatus, getEventById } from '../api/client';
+import type { EventAction, EventsResponse, Event, EventState, EventDetailResponse } from '../api/types';
 
 export const EVENTS_QUERY_KEY = ['events'];
 
@@ -140,4 +140,26 @@ export function useRefreshEvents() {
     queryClient.setQueryData(EVENTS_QUERY_KEY, freshData);
     return freshData;
   };
+}
+
+export const EVENT_DETAIL_KEY = (eventId: string) => ['events', eventId];
+
+/**
+ * Hook to fetch a single event's details by ID.
+ * Returns detailed event data including observations and facts.
+ */
+export function useEventDetail(eventId: string | undefined, enabled = true) {
+  return useQuery<EventDetailResponse>({
+    queryKey: EVENT_DETAIL_KEY(eventId ?? ''),
+    queryFn: () => getEventById(eventId!),
+    enabled: enabled && !!eventId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: (failureCount, error) => {
+      // Don't retry on 404 errors
+      if (error instanceof Error && error.message.includes('404')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+  });
 }

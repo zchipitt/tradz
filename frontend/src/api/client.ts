@@ -229,3 +229,13 @@ export const getSystemStatus = async (): Promise<SystemStatusResponse> => {
   const { data } = await apiClient.get<SystemStatusResponse>('/system/status');
   return data;
 };
+
+import type { EventDetailResponse } from './types';
+
+/**
+ * Fetches event detail from GET /api/events/{event_id} endpoint.
+ */
+export const getEventById = async (eventId: string): Promise<EventDetailResponse> => {
+  const { data } = await apiClient.get<EventDetailResponse>(`/events/${encodeURIComponent(eventId)}`);
+  return data;
+};
