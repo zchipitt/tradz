@@ -257,3 +257,37 @@
   - Card click handler excludes buttons/links via `target.closest('button') || target.closest('a')`
   - Use `e.stopPropagation()` on nested clickable elements to prevent card click
 ---
+
+## 2026-01-22 - US-007b
+- **What was implemented**: System Status UI component with health grid
+  - Updated `api/types.ts` with SystemStatusResponse, SourceHealth, OverallHealth, SourceStatus types matching backend schema
+  - Added `getSystemStatus()` API client function in `api/client.ts` for GET /api/system/status
+  - Added `useSystemStatus` hook in `hooks/useEvents.ts` with TanStack Query (5-minute staleTime and refetchInterval)
+  - Refactored `SystemStatus.tsx` component with comprehensive health grid:
+    - Health grid displays all 7 data sources in responsive grid layout
+    - Each source card shows: icon (source-specific), display name, status dot (green/yellow/red), last update time, record count (24h)
+    - Header shows collapsible toggle + X/Y sources healthy summary badge
+    - Collapsible functionality with default expanded state
+    - Hover tooltip on degraded/error sources displays error message
+    - Loading skeleton with animated placeholders
+    - Error state with AlertCircle icon and retry button
+    - Actions bar with Refresh, Brief, and Send buttons
+  - Integrated SystemStatus into Dashboard with real API data via useSystemStatus hook
+
+- **Files changed**:
+  - `frontend/src/api/types.ts` (added SystemStatusResponse, SourceHealth, OverallHealth, SourceStatus types)
+  - `frontend/src/api/client.ts` (added getSystemStatus function, removed unused SourceHealth import)
+  - `frontend/src/hooks/useEvents.ts` (added useSystemStatus hook, removed deprecated useSourcesHealth)
+  - `frontend/src/components/events/SystemStatus.tsx` (major refactor with health grid)
+  - `frontend/src/pages/Dashboard.tsx` (integrated useSystemStatus hook)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - Use switch statements for icon mapping instead of Record<> to avoid TypeScript ForwardRefExoticComponent type conflicts with lucide-react icons
+  - SystemStatusResponse matches backend api/schemas/system.py exactly - SourceStatus uses 'degraded' not 'warning'
+  - useSystemStatus hook provides: data (SystemStatusResponse), isLoading, error, refetch
+  - Dashboard passes systemStatusData, statusLoading, statusError to SystemStatus component
+  - Hover tooltips use absolute positioning with `top-full mt-1` for dropdown below element
+  - Status indicator colors: ok=status-success (green), degraded=status-warning (yellow), error=status-error (red)
+  - Source icons map: equities=TrendingUp, crypto=Bitcoin, congress=Building2, hedgefund/polymarket=BarChart3, news=Newspaper, sec=FileCheck, default=Database
+---

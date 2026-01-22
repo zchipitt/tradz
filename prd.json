@@ -160,8 +160,8 @@
         "Verify in browser  "
       ],
       "priority": 9,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit 3a654d2. Updated api/types.ts with SystemStatusResponse types, added getSystemStatus() API function, useSystemStatus hook with TanStack Query (5-min refresh), refactored SystemStatus component with health grid showing all 7 sources with icons/status dots/last update/record counts, collapsible header, hover tooltips for errors. Build passes."
     },
     {
       "id": "US-006",
