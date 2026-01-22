@@ -230,12 +230,37 @@ export const getSystemStatus = async (): Promise<SystemStatusResponse> => {
   return data;
 };
 
-import type { EventDetailResponse } from './types';
+import type { EventDetailResponse, TimelineResponse, TimelineSourceFilter } from './types';
 
 /**
  * Fetches event detail from GET /api/events/{event_id} endpoint.
  */
 export const getEventById = async (eventId: string): Promise<EventDetailResponse> => {
   const { data } = await apiClient.get<EventDetailResponse>(`/events/${encodeURIComponent(eventId)}`);
+  return data;
+};
+
+/**
+ * Fetches event timeline from GET /api/events/{event_id}/timeline endpoint.
+ * Returns observations sorted by timestamp descending with pagination.
+ */
+export const getEventTimeline = async (
+  eventId: string,
+  options?: {
+    source?: TimelineSourceFilter;
+    limit?: number;
+    offset?: number;
+  }
+): Promise<TimelineResponse> => {
+  const { data } = await apiClient.get<TimelineResponse>(
+    `/events/${encodeURIComponent(eventId)}/timeline`,
+    {
+      params: {
+        source: options?.source ?? 'all',
+        limit: options?.limit ?? 20,
+        offset: options?.offset ?? 0,
+      },
+    }
+  );
   return data;
 };

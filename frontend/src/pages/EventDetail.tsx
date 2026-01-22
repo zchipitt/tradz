@@ -18,7 +18,6 @@ import {
   CheckCircle,
   X,
   AlertTriangle,
-  ExternalLink,
   TrendingUp,
   BarChart3,
   Zap,
@@ -28,7 +27,8 @@ import {
 import { cn } from '../lib/utils';
 import { useEventDetail, useEventActions } from '../hooks/useEvents';
 import { ScoreBreakdown } from '../components/events/ScoreBreakdown';
-import type { EventState, EventType, ObservationSummary } from '../api/types';
+import { EvidenceTimeline } from '../components/events/EvidenceTimeline';
+import type { EventState, EventType } from '../api/types';
 
 // State badge configuration
 const stateConfig: Record<EventState, { label: string; bg: string; text: string }> = {
@@ -55,19 +55,6 @@ const eventTypeConfig: Record<EventType, { label: string; icon: React.ElementTyp
   macro: { label: 'MACRO', icon: BarChart3 },
 };
 
-function formatTimeAgo(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
-}
-
 function formatDateTime(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleString('en-US', {
@@ -79,26 +66,6 @@ function formatDateTime(dateString: string): string {
   });
 }
 
-// Source icon mapping
-function getSourceIcon(source: string): React.ElementType {
-  switch (source.toLowerCase()) {
-    case 'equities':
-    case 'crypto':
-      return TrendingUp;
-    case 'news':
-      return FileText;
-    case 'sec':
-      return Shield;
-    case 'congress':
-      return TrendingUp;
-    case 'hedgefund':
-      return BarChart3;
-    case 'polymarket':
-      return Zap;
-    default:
-      return FileText;
-  }
-}
 
 /**
  * Loading skeleton for the event detail page.
@@ -191,53 +158,6 @@ function EventNotFound({ eventId }: { eventId: string }) {
   );
 }
 
-/**
- * Observation item component.
- */
-function ObservationItem({ observation }: { observation: ObservationSummary }) {
-  const SourceIcon = getSourceIcon(observation.source);
-
-  return (
-    <div className="p-4 bg-white border-2 border-gray-300 hover:border-black transition-colors">
-      <div className="flex items-center gap-3 mb-2">
-        <SourceIcon size={16} className="text-gray-600" />
-        <span className="font-bold text-sm text-black uppercase">[{observation.source}]</span>
-        <span className="text-xs text-gray-500">{formatTimeAgo(observation.timestamp)}</span>
-      </div>
-      {observation.title && (
-        <h4 className="font-bold text-gray-800 mb-1">{observation.title}</h4>
-      )}
-      <p className="text-sm text-gray-700">{observation.summary || 'No summary available'}</p>
-      {observation.source_url && (
-        <a
-          href={observation.source_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-black font-bold hover:underline mt-2"
-        >
-          <ExternalLink size={12} />
-          VIEW SOURCE
-        </a>
-      )}
-      {observation.fact_entries.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-200">
-          <span className="text-xs font-bold text-gray-500 uppercase mb-2 block">Facts:</span>
-          <div className="flex flex-wrap gap-2">
-            {observation.fact_entries.slice(0, 5).map((fact) => (
-              <span
-                key={fact.fact_id}
-                className="px-2 py-1 text-xs bg-gray-100 border border-gray-300"
-              >
-                <span className="font-bold">{fact.label}:</span> {String(fact.value)}
-                {fact.unit && ` ${fact.unit}`}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -383,24 +303,8 @@ export function EventDetail() {
             observations={event.observations}
           />
 
-          {/* Event Timeline/Observations */}
-          <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider mb-4 text-black">
-              Evidence Timeline ({event.observation_count} sources)
-            </h3>
-            {event.observations.length > 0 ? (
-              <div className="space-y-3">
-                {event.observations.map((obs) => (
-                  <ObservationItem key={obs.observation_id} observation={obs} />
-                ))}
-              </div>
-            ) : (
-              <div className="p-8 bg-gray-50 border-2 border-gray-200 text-center">
-                <FileText size={32} className="text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-600">No observations available for this event.</p>
-              </div>
-            )}
-          </div>
+          {/* Event Timeline - using the new EvidenceTimeline component */}
+          <EvidenceTimeline eventId={event.event_id} />
         </div>
 
         {/* Right: Sidebar - Actions */}
