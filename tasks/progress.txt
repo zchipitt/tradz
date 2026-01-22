@@ -1,0 +1,25 @@
+## Codebase Patterns
+- Use brutalist design aesthetic for event components: black/white + yellow accent, border-2 border-black, uppercase text for headers
+- Event components follow consistent file structure: props interface → helper functions → sub-components → main export
+- FactEntry types in api/types.ts match backend FactEntry Pydantic schema (fact_id, fact_type, label, value, unit, source, timestamp)
+- Use cn() from lib/utils for conditional class names (imported from '../../lib/utils' in components)
+- Event components export from frontend/src/components/events/index.ts
+- TimelineObservation already includes fact_entries, so FactSpotlight can get all facts from observations prop
+- Use lucide-react for icons throughout the frontend
+
+---
+
+## 2026-01-21 - US-010
+- **What was implemented**: FactSpotlight component that displays key facts extracted from evidence without LLM fabrication
+- **Files changed**:
+  - `frontend/src/components/events/FactSpotlight.tsx` (new) - Main component with grouped facts display
+  - `frontend/src/components/events/index.ts` - Export FactSpotlight
+  - `frontend/src/pages/EventDetail.tsx` - Integrate FactSpotlight between ScoreBreakdown and EvidenceTimeline
+- **Learnings for future iterations:**
+  - Facts are already available via observations.fact_entries - no new API endpoint needed
+  - The FactEntry type already has all needed fields (fact_id, fact_type, label, value, unit, source, timestamp)
+  - Use FACT_TYPE_GROUPS mapping to categorize fact_type values into display groups
+  - EnrichedFact type extends FactEntry with observation_id and source_url for clickability
+  - formatFactValue handles different value types and units (%, x, $, shares, etc.)
+  - Empty state needed when no facts extracted from observations
+---

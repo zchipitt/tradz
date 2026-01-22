@@ -271,8 +271,8 @@
         "Verify in browser  "
       ],
       "priority": 15,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit c31119b. Created FactSpotlight component with 5 fact groups (Price & Volume, Filings, News, Insider Activity, Predictions), value formatting, citation display [source, time], clickable facts for observation highlighting, and No LLM indicator. Integrated into EventDetail page. Build passes."
     },
     {
       "id": "US-011",
