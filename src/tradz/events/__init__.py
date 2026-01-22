@@ -75,6 +75,12 @@ from .daily_brief_generator import (
     SourceHealthSummary,
     TradeIdeaSummary,
 )
+from .narrative_generator import (
+    GenerationResult,
+    NarrativeGenerator,
+    NarrativeMetrics,
+    generate_brief_with_llm,
+)
 
 __all__ = [
     "EventBuilder",
@@ -121,4 +127,9 @@ __all__ = [
     "ResearchIdeaSummary",
     "SourceHealthSummary",
     "TradeIdeaSummary",
+    # Narrative generation
+    "NarrativeGenerator",
+    "NarrativeMetrics",
+    "GenerationResult",
+    "generate_brief_with_llm",
 ]
