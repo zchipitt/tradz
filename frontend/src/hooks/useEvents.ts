@@ -2,8 +2,8 @@
  * React Query hooks for events data.
  */
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { getEvents, performEventAction, getSystemStatus, getEventById, getEventTimeline } from '../api/client';
-import type { EventAction, EventsResponse, Event, EventState, EventDetailResponse, TimelineResponse, TimelineSourceFilter } from '../api/types';
+import { getEvents, performEventAction, getSystemStatus, getEventById, getEventTimeline, getEventRecommendation } from '../api/client';
+import type { EventAction, EventsResponse, Event, EventState, EventDetailResponse, TimelineResponse, TimelineSourceFilter, RecommendationResponse } from '../api/types';
 
 export const EVENTS_QUERY_KEY = ['events'];
 
@@ -191,5 +191,27 @@ export function useEventTimeline(
     initialPageParam: 0,
     enabled: enabled && !!eventId,
     staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+export const EVENT_RECOMMENDATION_KEY = (eventId: string) => ['events', eventId, 'recommendation'];
+
+/**
+ * Hook to fetch event recommendation (trade idea or research plan).
+ * Evaluates quality gates and returns appropriate recommendation.
+ */
+export function useEventRecommendation(eventId: string | undefined, enabled = true) {
+  return useQuery<RecommendationResponse>({
+    queryKey: EVENT_RECOMMENDATION_KEY(eventId ?? ''),
+    queryFn: () => getEventRecommendation(eventId!),
+    enabled: enabled && !!eventId,
+    staleTime: 5 * 60 * 1000, // 5 minutes (recommendations don't change often)
+    retry: (failureCount, error) => {
+      // Don't retry on 404 errors
+      if (error instanceof Error && error.message.includes('404')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 }

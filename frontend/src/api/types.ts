@@ -409,3 +409,87 @@ export interface TimelineResponse {
   offset: number;
   limit: number;
 }
+
+// =====================================================
+// Quality Gate and Recommendation Types (US-012)
+// =====================================================
+
+/**
+ * Trade direction for trade ideas.
+ */
+export type TradeDirection = 'long' | 'short' | 'neutral';
+
+/**
+ * Time horizon for trade ideas.
+ */
+export type TimeHorizon = 'intraday' | 'swing' | 'position' | 'investment';
+
+/**
+ * Result of a single quality gate evaluation.
+ */
+export interface GateResult {
+  gate_name: string;
+  passed: boolean;
+  actual_value: number | boolean;
+  threshold_value: number | boolean;
+  improvement_suggestion: string | null;
+}
+
+/**
+ * Result of quality gate evaluation for an event.
+ */
+export interface QualityGateEvaluation {
+  passed: boolean;
+  gate_score: number;
+  failed_gates: string[];
+  improvement_suggestions: string[];
+  gate_results: GateResult[];
+}
+
+/**
+ * Trade idea for events passing quality gates.
+ */
+export interface TradeIdea {
+  id: string;
+  event_id: string | null;
+  direction: TradeDirection;
+  entry_zone: string;
+  target: string;
+  stop_loss: string;
+  invalidation: string;
+  time_horizon: TimeHorizon;
+  confidence_level: number;
+  rationale: string;
+  key_catalysts: string[];
+  risk_factors: string[];
+  created_at: string;
+}
+
+/**
+ * Research plan for events failing quality gates.
+ */
+export interface ResearchPlan {
+  id: string;
+  event_id: string | null;
+  questions_to_verify: string[];
+  evidence_to_watch: string[];
+  next_check_date: string | null;
+  current_score: number;
+  gaps_identified: string[];
+  created_at: string;
+}
+
+/**
+ * Recommendation type.
+ */
+export type RecommendationType = 'trade_idea' | 'research_plan';
+
+/**
+ * Unified recommendation response from GET /api/events/{event_id}/recommendation.
+ */
+export interface RecommendationResponse {
+  type: RecommendationType;
+  trade_idea: TradeIdea | null;
+  research_plan: ResearchPlan | null;
+  gate_evaluation: QualityGateEvaluation | null;
+}

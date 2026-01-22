@@ -230,7 +230,7 @@ export const getSystemStatus = async (): Promise<SystemStatusResponse> => {
   return data;
 };
 
-import type { EventDetailResponse, TimelineResponse, TimelineSourceFilter } from './types';
+import type { EventDetailResponse, TimelineResponse, TimelineSourceFilter, RecommendationResponse } from './types';
 
 /**
  * Fetches event detail from GET /api/events/{event_id} endpoint.
@@ -261,6 +261,19 @@ export const getEventTimeline = async (
         offset: options?.offset ?? 0,
       },
     }
+  );
+  return data;
+};
+
+/**
+ * Fetches event recommendation from GET /api/events/{event_id}/recommendation endpoint.
+ * Returns either a TradeIdea (if quality gates pass) or ResearchPlan (if gates fail).
+ */
+export const getEventRecommendation = async (
+  eventId: string
+): Promise<RecommendationResponse> => {
+  const { data } = await apiClient.get<RecommendationResponse>(
+    `/events/${encodeURIComponent(eventId)}/recommendation`
   );
   return data;
 };

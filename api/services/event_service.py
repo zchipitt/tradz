@@ -7,10 +7,13 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from uuid import UUID
 # Add src to path to import tradz modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from tradz.database import get_database
+from tradz.models import Event, Observation, EventType as ModelEventType, EventStatus as ModelEventStatus
+from tradz.events.quality_gate import TradeIdeaGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -486,6 +489,86 @@ class EventService:
             "title": row[11] if len(row) > 11 else None,
             "fact_entries": fact_entries,
         }
+
+    def get_event_recommendation(
+        self,
+        event_id: str,
+    ) -> Dict[str, Any]:
+        """
+        Generate a recommendation (TradeIdea or ResearchPlan) for an event.
+
+        Args:
+            event_id: Event UUID string
+
+        Returns:
+            Dict with recommendation type, trade_idea/research_plan, and gate_evaluation
+
+        Raises:
+            ValueError: If event not found
+        """
+        # Get event data
+        event_dict = self.get_event_by_id(event_id)
+        if event_dict is None:
+            raise ValueError(f"Event {event_id} not found")
+
+        # Convert to Event model for TradeIdeaGenerator
+        try:
+            event_type = ModelEventType(event_dict["event_type"])
+        except ValueError:
+            event_type = ModelEventType.UNCERTAIN
+
+        try:
+            event_status = ModelEventStatus(event_dict["status"])
+        except ValueError:
+            event_status = ModelEventStatus.NEW
+
+        # Parse entity_id - may not be a valid UUID in the database
+        entity_id = None
+        if event_dict.get("entity_id"):
+            try:
+                entity_id = UUID(event_dict["entity_id"])
+            except (ValueError, AttributeError):
+                # Entity ID is not a UUID format, skip it
+                pass
+
+        event = Event(
+            id=UUID(event_dict["event_id"]),
+            primary_entity_id=entity_id,
+            primary_ticker=event_dict.get("ticker"),
+            title=event_dict["title"],
+            event_type=event_type,
+            status=event_status,
+            confidence=event_dict.get("confidence", 0.5),
+            observation_ids=[],  # Not needed for scoring
+            anomaly_score=event_dict.get("anomaly_score", 50.0),
+            catalyst_score=event_dict.get("catalyst_score", 50.0),
+            flow_score=event_dict.get("flow_score", 50.0),
+            confidence_score=event_dict.get("confidence_score", 50.0),
+        )
+
+        # Convert observations to Observation models
+        observations: List[Observation] = []
+        for obs_dict in event_dict.get("observations", []):
+            try:
+                obs = Observation(
+                    id=UUID(obs_dict["observation_id"]),
+                    source=obs_dict["source"],
+                    entity_id=UUID(obs_dict["entity_id"]) if obs_dict.get("entity_id") else None,
+                    entity_ticker=obs_dict.get("entity_ticker"),
+                    summary=obs_dict.get("summary", ""),
+                    title=obs_dict.get("title"),
+                    source_url=obs_dict.get("source_url"),
+                )
+                observations.append(obs)
+            except (ValueError, KeyError):
+                # Skip invalid observations
+                continue
+
+        # Generate recommendation
+        generator = TradeIdeaGenerator()
+        recommendation = generator.generate(event, observations)
+
+        return recommendation.to_dict()
 
 
 # Global service instance
