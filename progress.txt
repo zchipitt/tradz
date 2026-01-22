@@ -28,6 +28,7 @@
 - Hover effects with brutalist style: `hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.8)]` + translate
 - Event actions use `POST /api/events/{event_id}/actions` with `action` field (pin, unpin, snooze, dismiss, resolve)
 - Optimistic updates pattern: `onMutate` cancels queries + caches previous data, `onError` rolls back, `onSettled` invalidates
+- Timeline API uses `TimelineSourceFilter` enum for source filtering: all, market (equities+crypto), news, sec, congress, 13f, polymarket
 
 ---
 
@@ -369,4 +370,65 @@
   - BrowserRouter must wrap entire app - QueryClientProvider can be inside or outside
   - `useEventActions` hook returns convenience methods with memoized callbacks
   - Event detail page shows full observation list with facts inline
+---
+
+## 2026-01-21 - US-008b
+- **What was implemented**: 4D Score Breakdown component with contributing factors
+  - Created `ScoreBreakdown.tsx` component with detailed 4D score visualization
+  - Attention score displayed prominently at top with interactive formula tooltip
+  - Formula tooltip shows: 0.30×Anomaly + 0.30×Catalyst + 0.25×Flow + 0.15×Confidence + Coverage Bonus
+  - Coverage bonus indicator showing unique source count (max +20)
+  - 4 expandable dimension rows with color-coded progress bars:
+    - Anomaly (red): extracts price change %, volume vs avg, volatility from market observations
+    - Catalyst (blue): counts news articles, SEC filings, polymarket shifts
+    - Flow (green): counts congress trades, 13F filings, position changes
+    - Confidence (gray): counts data sources, shows latest data freshness, verified facts
+  - Contributing factors dynamically extracted from observation fact_entries
+  - Each dimension row is expandable to show/hide factors
+  - Score level labels: Very High (80+), High (60+), Moderate (40+), Low (20+), Very Low (<20)
+  - Integrated into EventDetail page replacing the simple score grid
+  - Exported from events module index
+
+- **Files changed**:
+  - `frontend/src/components/events/ScoreBreakdown.tsx` (new - ~350 lines)
+  - `frontend/src/components/events/index.ts` (added export)
+  - `frontend/src/pages/EventDetail.tsx` (replaced score grid with ScoreBreakdown)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - Contributing factors are extracted from observation.fact_entries using fact_type matching
+  - Fact types to look for: `change_pct`, `volume_vs_avg`, `probability_change`, `amount_range`, `position_change`
+  - Use `useState` for expandable sections - don't over-engineer with context
+  - Color scheme for dimensions: anomaly=red-500, catalyst=blue-500, flow=green-500, confidence=gray-500
+  - Formula tooltip uses absolute positioning with `top-full mt-2` for dropdown below
+  - Coverage bonus formula: min(unique_sources * 5, 20)
+  - Observations can be filtered by source.toLowerCase() to identify data type (equities, crypto, news, sec, congress, hedgefund, polymarket)
+  - Score level thresholds: 80 (very high), 60 (high), 40 (moderate), 20 (low)
+---
+
+## 2026-01-22 - US-009a
+- **What was implemented**: Evidence Timeline API for chronological observations
+  - Added `TimelineSourceFilter` enum with 7 source filter options: all, market (equities+crypto), news, sec, congress, 13f (hedgefund), polymarket
+  - Added `TimelineObservation` schema with: observation_id, source, observation_type, timestamp, title, summary, fact_entries, source_url
+  - Added `TimelineResponse` schema with: event_id, observations, total_count, offset, limit
+  - Added `get_event_timeline()` method to EventService with source filtering and pagination
+  - Added `_build_source_filter_clause()` helper for SQL WHERE clause generation
+  - Added `_row_to_timeline_observation_dict()` for row-to-dict conversion
+  - Added `GET /api/events/{event_id}/timeline` endpoint with query params: source, limit (1-100), offset
+  - Added 21 new API tests covering: all filter options, pagination, validation errors, error handling
+
+- **Files changed**:
+  - `api/schemas/events.py` (added TimelineSourceFilter, TimelineObservation, TimelineResponse)
+  - `api/services/event_service.py` (added get_event_timeline, _build_source_filter_clause, _row_to_timeline_observation_dict)
+  - `api/routers/events.py` (added timeline endpoint with TimelineSourceFilter import)
+  - `tests/test_events_api.py` (added TestGetEventTimeline class with 21 tests)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - Source filtering uses LOWER() in SQL for case-insensitive matching
+  - "market" filter combines equities and crypto sources
+  - "13f" is an alias for hedgefund source type
+  - observation_type is extracted from payload JSON if available
+  - Timeline observations sorted by observed_at DESC (most recent first)
+  - Tests for validation errors (limit min/max, offset negative) don't need mock_event_service fixture
 ---
