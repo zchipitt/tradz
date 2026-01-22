@@ -21,6 +21,15 @@ from api.schemas.events import (
     TimelineSourceFilter,
     TimelineObservation,
     TimelineResponse,
+    # Recommendation schemas (US-012)
+    RecommendationResponse,
+    RecommendationType,
+    TradeIdea,
+    ResearchPlan,
+    QualityGateEvaluation,
+    GateResult,
+    TradeDirection,
+    TimeHorizon,
 )
 from api.services.event_service import event_service
 
@@ -186,6 +195,93 @@ async def perform_event_action(
             new_status=EventStatusResponse(result["new_status"]) if result.get("new_status") else None,
             pinned=result.get("pinned"),
             snoozed_until=result.get("snoozed_until"),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{event_id}/recommendation", response_model=RecommendationResponse)
+async def get_event_recommendation(event_id: str) -> RecommendationResponse:
+    """
+    Get recommendation (trade idea or research plan) for an event.
+
+    Evaluates quality gates and returns either:
+    - TradeIdea if all gates pass (high confidence, multiple sources, etc.)
+    - ResearchPlan if any gates fail (with questions to verify and evidence to watch)
+
+    Quality gates evaluated:
+    - min_confidence (70): Minimum confidence score
+    - min_sources (2): Minimum unique data sources
+    - min_anomaly (50): Minimum anomaly score
+    - min_catalyst (40): Minimum catalyst score
+    - has_invalidation: Whether invalidation condition can be defined
+    """
+    try:
+        result = event_service.get_event_recommendation(event_id)
+
+        # Convert to Pydantic response model
+        trade_idea = None
+        research_plan = None
+        gate_evaluation = None
+
+        if result.get("gate_evaluation"):
+            eval_data = result["gate_evaluation"]
+            gate_results = [
+                GateResult(
+                    gate_name=gr["gate_name"],
+                    passed=gr["passed"],
+                    actual_value=gr["actual_value"],
+                    threshold_value=gr["threshold_value"],
+                    improvement_suggestion=gr.get("improvement_suggestion"),
+                )
+                for gr in eval_data.get("gate_results", [])
+            ]
+            gate_evaluation = QualityGateEvaluation(
+                passed=eval_data["passed"],
+                gate_score=eval_data["gate_score"],
+                failed_gates=eval_data.get("failed_gates", []),
+                improvement_suggestions=eval_data.get("improvement_suggestions", []),
+                gate_results=gate_results,
+            )
+
+        if result.get("trade_idea"):
+            ti = result["trade_idea"]
+            trade_idea = TradeIdea(
+                id=ti["id"],
+                event_id=ti.get("event_id"),
+                direction=TradeDirection(ti["direction"]),
+                entry_zone=ti["entry_zone"],
+                target=ti["target"],
+                stop_loss=ti["stop_loss"],
+                invalidation=ti["invalidation"],
+                time_horizon=TimeHorizon(ti["time_horizon"]),
+                confidence_level=ti["confidence_level"],
+                rationale=ti["rationale"],
+                key_catalysts=ti.get("key_catalysts", []),
+                risk_factors=ti.get("risk_factors", []),
+                created_at=ti["created_at"],
+            )
+
+        if result.get("research_plan"):
+            rp = result["research_plan"]
+            research_plan = ResearchPlan(
+                id=rp["id"],
+                event_id=rp.get("event_id"),
+                questions_to_verify=rp.get("questions_to_verify", []),
+                evidence_to_watch=rp.get("evidence_to_watch", []),
+                next_check_date=rp.get("next_check_date"),
+                current_score=rp["current_score"],
+                gaps_identified=rp.get("gaps_identified", []),
+                created_at=rp["created_at"],
+            )
+
+        return RecommendationResponse(
+            type=RecommendationType(result["type"]),
+            trade_idea=trade_idea,
+            research_plan=research_plan,
+            gate_evaluation=gate_evaluation,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

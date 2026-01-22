@@ -323,3 +323,146 @@ class TimelineResponse(BaseModel):
                 "limit": 20
             }
         }
+
+
+# =====================================================
+# Quality Gate and Recommendation Schemas (US-012)
+# =====================================================
+
+class TradeDirection(str, Enum):
+    """Trade direction for trade ideas."""
+    LONG = "long"
+    SHORT = "short"
+    NEUTRAL = "neutral"
+
+
+class TimeHorizon(str, Enum):
+    """Time horizon for trade ideas."""
+    INTRADAY = "intraday"
+    SWING = "swing"
+    POSITION = "position"
+    INVESTMENT = "investment"
+
+
+class RecommendationType(str, Enum):
+    """Type of recommendation."""
+    TRADE_IDEA = "trade_idea"
+    RESEARCH_PLAN = "research_plan"
+
+
+class GateResult(BaseModel):
+    """Result of a single quality gate evaluation."""
+    gate_name: str = Field(..., description="Name of the gate")
+    passed: bool = Field(..., description="Whether the gate passed")
+    actual_value: Any = Field(..., description="Actual value from the event")
+    threshold_value: Any = Field(..., description="Required threshold value")
+    improvement_suggestion: Optional[str] = Field(None, description="Suggestion for improving this gate")
+
+
+class QualityGateEvaluation(BaseModel):
+    """Result of quality gate evaluation for an event."""
+    passed: bool = Field(..., description="Whether all gates passed")
+    gate_score: float = Field(..., ge=0, le=100, description="Overall gate score (0-100)")
+    failed_gates: List[str] = Field(default_factory=list, description="Names of failed gates")
+    improvement_suggestions: List[str] = Field(default_factory=list, description="Suggestions for improvement")
+    gate_results: List[GateResult] = Field(default_factory=list, description="Individual gate results")
+
+
+class TradeIdea(BaseModel):
+    """Trade idea for events passing quality gates."""
+    id: str = Field(..., description="Trade idea UUID")
+    event_id: Optional[str] = Field(None, description="Related event UUID")
+    direction: TradeDirection = Field(..., description="Trade direction")
+    entry_zone: str = Field(..., description="Entry price zone")
+    target: str = Field(..., description="Target price")
+    stop_loss: str = Field(..., description="Stop loss level")
+    invalidation: str = Field(..., description="Invalidation condition")
+    time_horizon: TimeHorizon = Field(..., description="Time horizon for the trade")
+    confidence_level: float = Field(..., ge=0, le=100, description="Confidence level (0-100)")
+    rationale: str = Field(..., description="Trade rationale")
+    key_catalysts: List[str] = Field(default_factory=list, description="Key catalysts for the trade")
+    risk_factors: List[str] = Field(default_factory=list, description="Risk factors to consider")
+    created_at: datetime = Field(..., description="Creation timestamp")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "event_id": "123e4567-e89b-12d3-a456-426614174001",
+                "direction": "long",
+                "entry_zone": "$150-155",
+                "target": "$175",
+                "stop_loss": "$140",
+                "invalidation": "Price closes below $140 OR Material negative news contradicting thesis",
+                "time_horizon": "swing",
+                "confidence_level": 85.0,
+                "rationale": "NVDA shows bullish setup based on strong earnings beat. Attention score of 85 with confidence at 85%.",
+                "key_catalysts": ["News-driven momentum", "Strong Q4 earnings beat"],
+                "risk_factors": ["Overall market conditions could override thesis", "Execution timing may impact entry levels"],
+                "created_at": "2026-01-21T10:30:00Z"
+            }
+        }
+
+
+class ResearchPlan(BaseModel):
+    """Research plan for events failing quality gates."""
+    id: str = Field(..., description="Research plan UUID")
+    event_id: Optional[str] = Field(None, description="Related event UUID")
+    questions_to_verify: List[str] = Field(default_factory=list, description="Questions to research")
+    evidence_to_watch: List[str] = Field(default_factory=list, description="Evidence to monitor")
+    next_check_date: Optional[datetime] = Field(None, description="When to re-evaluate")
+    current_score: float = Field(..., ge=0, le=100, description="Current gate score (0-100)")
+    gaps_identified: List[str] = Field(default_factory=list, description="Gaps in evidence/data")
+    created_at: datetime = Field(..., description="Creation timestamp")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "event_id": "123e4567-e89b-12d3-a456-426614174001",
+                "questions_to_verify": [
+                    "Is there additional corroborating evidence from independent sources?",
+                    "What is the base case scenario for AAPL?"
+                ],
+                "evidence_to_watch": [
+                    "SEC filings, institutional holdings, or news confirmations",
+                    "Unusual volume spikes, gap moves, or volatility expansion"
+                ],
+                "next_check_date": "2026-01-22T10:30:00Z",
+                "current_score": 55.0,
+                "gaps_identified": [
+                    "min_confidence: Confidence score 55 is below 70. Add more corroborating evidence from diverse sources."
+                ],
+                "created_at": "2026-01-21T10:30:00Z"
+            }
+        }
+
+
+class RecommendationResponse(BaseModel):
+    """Response for GET /api/events/{event_id}/recommendation."""
+    type: RecommendationType = Field(..., description="Type of recommendation")
+    trade_idea: Optional[TradeIdea] = Field(None, description="Trade idea if gates passed")
+    research_plan: Optional[ResearchPlan] = Field(None, description="Research plan if gates failed")
+    gate_evaluation: Optional[QualityGateEvaluation] = Field(None, description="Gate evaluation details")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "type": "trade_idea",
+                "trade_idea": {
+                    "id": "123e4567-e89b-12d3-a456-426614174000",
+                    "direction": "long",
+                    "entry_zone": "$150-155",
+                    "target": "$175",
+                    "stop_loss": "$140"
+                },
+                "research_plan": None,
+                "gate_evaluation": {
+                    "passed": True,
+                    "gate_score": 85.0,
+                    "failed_gates": [],
+                    "improvement_suggestions": [],
+                    "gate_results": []
+                }
+            }
+        }

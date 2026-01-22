@@ -29,6 +29,7 @@ import { useEventDetail, useEventActions } from '../hooks/useEvents';
 import { ScoreBreakdown } from '../components/events/ScoreBreakdown';
 import { EvidenceTimeline } from '../components/events/EvidenceTimeline';
 import { FactSpotlight } from '../components/events/FactSpotlight';
+import { ActionPanel } from '../components/events/ActionPanel';
 import type { EventState, EventType } from '../api/types';
 
 // State badge configuration
@@ -308,6 +309,9 @@ export function EventDetail() {
           <FactSpotlight
             observations={event.observations}
           />
+
+          {/* Action Panel - Trade Idea or Research Plan */}
+          <ActionPanel eventId={event.event_id} />
 
           {/* Event Timeline - using the new EvidenceTimeline component */}
           <EvidenceTimeline eventId={event.event_id} />
