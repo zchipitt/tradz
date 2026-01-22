@@ -11,11 +11,12 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
-from ..models import Event, Observation, DailyBrief
+from ..models import Event, FactTableEntry, Observation, DailyBrief
 from .quality_gate import (
     QualityGate,
     TradeIdeaGenerator,
 )
+from .fact_extractor import extract_facts
 
 logger = logging.getLogger(__name__)
 
@@ -206,8 +207,9 @@ class DailyBriefGenerator:
     1. Retrieves top events by attention_score
     2. Evaluates quality gates for each event
     3. Separates into trade ideas (passed) and research ideas (failed but high potential)
-    4. Generates executive summary from top 3 events
+    4. Generates executive summary from top 3 events (LLM with template fallback)
     5. Collects data quality summary
+    6. Tracks generation time for monitoring
     """
 
     # Threshold for high potential research ideas (failed gates but promising)
@@ -217,6 +219,8 @@ class DailyBriefGenerator:
         self,
         quality_gate: Optional[QualityGate] = None,
         trade_idea_generator: Optional[TradeIdeaGenerator] = None,
+        use_llm: bool = True,
+        llm_config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize DailyBriefGenerator.
@@ -224,9 +228,26 @@ class DailyBriefGenerator:
         Args:
             quality_gate: QualityGate instance for evaluating events.
             trade_idea_generator: TradeIdeaGenerator instance.
+            use_llm: Whether to attempt LLM narrative generation.
+            llm_config: Optional configuration for LLM provider.
         """
         self.quality_gate = quality_gate or QualityGate()
         self.trade_idea_generator = trade_idea_generator or TradeIdeaGenerator(self.quality_gate)
+        self.use_llm = use_llm
+        self.llm_config = llm_config or {}
+        self._narrative_generator = None
+
+    @property
+    def narrative_generator(self):
+        """Lazily initialize NarrativeGenerator to avoid circular imports."""
+        if self._narrative_generator is None and self.use_llm:
+            # Import here to avoid circular dependency
+            from .narrative_generator import NarrativeGenerator
+            self._narrative_generator = NarrativeGenerator(
+                config=self.llm_config,
+                use_llm=self.use_llm,
+            )
+        return self._narrative_generator
 
     def generate(
         self,
@@ -245,8 +266,11 @@ class DailyBriefGenerator:
         Returns:
             DailyBriefContent with all sections populated.
         """
+        import time
+        start_time = time.time()
+
         observations_by_event = observations_by_event or {}
-        logger.info(f"Generating daily brief for {len(events)} events")
+        logger.info(f"Generating daily brief for {len(events)} events (use_llm={self.use_llm})")
 
         # Sort events by attention_score descending
         sorted_events = sorted(
@@ -264,22 +288,76 @@ class DailyBriefGenerator:
             observations_by_event,
         )
 
-        # Generate executive summary from top 3 events
-        executive_summary = self._generate_executive_summary(sorted_events[:3])
-
         # Process data quality if provided
         data_quality = self._process_data_quality(system_status)
 
-        return DailyBriefContent(
+        # Build facts_by_event for narrative generation
+        facts_by_event = self._extract_facts_by_event(
+            sorted_events[:5],
+            observations_by_event,
+        )
+
+        # Create initial content with template executive summary
+        content = DailyBriefContent(
             date=_utcnow(),
-            executive_summary=executive_summary,
+            executive_summary="",  # Will be generated below
             top_events=top_events,
             trade_ideas=trade_ideas,
             research_ideas=research_ideas,
             open_loops=open_loops,
             data_quality=data_quality,
-            generation_method="template",  # US-013b will add LLM support
+            generation_method="template",
         )
+
+        # Generate executive summary (LLM with template fallback)
+        if self.use_llm and self.narrative_generator:
+            # Use LLM-based narrative generation
+            content = self.narrative_generator.generate_brief_narrative(
+                content,
+                facts_by_event,
+            )
+        else:
+            # Use template-based generation
+            content.executive_summary = self._generate_executive_summary(sorted_events[:3])
+            content.generation_method = "template"
+
+        generation_time = (time.time() - start_time) * 1000
+        logger.info(
+            f"Daily brief generated in {generation_time:.0f}ms "
+            f"(method={content.generation_method})"
+        )
+
+        return content
+
+    def _extract_facts_by_event(
+        self,
+        events: List[Event],
+        observations_by_event: Dict[UUID, List[Observation]],
+    ) -> Dict[str, List[FactTableEntry]]:
+        """
+        Extract facts for each event from observations.
+
+        Args:
+            events: Events to extract facts for.
+            observations_by_event: Observations mapped by event ID.
+
+        Returns:
+            Dict mapping event_id (str) to list of FactTableEntry.
+        """
+        facts_by_event: Dict[str, List[FactTableEntry]] = {}
+
+        for event in events:
+            observations = observations_by_event.get(event.id, [])
+            all_facts: List[FactTableEntry] = []
+
+            for obs in observations:
+                # Extract facts from each observation
+                facts = extract_facts(obs)
+                all_facts.extend(facts)
+
+            facts_by_event[str(event.id)] = all_facts
+
+        return facts_by_event
 
     def _extract_top_events(self, events: List[Event]) -> List[EventSummary]:
         """

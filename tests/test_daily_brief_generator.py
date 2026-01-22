@@ -216,7 +216,7 @@ class TestDailyBriefGenerator:
 
     def test_generate_empty_events(self):
         """Test generating brief with no events."""
-        generator = DailyBriefGenerator()
+        generator = DailyBriefGenerator(use_llm=False)  # Use template for predictable output
 
         content = generator.generate([])
 
@@ -228,7 +228,7 @@ class TestDailyBriefGenerator:
 
     def test_generate_top_events_sorted_by_attention(self):
         """Test that top events are sorted by attention score."""
-        generator = DailyBriefGenerator()
+        generator = DailyBriefGenerator(use_llm=False)
 
         events = [
             self._create_event("AAPL", anomaly_score=40, catalyst_score=40),  # Lower score
@@ -246,7 +246,7 @@ class TestDailyBriefGenerator:
 
     def test_generate_limits_top_events_to_5(self):
         """Test that top events is limited to 5."""
-        generator = DailyBriefGenerator()
+        generator = DailyBriefGenerator(use_llm=False)
 
         # Create 7 events
         events = [
@@ -260,7 +260,7 @@ class TestDailyBriefGenerator:
 
     def test_generate_executive_summary_mentions_top_event(self):
         """Test that executive summary mentions the top event."""
-        generator = DailyBriefGenerator()
+        generator = DailyBriefGenerator(use_llm=False)
 
         events = [
             self._create_event("AAPL", anomaly_score=80, catalyst_score=80),
@@ -272,7 +272,7 @@ class TestDailyBriefGenerator:
 
     def test_generate_executive_summary_three_sentences(self):
         """Test that executive summary has roughly 3 sentences."""
-        generator = DailyBriefGenerator()
+        generator = DailyBriefGenerator(use_llm=False)
 
         events = [
             self._create_event("AAPL", anomaly_score=80, catalyst_score=80),
@@ -367,7 +367,7 @@ class TestDailyBriefGenerator:
 
     def test_generate_with_system_status(self):
         """Test generating brief with system status data."""
-        generator = DailyBriefGenerator()
+        generator = DailyBriefGenerator(use_llm=False)
 
         system_status = {
             "overall": {
@@ -406,7 +406,7 @@ class TestDailyBriefGenerator:
 
     def test_generate_data_quality_ok_status(self):
         """Test data quality shows ok when all sources healthy."""
-        generator = DailyBriefGenerator()
+        generator = DailyBriefGenerator(use_llm=False)
 
         system_status = {
             "overall": {
@@ -426,7 +426,7 @@ class TestDailyBriefGenerator:
 
     def test_generate_data_quality_degraded_status(self):
         """Test data quality shows degraded when some sources stale."""
-        generator = DailyBriefGenerator()
+        generator = DailyBriefGenerator(use_llm=False)
 
         system_status = {
             "overall": {
@@ -446,7 +446,7 @@ class TestDailyBriefGenerator:
 
     def test_to_daily_brief_conversion(self):
         """Test converting DailyBriefContent to DailyBrief model."""
-        generator = DailyBriefGenerator()
+        generator = DailyBriefGenerator(use_llm=False)
 
         content = DailyBriefContent(
             executive_summary="Test summary",
@@ -462,7 +462,7 @@ class TestDailyBriefGenerator:
 
     def test_extract_top_events_preserves_scores(self):
         """Test that top events extraction preserves all scores."""
-        generator = DailyBriefGenerator()
+        generator = DailyBriefGenerator(use_llm=False)
 
         event = self._create_event(
             "AAPL",
@@ -483,7 +483,7 @@ class TestDailyBriefGenerator:
 
     def test_generate_with_observations(self):
         """Test generating brief with observations provided."""
-        generator = DailyBriefGenerator()
+        generator = DailyBriefGenerator(use_llm=False)
 
         event = self._create_event(
             "AAPL",
