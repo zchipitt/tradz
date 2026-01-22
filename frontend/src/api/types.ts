@@ -379,3 +379,33 @@ export interface EventDetailResponse {
   observation_count: number;
   observations: ObservationSummary[];
 }
+
+/**
+ * Timeline source filter options for GET /api/events/{event_id}/timeline.
+ */
+export type TimelineSourceFilter = 'all' | 'market' | 'news' | 'sec' | 'congress' | '13f' | 'polymarket';
+
+/**
+ * Timeline observation item from GET /api/events/{event_id}/timeline.
+ */
+export interface TimelineObservation {
+  observation_id: string;
+  source: string;
+  observation_type: string;
+  timestamp: string;
+  title: string | null;
+  summary: string;
+  fact_entries: FactEntry[];
+  source_url: string | null;
+}
+
+/**
+ * Response from GET /api/events/{event_id}/timeline.
+ */
+export interface TimelineResponse {
+  event_id: string;
+  observations: TimelineObservation[];
+  total_count: number;
+  offset: number;
+  limit: number;
+}

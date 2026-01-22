@@ -1,9 +1,9 @@
 /**
  * React Query hooks for events data.
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getEvents, performEventAction, getSystemStatus, getEventById } from '../api/client';
-import type { EventAction, EventsResponse, Event, EventState, EventDetailResponse } from '../api/types';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { getEvents, performEventAction, getSystemStatus, getEventById, getEventTimeline } from '../api/client';
+import type { EventAction, EventsResponse, Event, EventState, EventDetailResponse, TimelineResponse, TimelineSourceFilter } from '../api/types';
 
 export const EVENTS_QUERY_KEY = ['events'];
 
@@ -161,5 +161,35 @@ export function useEventDetail(eventId: string | undefined, enabled = true) {
       }
       return failureCount < 2;
     },
+  });
+}
+
+export const EVENT_TIMELINE_KEY = (eventId: string, source: TimelineSourceFilter) => ['events', eventId, 'timeline', source];
+
+/**
+ * Hook to fetch event timeline with infinite scrolling / load more pagination.
+ * Returns observations in reverse chronological order.
+ */
+export function useEventTimeline(
+  eventId: string | undefined,
+  source: TimelineSourceFilter = 'all',
+  enabled = true
+) {
+  return useInfiniteQuery<TimelineResponse>({
+    queryKey: EVENT_TIMELINE_KEY(eventId ?? '', source),
+    queryFn: ({ pageParam = 0 }) =>
+      getEventTimeline(eventId!, {
+        source,
+        limit: 20,
+        offset: pageParam as number,
+      }),
+    getNextPageParam: (lastPage) => {
+      // If we have more observations, return next offset
+      const nextOffset = lastPage.offset + lastPage.limit;
+      return nextOffset < lastPage.total_count ? nextOffset : undefined;
+    },
+    initialPageParam: 0,
+    enabled: enabled && !!eventId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
