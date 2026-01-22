@@ -433,8 +433,8 @@
         "Typecheck passes"
       ],
       "priority": 24,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit bad0d07. Created DailyBriefEmailGenerator with HTML template matching UI format and plain text fallback. Integrated into run_nightly.py to use Daily Brief format when available. All tests pass."
     },
     {
       "id": "US-018",
@@ -451,8 +451,8 @@
         "Typecheck passes"
       ],
       "priority": 25,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit. Created EventStateManager with transition methods (new→ongoing after 1h, ongoing/new→stale after 72h), configurable reactivation (default disabled), state history tracking via record_state_transition_history(). Added scheduled runner scripts for hourly cron. 22 tests pass, typecheck clean."
     },
     {
       "id": "US-019",
