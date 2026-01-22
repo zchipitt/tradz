@@ -23,6 +23,7 @@ from .models import (
     DailyBrief,
     EventTypeHistory,
     EventAction, EventActionType,
+    OpenLoop, OpenLoopStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -293,6 +294,31 @@ class Database:
         """)
         self.conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_event_actions_performed_at ON event_actions(performed_at)
+        """)
+
+        # Open loops table (for tracking unresolved questions)
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS open_loops (
+                id VARCHAR PRIMARY KEY,
+                event_id VARCHAR,
+                question VARCHAR NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status VARCHAR DEFAULT 'open',
+                progress_notes JSON,
+                resolved_at TIMESTAMP,
+                FOREIGN KEY (event_id) REFERENCES events(id)
+            )
+        """)
+
+        # Create indexes for open_loops queries
+        self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_open_loops_event ON open_loops(event_id)
+        """)
+        self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_open_loops_status ON open_loops(status)
+        """)
+        self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_open_loops_created_at ON open_loops(created_at)
         """)
 
         # Run migrations to add new columns to existing tables
@@ -999,9 +1025,241 @@ class Database:
         )
 
     # =========================================================================
+    # Open Loop Operations
+    # =========================================================================
+
+    def insert_open_loop(self, loop: OpenLoop) -> str:
+        """
+        Insert an open loop, returning its ID.
+
+        Args:
+            loop: OpenLoop object to insert
+
+        Returns:
+            Loop ID string
+        """
+        self.conn.execute("""
+            INSERT INTO open_loops (
+                id, event_id, question, created_at, status, progress_notes, resolved_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO UPDATE SET
+                question = EXCLUDED.question,
+                status = EXCLUDED.status,
+                progress_notes = EXCLUDED.progress_notes,
+                resolved_at = EXCLUDED.resolved_at
+        """, [
+            str(loop.id),
+            str(loop.event_id) if loop.event_id else None,
+            loop.question,
+            loop.created_at,
+            loop.status.value,
+            json.dumps(loop.progress_notes),
+            loop.resolved_at,
+        ])
+        return str(loop.id)
+
+    def get_open_loop_by_id(self, loop_id: UUID) -> Optional[OpenLoop]:
+        """
+        Get an open loop by its ID.
+
+        Args:
+            loop_id: Loop UUID
+
+        Returns:
+            OpenLoop object or None if not found
+        """
+        result = self.conn.execute("""
+            SELECT id, event_id, question, created_at, status, progress_notes, resolved_at
+            FROM open_loops WHERE id = ?
+        """, [str(loop_id)]).fetchone()
+
+        if result:
+            return self._row_to_open_loop(result)
+        return None
+
+    def get_open_loops(
+        self,
+        status: Optional[OpenLoopStatus] = None,
+        event_id: Optional[UUID] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> List[OpenLoop]:
+        """
+        Get open loops with optional filtering.
+
+        Args:
+            status: Filter by status (open, in_progress, resolved, stale)
+            event_id: Filter by event
+            limit: Maximum number of records to return
+            offset: Pagination offset
+
+        Returns:
+            List of OpenLoop objects sorted by created_at DESC
+        """
+        query = "SELECT id, event_id, question, created_at, status, progress_notes, resolved_at FROM open_loops"
+        params: List[Any] = []
+        conditions = []
+
+        if status:
+            conditions.append("status = ?")
+            params.append(status.value)
+
+        if event_id:
+            conditions.append("event_id = ?")
+            params.append(str(event_id))
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        results = self.conn.execute(query, params).fetchall()
+        return [self._row_to_open_loop(r) for r in results]
+
+    def get_open_loops_by_event(self, event_id: UUID) -> List[OpenLoop]:
+        """
+        Get all open loops for a specific event.
+
+        Args:
+            event_id: Event UUID
+
+        Returns:
+            List of OpenLoop objects sorted by created_at DESC
+        """
+        results = self.conn.execute("""
+            SELECT id, event_id, question, created_at, status, progress_notes, resolved_at
+            FROM open_loops
+            WHERE event_id = ?
+            ORDER BY created_at DESC
+        """, [str(event_id)]).fetchall()
+        return [self._row_to_open_loop(r) for r in results]
+
+    def update_open_loop_status(
+        self,
+        loop_id: UUID,
+        status: OpenLoopStatus,
+        resolved_at: Optional[datetime] = None
+    ) -> bool:
+        """
+        Update the status of an open loop.
+
+        Args:
+            loop_id: Loop UUID
+            status: New status
+            resolved_at: Resolution timestamp (set automatically for resolved status)
+
+        Returns:
+            True if update was successful
+        """
+        if status == OpenLoopStatus.RESOLVED and resolved_at is None:
+            from datetime import timezone
+            resolved_at = datetime.now(timezone.utc)
+
+        self.conn.execute("""
+            UPDATE open_loops
+            SET status = ?, resolved_at = ?
+            WHERE id = ?
+        """, [status.value, resolved_at, str(loop_id)])
+        return True
+
+    def add_progress_note(self, loop_id: UUID, note: str) -> bool:
+        """
+        Add a progress note to an open loop.
+
+        Args:
+            loop_id: Loop UUID
+            note: Progress note text
+
+        Returns:
+            True if update was successful
+        """
+        # Get current notes
+        loop = self.get_open_loop_by_id(loop_id)
+        if not loop:
+            return False
+
+        # Append new note
+        notes = loop.progress_notes + [note]
+
+        self.conn.execute("""
+            UPDATE open_loops
+            SET progress_notes = ?
+            WHERE id = ?
+        """, [json.dumps(notes), str(loop_id)])
+        return True
+
+    def delete_open_loop(self, loop_id: UUID) -> bool:
+        """
+        Delete an open loop.
+
+        Args:
+            loop_id: Loop UUID
+
+        Returns:
+            True if delete was successful
+        """
+        self.conn.execute("""
+            DELETE FROM open_loops WHERE id = ?
+        """, [str(loop_id)])
+        return True
+
+    def get_stale_open_loops(self, stale_days: int = 7) -> List[OpenLoop]:
+        """
+        Get open loops that haven't been updated and are older than stale_days.
+
+        Args:
+            stale_days: Number of days after which a loop is considered stale
+
+        Returns:
+            List of stale OpenLoop objects
+        """
+        results = self.conn.execute(f"""
+            SELECT id, event_id, question, created_at, status, progress_notes, resolved_at
+            FROM open_loops
+            WHERE status IN ('open', 'in_progress')
+              AND created_at < CURRENT_TIMESTAMP - INTERVAL '{stale_days} days'
+            ORDER BY created_at ASC
+        """).fetchall()
+        return [self._row_to_open_loop(r) for r in results]
+
+    def count_open_loops(self, status: Optional[OpenLoopStatus] = None) -> int:
+        """
+        Count open loops with optional status filter.
+
+        Args:
+            status: Filter by status
+
+        Returns:
+            Count of matching loops
+        """
+        if status:
+            result = self.conn.execute("""
+                SELECT COUNT(*) FROM open_loops WHERE status = ?
+            """, [status.value]).fetchone()
+        else:
+            result = self.conn.execute("""
+                SELECT COUNT(*) FROM open_loops
+            """).fetchone()
+        return result[0] if result else 0
+
+    def _row_to_open_loop(self, row) -> OpenLoop:
+        """Convert database row to OpenLoop object."""
+        return OpenLoop(
+            id=UUID(row[0]),
+            event_id=UUID(row[1]) if row[1] else None,
+            question=row[2],
+            created_at=row[3],
+            status=OpenLoopStatus(row[4]) if row[4] else OpenLoopStatus.OPEN,
+            progress_notes=json.loads(row[5]) if row[5] else [],
+            resolved_at=row[6],
+        )
+
+    # =========================================================================
     # Analytics Queries
     # =========================================================================
-    
+
     def get_observation_counts_by_source(self, since: Optional[datetime] = None) -> Dict[str, int]:
         """Get count of observations by source."""
         query = "SELECT source, COUNT(*) FROM observations"

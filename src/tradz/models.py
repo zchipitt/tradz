@@ -79,6 +79,14 @@ class EventActionType(str, Enum):
     RESOLVE = "resolve"
 
 
+class OpenLoopStatus(str, Enum):
+    """Status of an open loop (unresolved question)."""
+    OPEN = "open"
+    IN_PROGRESS = "in_progress"
+    RESOLVED = "resolved"
+    STALE = "stale"
+
+
 @dataclass
 class Entity:
     """
@@ -557,3 +565,61 @@ class EventAction:
             "user_agent": self.user_agent,
             "ip_address": self.ip_address,
         }
+
+
+@dataclass
+class OpenLoop:
+    """
+    An open loop represents an unresolved question that needs to be tracked across days.
+
+    Open loops are created automatically from Research Plan questions when an event
+    fails quality gates. They help track investigation progress and ensure questions
+    don't fall through the cracks.
+
+    Stored in the open_loops table.
+    """
+    id: UUID = field(default_factory=uuid4)
+    event_id: Optional[UUID] = None  # Link to the source event
+    question: str = ""  # The unresolved question to track
+    created_at: datetime = field(default_factory=_utcnow)
+    status: OpenLoopStatus = OpenLoopStatus.OPEN
+    progress_notes: List[str] = field(default_factory=list)  # Notes on investigation progress
+    resolved_at: Optional[datetime] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "event_id": str(self.event_id) if self.event_id else None,
+            "question": self.question,
+            "created_at": self.created_at.isoformat(),
+            "status": self.status.value,
+            "progress_notes": self.progress_notes,
+            "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "OpenLoop":
+        """Create OpenLoop from dictionary."""
+        status_str = data.get("status", "open")
+        try:
+            status = OpenLoopStatus(status_str)
+        except ValueError:
+            status = OpenLoopStatus.OPEN
+
+        return cls(
+            id=UUID(data["id"]) if data.get("id") else uuid4(),
+            event_id=UUID(data["event_id"]) if data.get("event_id") else None,
+            question=data.get("question", ""),
+            created_at=(
+                datetime.fromisoformat(data["created_at"])
+                if data.get("created_at")
+                else _utcnow()
+            ),
+            status=status,
+            progress_notes=data.get("progress_notes", []),
+            resolved_at=(
+                datetime.fromisoformat(data["resolved_at"])
+                if data.get("resolved_at")
+                else None
+            ),
+        )

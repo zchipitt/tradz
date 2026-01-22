@@ -77,11 +77,13 @@ from .daily_brief_generator import (
     DailyBriefGenerator,
     DataQualitySummary,
     EventSummary,
-    OpenLoop,
+    OpenLoop,  # Brief-specific OpenLoop for serialization
     ResearchIdeaSummary,
     SourceHealthSummary,
     TradeIdeaSummary,
 )
+# Model-level OpenLoop for database persistence
+from ..models import OpenLoop as OpenLoopModel, OpenLoopStatus
 from .narrative_generator import (
     GenerationResult,
     NarrativeGenerator,
@@ -153,4 +155,7 @@ __all__ = [
     # Daily brief persistence
     "DailyBriefPersister",
     "PersistenceResult",
+    # Model-level OpenLoop for database persistence
+    "OpenLoopModel",
+    "OpenLoopStatus",
 ]
