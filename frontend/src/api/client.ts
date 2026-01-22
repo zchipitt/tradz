@@ -420,3 +420,41 @@ export const deleteOpenLoop = async (loopId: string): Promise<OpenLoopDeleteResp
   );
   return data;
 };
+
+// Quality Gate Settings API
+import type {
+  QualityGateSettingsResponse,
+  UpdateQualityGateSettingsRequest,
+  UpdateQualityGateSettingsResponse,
+} from './types';
+
+/**
+ * Fetches quality gate settings from GET /api/settings/gates endpoint.
+ * Returns current settings and default values for reference.
+ */
+export const getQualityGateSettings = async (): Promise<QualityGateSettingsResponse> => {
+  const { data } = await apiClient.get<QualityGateSettingsResponse>('/settings/gates');
+  return data;
+};
+
+/**
+ * Updates quality gate settings via PUT /api/settings/gates endpoint.
+ * Only provided fields are updated; omitted fields retain their current values.
+ */
+export const updateQualityGateSettings = async (
+  request: UpdateQualityGateSettingsRequest
+): Promise<UpdateQualityGateSettingsResponse> => {
+  const { data } = await apiClient.put<UpdateQualityGateSettingsResponse>(
+    '/settings/gates',
+    request
+  );
+  return data;
+};
+
+/**
+ * Resets quality gate settings to defaults via DELETE /api/settings/gates endpoint.
+ */
+export const resetQualityGateSettings = async (): Promise<UpdateQualityGateSettingsResponse> => {
+  const { data } = await apiClient.delete<UpdateQualityGateSettingsResponse>('/settings/gates');
+  return data;
+};

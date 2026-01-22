@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-export type TabId = 'today' | 'signals' | 'sources' | 'reports' | 'guide';
+export type TabId = 'today' | 'signals' | 'sources' | 'reports' | 'settings' | 'guide';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -37,6 +37,7 @@ export function Layout({
     { id: 'signals' as const, label: 'Signals', description: 'Raw signals data' },
     { id: 'sources' as const, label: 'Sources', description: 'Data source status' },
     { id: 'reports' as const, label: 'Reports', description: 'Historical briefs' },
+    { id: 'settings' as const, label: 'Settings', description: 'Configure thresholds' },
     { id: 'guide' as const, label: 'Docs', description: 'Usage guide' },
   ];
 

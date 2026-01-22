@@ -781,3 +781,47 @@ export interface OpenLoopDeleteResponse {
   deleted: boolean;
   message: string;
 }
+
+// =====================================================
+// Quality Gate Settings Types (US-025b)
+// =====================================================
+
+/**
+ * Quality gate threshold settings.
+ */
+export interface QualityGateSettings {
+  min_confidence: number;
+  min_sources: number;
+  min_anomaly: number;
+  min_catalyst: number;
+  require_invalidation: boolean;
+}
+
+/**
+ * Response for GET /api/settings/gates.
+ */
+export interface QualityGateSettingsResponse {
+  settings: QualityGateSettings;
+  defaults: QualityGateSettings;
+}
+
+/**
+ * Request body for PUT /api/settings/gates.
+ * All fields are optional for partial updates.
+ */
+export interface UpdateQualityGateSettingsRequest {
+  min_confidence?: number;
+  min_sources?: number;
+  min_anomaly?: number;
+  min_catalyst?: number;
+  require_invalidation?: boolean;
+}
+
+/**
+ * Response for PUT /api/settings/gates and DELETE /api/settings/gates.
+ */
+export interface UpdateQualityGateSettingsResponse {
+  settings: QualityGateSettings;
+  updated_fields: string[];
+  message: string;
+}
