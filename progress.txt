@@ -325,3 +325,48 @@
   - Use `queryClient.invalidateQueries` in `onSettled` to refresh after mutation settles
   - Pytest fixture names must match exactly - underscore prefix doesn't work for unused fixtures
 ---
+
+## 2026-01-22 - US-008a
+- **What was implemented**: Event Detail page route and layout
+  - Installed `react-router-dom` package for URL-based routing
+  - Created `EventDetail.tsx` page component with full implementation:
+    - URL routing via `useParams()` to extract eventId from `/events/:eventId`
+    - Header with back button (ArrowLeft), event title, entity badges, status badge, last update time
+    - Responsive 3-column layout: main content area (2 cols) + right sidebar (1 col)
+    - On mobile (below lg breakpoint), sidebar stacks below main content
+    - Loading state: `EventDetailSkeleton` with animated pulse placeholders
+    - 404 state: `EventNotFound` with helpful message and back button
+    - Action sidebar with Pin/Snooze/Dismiss/Resolve buttons
+    - 4D score breakdown section with progress bars
+    - Observations timeline with expandable entries
+  - Updated `App.tsx` to use BrowserRouter with Routes:
+    - `<Route path="/" element={<AppContent />} />` for main dashboard
+    - `<Route path="/events/:eventId" element={<EventDetailPage />} />` for event detail
+  - Added `EventDetailResponse` and related types to `api/types.ts`:
+    - `EntityBrief`, `FactEntry`, `ObservationSummary` for nested data
+  - Added `getEventById()` API function to `api/client.ts`
+  - Added `useEventDetail` hook to `hooks/useEvents.ts` with TanStack Query:
+    - Stale time: 2 minutes, retry disabled for 404 errors
+  - Removed unused `EventDetailModal` component from Dashboard (~200 lines)
+  - Cleaned up unused imports in Dashboard.tsx
+
+- **Files changed**:
+  - `frontend/src/pages/EventDetail.tsx` (new - ~500 lines)
+  - `frontend/src/App.tsx` (added BrowserRouter and Routes)
+  - `frontend/src/api/types.ts` (added EventDetailResponse, EntityBrief, FactEntry, ObservationSummary)
+  - `frontend/src/api/client.ts` (added getEventById function)
+  - `frontend/src/hooks/useEvents.ts` (added useEventDetail hook, EVENT_DETAIL_KEY)
+  - `frontend/src/pages/Dashboard.tsx` (removed EventDetailModal, cleaned unused imports)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - Use `useParams<{ eventId: string }>()` for type-safe route parameter extraction
+  - Use `useNavigate()` for programmatic navigation (back button, link navigation)
+  - React Router v6 uses `<Routes>` and `<Route element={...}>` syntax
+  - Loading skeleton uses `animate-pulse` class with bg-gray-200 placeholders
+  - 404 error detection: check if error message contains '404' to disable retry
+  - Responsive layout: use `lg:grid-cols-3` with `lg:col-span-2` for 2+1 column split
+  - BrowserRouter must wrap entire app - QueryClientProvider can be inside or outside
+  - `useEventActions` hook returns convenience methods with memoized callbacks
+  - Event detail page shows full observation list with facts inline
+---

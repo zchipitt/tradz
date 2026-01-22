@@ -198,8 +198,8 @@
         "Verify in browser  "
       ],
       "priority": 11,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit f1ad55b. Created EventDetail.tsx with react-router-dom routing, responsive 3-column layout (sidebar below on mobile), loading skeleton, 404 state, header with back button/entity badges/status badge, action sidebar with pin/snooze/dismiss/resolve buttons, 4D score breakdown, and observations timeline. Added useEventDetail hook, getEventById API function, and EventDetailResponse types. Build passes."
     },
     {
       "id": "US-008b",
