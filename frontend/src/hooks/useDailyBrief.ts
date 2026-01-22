@@ -2,13 +2,14 @@
  * React Query hooks for Daily Brief API interactions.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getLatestBrief, getBriefByDate, getAvailableBriefs } from '../api/client';
-import type { BriefDetail, BriefSummaryItem } from '../api/types';
+import { getLatestBrief, getBriefByDate, getAvailableBriefs, getBriefDiff } from '../api/client';
+import type { BriefDetail, BriefSummaryItem, BriefDiffResponse } from '../api/types';
 
 // Query keys
 export const DAILY_BRIEF_KEY = ['daily-brief'];
 export const LATEST_BRIEF_KEY = ['daily-brief', 'latest'];
 export const BRIEFS_LIST_KEY = ['daily-brief', 'list'];
+export const BRIEF_DIFF_KEY = ['daily-brief', 'diff'];
 
 /**
  * Hook to fetch the latest Daily Brief.
@@ -122,6 +123,30 @@ export function useGenerateBrief() {
     onSuccess: () => {
       // Invalidate all brief-related queries to refresh the data
       queryClient.invalidateQueries({ queryKey: DAILY_BRIEF_KEY });
+    },
+  });
+}
+
+/**
+ * Hook to fetch brief comparison/diff between two dates.
+ * By default, compares today with yesterday.
+ * Data refreshes every 5 minutes and becomes stale after 5 minutes.
+ */
+export function useBriefDiff(options?: { date?: string; baseline?: string }) {
+  const date = options?.date;
+  const baseline = options?.baseline;
+
+  return useQuery<BriefDiffResponse>({
+    queryKey: [...BRIEF_DIFF_KEY, { date, baseline }],
+    queryFn: () => getBriefDiff(date, baseline),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 5 * 60 * 1000, // Auto-refresh every 5 minutes
+    retry: (failureCount, error) => {
+      // Don't retry 404s (briefs not found)
+      if (error?.message?.includes('404')) {
+        return false;
+      }
+      return failureCount < 2; // Retry 2 times for other errors
     },
   });
 }

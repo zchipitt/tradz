@@ -13,6 +13,7 @@ import type {
   HealthResponse,
   BriefDetail,
   BriefSummaryItem,
+  BriefDiffResponse,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8002/api';
@@ -325,5 +326,25 @@ export const getAvailableBriefs = async (
       params: { limit, offset },
     }
   );
+  return data;
+};
+
+/**
+ * Fetches brief comparison/diff between two dates from GET /api/reports/diff endpoint.
+ * Compares current date's brief with baseline (default: yesterday).
+ *
+ * @param date - Comparison date in YYYY-MM-DD format (default: today)
+ * @param baseline - Baseline date in YYYY-MM-DD format (default: yesterday)
+ */
+export const getBriefDiff = async (
+  date?: string,
+  baseline?: string
+): Promise<BriefDiffResponse> => {
+  const { data } = await apiClient.get<BriefDiffResponse>('/reports/diff', {
+    params: {
+      ...(date && { date }),
+      ...(baseline && { baseline }),
+    },
+  });
   return data;
 };

@@ -145,3 +145,82 @@ Started: Wed Jan 21 06:13:41 PST 2026
   - DataQualitySummary tracks overall_status (ok/degraded/error) based on source health counts
   - Research ideas only included if potential_score >= HIGH_POTENTIAL_THRESHOLD (50.0)
 ---
+
+## 2026-01-21 - US-019
+- What was implemented:
+  - Added EventActionType enum (pin/unpin/snooze/dismiss/resolve) to models.py
+  - Added EventAction dataclass with fields for tracking state changes and user context:
+    - id, event_id, action_type, performed_at
+    - duration_hours (for snooze), reason (for dismiss)
+    - previous_status, new_status, previous_pinned, new_pinned, snoozed_until
+    - user_id, user_agent, ip_address (for audit/multi-user support)
+  - Created event_actions table in database.py with indexes on event_id and performed_at
+  - Added Database methods: insert_event_action, get_event_action_history, get_recent_event_actions
+  - Updated EventService.perform_action to log all actions with _log_event_action helper
+  - Action logging is fault-tolerant (won't fail the action if logging fails)
+  - Verified snoozed events are already filtered from active queries via _build_status_clause
+  - 20 comprehensive unit tests covering model, database, service, and integration scenarios
+- Files changed:
+  - src/tradz/models.py - Added EventActionType enum, EventAction dataclass, _utcnow helper
+  - src/tradz/database.py - Added event_actions table and related methods
+  - api/services/event_service.py - Updated perform_action to log actions, added _log_event_action
+  - tests/test_event_actions.py - New test file with 20 tests
+- **Learnings for future iterations:**
+  - DuckDB INTERVAL syntax requires string interpolation: `INTERVAL '{hours} hours'` not `INTERVAL ? HOUR`
+  - Fault-tolerant logging: wrap log insertion in try/except to avoid breaking the main action
+  - Action logging captures state before/after for complete audit trail
+  - User context (user_id, user_agent, ip_address) prepared for future multi-user support
+---
+
+## 2026-01-21 - US-020
+- What was implemented:
+  - GET /api/reports/diff endpoint that compares two daily briefs
+  - Query params: date (default today), baseline (default yesterday)
+  - Response includes: new_events, resolved_events, score_changes, new_trade_ideas, closed_loops
+  - Score changes show delta and direction (up/down/unchanged) for events with changes > threshold
+  - Handle missing baseline gracefully (returns has_baseline: false with empty arrays)
+  - Added Pydantic schemas for BriefDiffResponse and related types (EventScoreChange, NewEventSummary, etc.)
+  - Added compare_briefs() method to BriefService with configurable score_change_threshold (default 5.0)
+  - Fixed pre-existing bug in reports.py (datetime.timezone.utc -> timezone.utc)
+  - 19 comprehensive tests covering all scenarios
+- Files changed:
+  - api/schemas/briefs.py - Added BriefDiffResponse and related schemas
+  - api/services/brief_service.py - Added compare_briefs() method
+  - api/routers/reports.py - Added GET /api/reports/diff endpoint
+  - tests/test_reports_diff_api.py - New test file with 19 tests
+- **Learnings for future iterations:**
+  - API endpoints can be added to existing routers (/api/reports/) rather than creating new routers
+  - Use Set[str] for efficient membership testing when comparing event lists
+  - Score change threshold should be configurable to filter out minor fluctuations
+  - Brief comparison logic uses event_id as the key to track changes across briefs
+  - The test_briefs_api.py tests had pre-existing failures unrelated to this change
+---
+
+## 2026-01-22 - US-021
+- What was implemented:
+  - Created CompareYesterday component with collapsible UI showing changes since yesterday
+  - Added stat cards displaying: X new events, Y resolved, Z score changes
+  - New events highlighted with yellow "NEW" badge
+  - Score changes show TrendingUp/TrendingDown icons with delta value and current score
+  - Resolved events shown with strikethrough and faded opacity
+  - Toggle button to show/hide full diff details
+  - Detailed sections for: New Events, Score Changes, Resolved Events, New Trade Ideas, Closed Loops
+  - Added BriefDiffResponse and related TypeScript types (NewEventSummary, ResolvedEventSummary, EventScoreChange, etc.)
+  - Added getBriefDiff API function with optional date/baseline params
+  - Added useBriefDiff hook with TanStack Query (5-min stale time, auto-refresh)
+  - Integrated CompareYesterday into Dashboard between SystemStatus and SignalInbox
+  - Handles no-baseline state gracefully (yesterday's brief not generated yet)
+  - Handles no-changes state with success message
+- Files changed:
+  - frontend/src/api/types.ts - Added BriefDiffResponse and related types
+  - frontend/src/api/client.ts - Added getBriefDiff function
+  - frontend/src/hooks/useDailyBrief.ts - Added useBriefDiff hook and BRIEF_DIFF_KEY
+  - frontend/src/components/events/CompareYesterday.tsx - New component (created)
+  - frontend/src/pages/Dashboard.tsx - Integrated CompareYesterday component
+- **Learnings for future iterations:**
+  - Use collapsible pattern with useState for isExpanded for panel-style components
+  - Use separate showDetails state for nested toggle within the component
+  - Check has_baseline flag before showing comparison data to handle missing baseline gracefully
+  - Strikethrough effect: combine `line-through` with `opacity-60` for resolved/removed items
+  - StatCard pattern: icon + count + label for summary metrics
+---

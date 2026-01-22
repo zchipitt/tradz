@@ -4,11 +4,12 @@
  */
 import { useEvents, useEventAction, useSystemStatus } from '../hooks/useEvents';
 import { useSignals } from '../hooks/useSignals';
-import { useLatestBrief } from '../hooks/useDailyBrief';
+import { useLatestBrief, useBriefDiff } from '../hooks/useDailyBrief';
 import { SystemStatus } from '../components/events/SystemStatus';
 import { SignalInbox } from '../components/events/SignalInbox';
 import { DailyBrief } from '../components/events/DailyBrief';
 import { MarketSnapshot } from '../components/events/MarketSnapshot';
+import { CompareYesterday } from '../components/events/CompareYesterday';
 import type { Event, Signal } from '../api/types';
 
 interface DashboardProps {
@@ -52,6 +53,9 @@ export function Dashboard({ onEventOpen, onSignalClick, onRefresh, isRefreshing 
   const { data: briefData } = useLatestBrief();
   const brief = briefData?.brief;
 
+  // Get brief comparison with yesterday
+  const { data: diffData, isLoading: diffLoading, error: diffError, refetch: refetchDiff } = useBriefDiff();
+
   return (
     <div className="space-y-8">
       {/* Section 1: System Status Header */}
@@ -75,7 +79,16 @@ export function Dashboard({ onEventOpen, onSignalClick, onRefresh, isRefreshing 
         }}
       />
 
-      {/* Section 2: Signal Inbox (Primary) */}
+      {/* Section 2: Compare Yesterday (Collapsible) */}
+      <CompareYesterday
+        diff={diffData}
+        isLoading={diffLoading && !diffData}
+        isError={!!diffError}
+        error={diffError instanceof Error ? diffError : null}
+        onRetry={() => refetchDiff()}
+      />
+
+      {/* Section 3: Signal Inbox (Primary) */}
       <SignalInbox
         events={events}
         isLoading={eventsLoading && !eventsData}
@@ -86,12 +99,12 @@ export function Dashboard({ onEventOpen, onSignalClick, onRefresh, isRefreshing 
         onOpenEvent={handleOpenEvent}
       />
 
-      {/* Section 3: Daily Brief Snapshot */}
+      {/* Section 4: Daily Brief Snapshot */}
       {brief && (
         <DailyBrief brief={brief} />
       )}
 
-      {/* Section 4: Market Snapshot */}
+      {/* Section 5: Market Snapshot */}
       {signalsData && signalsData.all_signals.length > 0 && (
         <MarketSnapshot
           signals={signalsData.all_signals}
