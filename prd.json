@@ -217,8 +217,8 @@
         "Verify in browser  "
       ],
       "priority": 12,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit e6d97f5. Created ScoreBreakdown component with prominent attention score display (formula tooltip, coverage bonus indicator), 4 expandable dimension rows with color-coded progress bars (red/blue/green/gray), and contributing factors extracted from observations. Integrated into EventDetail page replacing the simple score grid. Build passes."
     },
     {
       "id": "US-009a",
@@ -234,8 +234,8 @@
         "Typecheck passes"
       ],
       "priority": 13,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit 6f78e05. Added TimelineSourceFilter enum, TimelineObservation/TimelineResponse schemas, get_event_timeline() service method, and GET /api/events/{event_id}/timeline endpoint. 21 new API tests pass (60 total)."
     },
     {
       "id": "US-009b",
