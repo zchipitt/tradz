@@ -58,9 +58,6 @@ reports/
 # MCP
 .playwright-mcp
 
-# local
-prompt.md
-scripts
 
 # TypeScript
 *.tsbuildinfo
