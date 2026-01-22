@@ -348,3 +348,75 @@ export const getBriefDiff = async (
   });
   return data;
 };
+
+// Open Loops API
+import type {
+  OpenLoopsListResponse,
+  OpenLoopDetail,
+  CreateOpenLoopRequest,
+  OpenLoopCreateResponse,
+  UpdateOpenLoopRequest,
+  OpenLoopUpdateResponse,
+  OpenLoopDeleteResponse,
+  OpenLoopStatusValue,
+} from './types';
+
+/**
+ * Fetches open loops from GET /api/loops endpoint.
+ * Supports filtering by status.
+ */
+export const getOpenLoops = async (
+  status: OpenLoopStatusValue | 'all' = 'all',
+  limit = 50,
+  offset = 0
+): Promise<OpenLoopsListResponse> => {
+  const { data } = await apiClient.get<OpenLoopsListResponse>('/loops', {
+    params: { status, limit, offset },
+  });
+  return data;
+};
+
+/**
+ * Fetches a single open loop by ID from GET /api/loops/{loop_id} endpoint.
+ */
+export const getOpenLoopById = async (loopId: string): Promise<OpenLoopDetail> => {
+  const { data } = await apiClient.get<OpenLoopDetail>(
+    `/loops/${encodeURIComponent(loopId)}`
+  );
+  return data;
+};
+
+/**
+ * Creates a new open loop via POST /api/loops endpoint.
+ */
+export const createOpenLoop = async (
+  request: CreateOpenLoopRequest
+): Promise<OpenLoopCreateResponse> => {
+  const { data } = await apiClient.post<OpenLoopCreateResponse>('/loops', request);
+  return data;
+};
+
+/**
+ * Updates an open loop via PATCH /api/loops/{loop_id} endpoint.
+ * Can update status and/or add a progress note.
+ */
+export const updateOpenLoop = async (
+  loopId: string,
+  request: UpdateOpenLoopRequest
+): Promise<OpenLoopUpdateResponse> => {
+  const { data } = await apiClient.patch<OpenLoopUpdateResponse>(
+    `/loops/${encodeURIComponent(loopId)}`,
+    request
+  );
+  return data;
+};
+
+/**
+ * Deletes an open loop via DELETE /api/loops/{loop_id} endpoint.
+ */
+export const deleteOpenLoop = async (loopId: string): Promise<OpenLoopDeleteResponse> => {
+  const { data } = await apiClient.delete<OpenLoopDeleteResponse>(
+    `/loops/${encodeURIComponent(loopId)}`
+  );
+  return data;
+};

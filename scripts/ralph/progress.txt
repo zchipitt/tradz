@@ -224,3 +224,99 @@ Started: Wed Jan 21 06:13:41 PST 2026
   - Strikethrough effect: combine `line-through` with `opacity-60` for resolved/removed items
   - StatCard pattern: icon + count + label for summary metrics
 ---
+
+## 2026-01-22 - US-022
+- What was implemented:
+  - Added OpenLoopStatus enum to models.py with 4 states: open, in_progress, resolved, stale
+  - Added OpenLoop dataclass to models.py with full persistence fields:
+    - id (UUID), event_id (optional UUID), question (str), created_at (datetime)
+    - status (OpenLoopStatus), progress_notes (List[str]), resolved_at (Optional[datetime])
+  - Created open_loops table in DuckDB with foreign key to events table:
+    - id, event_id, question, created_at, status, progress_notes (JSON), resolved_at
+  - Added comprehensive CRUD operations to database.py:
+    - insert_open_loop, get_open_loop_by_id, get_open_loops (with status filter)
+    - get_open_loops_by_event, update_open_loop_status, add_progress_note
+    - delete_open_loop, get_stale_open_loops (>7 days old), count_open_loops
+  - Updated events/__init__.py to export OpenLoopModel and OpenLoopStatus
+  - Two OpenLoop concepts maintained: lightweight brief-specific class for serialization, model-level class for persistence
+  - 29 comprehensive unit tests covering model, database, and integration scenarios
+- Files changed:
+  - src/tradz/models.py - Added OpenLoopStatus enum, OpenLoop dataclass
+  - src/tradz/database.py - Added open_loops table, CRUD methods
+  - src/tradz/events/__init__.py - Added exports for OpenLoopModel, OpenLoopStatus
+  - tests/test_open_loops.py - New test file with 29 tests
+- **Learnings for future iterations:**
+  - Keep separate OpenLoop classes for different concerns: lightweight for brief serialization, full model for persistence
+  - Progress notes stored as JSON array in database, converted via json.dumps/json.loads
+  - Stale threshold for open loops: >7 days without resolution
+  - Foreign key to events table is optional (event_id can be None for manual loops)
+  - Use OpenLoopModel alias in events/__init__.py to distinguish from brief's OpenLoop
+---
+
+## 2026-01-22 - US-023
+- What was implemented:
+  - GET /api/loops endpoint with status filtering (all, open, in_progress, resolved, stale)
+  - GET /api/loops/{loop_id} for detailed loop info with full progress notes history
+  - POST /api/loops to create new loops (optionally linked to events via event_id)
+  - PATCH /api/loops/{loop_id} to update status or add progress notes
+  - DELETE /api/loops/{loop_id} to remove loops
+  - LoopService class for business logic:
+    - Validates event exists when event_id provided
+    - Enriches responses with event summaries (title, attention_score, status)
+    - Validates loop existence before updates/deletes
+  - Pydantic schemas: OpenLoopListItem, OpenLoopDetail, CreateOpenLoopRequest, UpdateOpenLoopRequest, etc.
+  - Added Database.get_event_by_id method for foreign key validation
+  - 26 comprehensive API tests using mock service pattern
+- Files changed:
+  - api/routers/loops.py - New router with all endpoints
+  - api/schemas/loops.py - New Pydantic schemas
+  - api/services/loop_service.py - New service layer
+  - api/routers/__init__.py - Added loops_router export
+  - api/main.py - Added loops router to app
+  - src/tradz/database.py - Added get_event_by_id method
+  - tests/test_loops_api.py - New test file with 26 tests
+- **Learnings for future iterations:**
+  - Follow existing test patterns: mock service at router level (patch api.routers.loops.loop_service)
+  - Mock database before importing app module (prevents singleton issues)
+  - Include event summary in loop responses for better UX (avoids extra API calls)
+  - Validate foreign key references (event_id) in service layer, not at database level
+  - Use status filters as enums in both schemas and service for type safety
+---
+
+## 2026-01-22 - US-024
+- What was implemented:
+  - OpenLoops component with interactive checklist for tracking open questions
+    - Collapsible panel with header showing total count and stale count badges
+    - Status indicators (OPEN/IN PROGRESS/RESOLVED/STALE) with color coding
+    - Checkbox to mark loops as resolved with optimistic UI updates
+    - Text input to add progress notes with keyboard support (Enter to submit, Escape to cancel)
+    - Links to related event detail pages via react-router-dom
+    - Stale loops (>7 days old) highlighted with yellow border and background
+    - Create form to add new open questions
+    - Empty state with helpful guidance
+    - Loading and error states
+  - useOpenLoops hook using TanStack Query:
+    - useOpenLoops for fetching list with status filter
+    - useOpenLoopDetail for single loop details
+    - useCreateOpenLoop, useUpdateOpenLoop, useDeleteOpenLoop mutations with optimistic updates
+    - useOpenLoopActions convenience hook with typed methods (resolve, startProgress, addNote, delete)
+  - TypeScript types added to frontend/src/api/types.ts:
+    - OpenLoopStatusValue, OpenLoopEventSummary, OpenLoopAPIItem, OpenLoopsListResponse
+    - OpenLoopDetail, CreateOpenLoopRequest, UpdateOpenLoopRequest, etc.
+  - API client functions in frontend/src/api/client.ts:
+    - getOpenLoops, getOpenLoopById, createOpenLoop, updateOpenLoop, deleteOpenLoop
+  - Integrated OpenLoops into DailyBrief component, replacing static OpenLoopCard
+- Files changed:
+  - frontend/src/components/events/OpenLoops.tsx - New interactive component
+  - frontend/src/hooks/useOpenLoops.ts - New hooks file with TanStack Query
+  - frontend/src/api/types.ts - Added Open Loops TypeScript types
+  - frontend/src/api/client.ts - Added loops API functions
+  - frontend/src/components/events/DailyBrief.tsx - Updated to use OpenLoops component
+  - frontend/src/components/events/index.ts - Added OpenLoops export
+- **Learnings for future iterations:**
+  - TypeScript exhaustive switch needs no default case when all enum values are covered
+  - Use optimistic updates with TanStack Query for responsive UI (update local state immediately, rollback on error)
+  - setQueriesData with query key pattern can update multiple cached queries at once
+  - Import react-router-dom Link for internal navigation links
+  - Relative time formatting helps users quickly understand staleness
+---

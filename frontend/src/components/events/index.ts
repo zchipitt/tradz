@@ -8,3 +8,4 @@ export { SystemStatus } from './SystemStatus';
 export { DailyBrief } from './DailyBrief';
 export { MarketSnapshot } from './MarketSnapshot';
 export { FactSpotlight } from './FactSpotlight';
+export { OpenLoops } from './OpenLoops';

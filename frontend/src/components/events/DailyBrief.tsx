@@ -3,8 +3,9 @@
  * Replaces the old DailyBrief.tsx with updated types.
  */
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, FileText, Copy, Check, AlertCircle, Clock } from 'lucide-react';
-import type { BriefDetail, TradeIdeaItem, ResearchIdeaItem, OpenLoopItem } from '../../api/types';
+import { ChevronDown, ChevronUp, FileText, Copy, Check, AlertCircle } from 'lucide-react';
+import type { BriefDetail, TradeIdeaItem, ResearchIdeaItem } from '../../api/types';
+import { OpenLoops } from './OpenLoops';
 
 interface DailyBriefProps {
   brief: BriefDetail;
@@ -91,32 +92,6 @@ function ResearchIdeaCard({ idea }: { idea: ResearchIdeaItem }) {
   );
 }
 
-function OpenLoopCard({ loop }: { loop: OpenLoopItem }) {
-  const getStatusBadgeColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'open':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-800';
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-800 border-blue-800';
-      case 'resolved':
-        return 'bg-green-100 text-green-800 border-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-800';
-    }
-  };
-
-  return (
-    <div className="flex items-start gap-2 p-2 bg-gray-50 rounded border">
-      <span className="pt-1">⚠️</span>
-      <div className="flex-1">
-        <div className="text-sm text-gray-700">{loop.question}</div>
-        <span className={`inline-block mt-1 px-2 py-0.5 text-xs border ${getStatusBadgeColor(loop.status)}`}>
-          {loop.status.replace('_', ' ')}
-        </span>
-      </div>
-    </div>
-  );
-}
 
 function DataQualityCard({ dataQuality }: { dataQuality: BriefDetail['data_quality'] }) {
   if (!dataQuality) return null;
@@ -163,12 +138,10 @@ export function DailyBrief({ brief }: DailyBriefProps) {
 
   const tradeIdeas = brief.trade_ideas || [];
   const researchIdeas = brief.research_ideas || [];
-  const openLoops = brief.open_loops || [];
   const dataQuality = brief.data_quality || null;
 
   const hasTradeIdeas = tradeIdeas.length > 0;
   const hasResearchIdeas = researchIdeas.length > 0;
-  const hasOpenLoops = openLoops.length > 0;
   const hasDataQuality = dataQuality !== null;
 
   const generationMethodBadge = brief.generation_method === 'claude'
@@ -300,20 +273,10 @@ export function DailyBrief({ brief }: DailyBriefProps) {
             </div>
           </div>
 
-          {/* Open Loops */}
-          {hasOpenLoops && (
-            <div className="mb-6">
-              <h3 className="text-xs font-bold uppercase tracking-wider border-b border-gray-200 pb-2 flex items-center gap-2">
-                <Clock size={12} className="text-yellow-600" />
-                Open Loops
-              </h3>
-              <div className="mt-3 space-y-2">
-                {openLoops.map((loop) => (
-                  <OpenLoopCard key={loop.loop_id} loop={loop} />
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Open Loops - Interactive component fetches from API */}
+          <div className="mb-6">
+            <OpenLoops compact={false} maxItems={5} showCreateForm={true} />
+          </div>
 
           {/* Data Quality */}
           {hasDataQuality && (
