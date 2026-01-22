@@ -269,10 +269,30 @@ export interface EventsResponse {
   generated_at: string;
 }
 
+/**
+ * Source health status from GET /api/system/status
+ */
+export type SourceStatus = 'ok' | 'degraded' | 'error';
+
 export interface SourceHealth {
   name: string;
-  status: 'ok' | 'warning' | 'error';
-  last_success?: string;
-  error_message?: string;
-  records_count?: number;
+  display_name: string;
+  status: SourceStatus;
+  last_success_at: string | null;
+  last_error: string | null;
+  record_count_24h: number;
+  freshness_indicator: 'fresh' | 'stale' | 'unknown';
+}
+
+export interface OverallHealth {
+  total_sources: number;
+  healthy_count: number;
+  degraded_count: number;
+  error_count: number;
+}
+
+export interface SystemStatusResponse {
+  overall: OverallHealth;
+  sources: SourceHealth[];
+  last_check_at: string;
 }
