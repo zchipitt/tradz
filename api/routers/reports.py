@@ -1,23 +1,98 @@
 """
 Reports router for historical report endpoints.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
 from jinja2 import Template
 
 from api.config import get_settings
+from api.schemas.briefs import BriefDiffResponse
 from api.services.aggregator_service import aggregator_service
 
 try:
-    from api.services.brief_service import brief_service
+    from api.services.brief_service import brief_service, get_brief_service
 except ImportError:
     brief_service = None  # type: ignore
+    get_brief_service = None  # type: ignore
 
 router = APIRouter()
+
+
+@router.get(
+    "/diff",
+    response_model=BriefDiffResponse,
+    summary="Compare two daily briefs",
+    description="Returns differences between two daily briefs including new events, resolved events, score changes, new trade ideas, and closed loops",
+)
+async def get_brief_diff(
+    date: Optional[str] = Query(
+        default=None,
+        description="Comparison date in YYYY-MM-DD format (default: today)",
+    ),
+    baseline: Optional[str] = Query(
+        default=None,
+        description="Baseline date in YYYY-MM-DD format (default: yesterday)",
+    ),
+) -> BriefDiffResponse:
+    """
+    Compare two daily briefs and return the differences.
+
+    Returns:
+        - new_events: Events that appeared since baseline
+        - resolved_events: Events that were resolved since baseline
+        - score_changes: Events with significant attention score changes
+        - new_trade_ideas: Trade ideas that appeared since baseline
+        - closed_loops: Open loops that were closed since baseline
+
+    If baseline brief doesn't exist, returns current date data only.
+    """
+    if get_brief_service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Brief service is not available",
+        )
+
+    # Default date to today if not provided
+    if date is None:
+        date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # Validate date format
+    try:
+        datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date format. Use YYYY-MM-DD",
+        )
+
+    # Validate baseline format if provided
+    if baseline is not None:
+        try:
+            datetime.strptime(baseline, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid baseline date format. Use YYYY-MM-DD",
+            )
+
+    try:
+        service = get_brief_service()
+        diff_data = service.compare_briefs(date, baseline)
+        return BriefDiffResponse(**diff_data)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to compare briefs: {str(e)}",
+        )
 
 
 @router.get("")
@@ -159,7 +234,7 @@ async def get_report_html(date: str) -> str:
             "open_loops": [],
             "data_quality": [],
             "data_stats": {"total_sources": 0, "healthy_count": 0, "degraded_count": 0, "error_count": 0},
-            "generated_at": datetime.now(datetime.timezone.utc).isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Map brief data to template

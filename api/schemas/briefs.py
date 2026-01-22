@@ -134,3 +134,91 @@ class InvalidDateError(BaseModel):
     """Error response for invalid date format."""
     error: str = Field("Invalid date format", description="Error message")
     message: str = Field(..., description="Validation error details")
+
+
+# Compare/Diff schemas for US-020
+
+class EventScoreChange(BaseModel):
+    """Score change for an event between two dates."""
+    event_id: str = Field(..., description="Event UUID")
+    title: str = Field(..., description="Event title")
+    ticker: Optional[str] = Field(None, description="Primary ticker")
+    previous_score: float = Field(..., description="Score from baseline date")
+    current_score: float = Field(..., description="Score from comparison date")
+    delta: float = Field(..., description="Score change (current - previous)")
+    direction: str = Field(..., description="Direction: up/down/unchanged")
+
+
+class NewEventSummary(BaseModel):
+    """Summary of an event that appeared in the current brief but not baseline."""
+    event_id: str = Field(..., description="Event UUID")
+    title: str = Field(..., description="Event title")
+    ticker: Optional[str] = Field(None, description="Primary ticker")
+    event_type: str = Field(..., description="Event type")
+    attention_score: float = Field(..., description="Current attention score")
+
+
+class ResolvedEventSummary(BaseModel):
+    """Summary of an event that was resolved between baseline and current."""
+    event_id: str = Field(..., description="Event UUID")
+    title: str = Field(..., description="Event title")
+    ticker: Optional[str] = Field(None, description="Primary ticker")
+    resolution_type: str = Field(..., description="How resolved: resolved/dismissed/stale")
+    final_score: float = Field(..., description="Final attention score")
+
+
+class NewTradeIdeaSummary(BaseModel):
+    """Summary of a new trade idea that appeared since baseline."""
+    event_id: str = Field(..., description="Event UUID")
+    ticker: Optional[str] = Field(None, description="Primary ticker")
+    direction: str = Field(..., description="Trade direction: long/short")
+    entry_zone: str = Field(..., description="Entry price zone")
+    target: str = Field(..., description="Target price")
+
+
+class ClosedLoopSummary(BaseModel):
+    """Summary of an open loop that was closed since baseline."""
+    loop_id: str = Field(..., description="Loop ID")
+    question: str = Field(..., description="The question that was answered")
+    event_id: Optional[str] = Field(None, description="Related event ID")
+    resolution: str = Field(..., description="How it was resolved")
+
+
+class BriefDiffResponse(BaseModel):
+    """Response for GET /api/reports/diff comparing two briefs."""
+    date: str = Field(..., description="Comparison date (YYYY-MM-DD)")
+    baseline: str = Field(..., description="Baseline date (YYYY-MM-DD)")
+    has_baseline: bool = Field(..., description="Whether baseline brief exists")
+
+    # Event changes
+    new_events: List[NewEventSummary] = Field(
+        default_factory=list,
+        description="Events that appeared since baseline"
+    )
+    resolved_events: List[ResolvedEventSummary] = Field(
+        default_factory=list,
+        description="Events that were resolved since baseline"
+    )
+    score_changes: List[EventScoreChange] = Field(
+        default_factory=list,
+        description="Events with significant score changes"
+    )
+
+    # Trade idea changes
+    new_trade_ideas: List[NewTradeIdeaSummary] = Field(
+        default_factory=list,
+        description="Trade ideas that appeared since baseline"
+    )
+
+    # Loop changes
+    closed_loops: List[ClosedLoopSummary] = Field(
+        default_factory=list,
+        description="Open loops that were closed since baseline"
+    )
+
+    # Summary stats
+    total_new_events: int = Field(0, description="Count of new events")
+    total_resolved: int = Field(0, description="Count of resolved events")
+    total_score_changes: int = Field(0, description="Count of events with score changes")
+    total_new_trade_ideas: int = Field(0, description="Count of new trade ideas")
+    total_closed_loops: int = Field(0, description="Count of closed loops")
