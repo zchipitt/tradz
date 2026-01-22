@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tradz Daily Brief - {{ date }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+            border-bottom: 4px solid #34495e;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .date {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .generation-method {
+            display: inline-block;
+            padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #e74c3c;
+        }
+
+        .card-top-events {
+            border-left-color: #3498db;
+        }
+
+        .card-trade-ideas {
+            border-left-color: #27ae60;
+        }
+
+        .card-data-quality {
+            border-left-color: #95a5a6;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .executive-summary {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-left: none;
+        }
+
+        .event-item, .trade-idea-item, .quality-item {
+            padding: 15px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .event-item:last-child, .trade-idea-item:last-child, .quality-item:last-child {
+            border-bottom: none;
+        }
+
+        .event-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .event-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-bottom: 8px;
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .score-anomaly {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .score-catalyst {
+            background: #3498db;
+            color: white;
+        }
+
+        .score-flow {
+            background: #27ae60;
+            color: white;
+        }
+
+        .score-confidence {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .trade-idea-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .trade-direction {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .direction-long {
+            background: #27ae60;
+            color: white;
+        }
+
+        .direction-short {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .direction-neutral {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .trade-levels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .level-item {
+            text-align: center;
+        }
+
+        .level-label {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+
+        .level-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .quality-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .source-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+        }
+
+        .source-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .source-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-ok {
+            background: #27ae60;
+        }
+
+        .status-degraded {
+            background: #f39c12;
+        }
+
+        .status-error {
+            background: #e74c3c;
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-icon {
+            font-size: 1.1rem;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding: 20px;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .header-meta {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .trade-levels {
+                grid-template-columns: 1fr;
+            }
+
+            .quality-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+
+        .no-data {
+            text-align: center;
+            color: #95a5a6;
+            font-style: italic;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>Tradz Daily Brief</h1>
+            <div class="header-meta">
+                <span class="date">{{ date }}</span>
+                <span class="generation-method">Generated via {{ generation_method|title }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        {% if executive_summary %}
+        <div class="card executive-summary">
+            <h2>📊 Executive Summary</h2>
+            <p>{{ executive_summary }}</p>
+        </div>
+        {% endif %}
+
+        {% if top_events %}
+        <div class="card card-top-events">
+            <h2>🔥 Top Events</h2>
+            {% for event in top_events %}
+            <div class="event-item">
+                <div class="event-title">{{ event.title }}</div>
+                <div class="event-meta">
+                    <span>Score: {{ "%.1f"|format(event.attention_score) }}</span>
+                    <span>Entity: {{ event.entity_id }}</span>
+                    <span>Observations: {{ event.observation_count }}</span>
+                </div>
+                <div class="event-scores">
+                    <span class="score-badge score-anomaly">Anomaly: {{ event.scores.anomaly_score }}</span>
+                    <span class="score-badge score-catalyst">Catalyst: {{ event.scores.catalyst_score }}</span>
+                    <span class="score-badge score-flow">Flow: {{ event.scores.flow_score }}</span>
+                    <span class="score-badge score-confidence">Confidence: {{ event.scores.confidence_score }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if trade_ideas %}
+        <div class="card card-trade-ideas">
+            <h2>💡 Trade Ideas</h2>
+            {% for idea in trade_ideas %}
+            <div class="trade-idea-card">
+                <div class="trade-direction direction-{{ idea.direction }}">
+                    {{ idea.direction }}
+                </div>
+                <div class="event-title">{{ idea.event_title }}</div>
+                <div class="trade-levels">
+                    <div class="level-item">
+                        <div class="level-label">Entry Zone</div>
+                        <div class="level-value">{{ idea.entry_zone }}</div>
+                    </div>
+                    <div class="level-item">
+                        <div class="level-label">Target</div>
+                        <div class="level-value">{{ idea.target }}</div>
+                    </div>
+                    <div class="level-item">
+                        <div class="level-label">Stop Loss</div>
+                        <div class="level-value">{{ idea.stop_loss }}</div>
+                    </div>
+                    <div class="level-item">
+                        <div class="level-label">Time Horizon</div>
+                        <div class="level-value">{{ idea.time_horizon }}</div>
+                    </div>
+                </div>
+                {% if idea.invalidation %}
+                <div class="invalidation-condition">
+                    <strong>Invalidation:</strong> {{ idea.invalidation }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card card-trade-ideas">
+            <h2>💡 Trade Ideas</h2>
+            <div class="no-data">No trade ideas generated based on current quality gates.</div>
+        </div>
+        {% endif %}
+
+        {% if data_quality %}
+        <div class="card card-data-quality">
+            <h2>📈 Data Quality</h2>
+            <div class="quality-grid">
+                {% for source in data_quality %}
+                <div class="source-card">
+                    <div class="source-name">{{ source.name }}</div>
+                    <div class="source-status">
+                        <span class="status-indicator status-{{ source.status }}"></span>
+                        <span class="status-text">{{ source.status|title }}</span>
+                    </div>
+                    <div class="source-records">{{ source.record_count_24h }} records in 24h</div>
+                    {% if source.last_success_at %}
+                    <div class="source-last-update">Last: {{ source.last_success_at[:19] }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-icon">📊</span>
+                    <span>{{ data_stats.total_sources }} sources</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-icon">✅</span>
+                    <span>{{ data_stats.healthy_count }} healthy</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-icon">⚠️</span>
+                    <span>{{ data_stats.degraded_count }} degraded</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-icon">❌</span>
+                    <span>{{ data_stats.error_count }} error</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if research_ideas or open_loops %}
+        <div class="card">
+            <h2>🔬 Research & Open Loops</h2>
+            {% if research_ideas %}
+            <div class="research-section">
+                <h3>Research Ideas</h3>
+                {% for idea in research_ideas %}
+                <div class="trade-idea-card">
+                    <div class="event-title">{{ idea.event_title }}</div>
+                    <ul>
+                        {% for question in idea.questions_to_verify %}
+                        <li>❓ {{ question }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% if idea.evidence_to_watch %}
+                    <p><strong>Evidence to watch:</strong> {{ idea.evidence_to_watch }}</p>
+                    {% endif %}
+                    {% if idea.next_check_date %}
+                    <p><strong>Next check:</strong> {{ idea.next_check_date[:10] }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if open_loops %}
+            <div class="open-loops-section">
+                <h3>Open Loops</h3>
+                {% for loop in open_loops %}
+                <div class="trade-idea-card">
+                    <div class="event-title">{{ loop.question }}</div>
+                    <p><strong>Event:</strong> {{ loop.event_id }}</p>
+                    {% if loop.status %}
+                    <div class="source-status">
+                        <span class="status-text">Status: {{ loop.status|title }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="footer">
+        <p>Tradz Daily Brief | Generated {{ generated_at[:19] }} UTC</p>
+        <p>© 2024 Tradz. All rights reserved.</p>
+    </div>
+</body>
+</html>

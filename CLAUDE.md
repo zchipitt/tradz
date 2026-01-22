@@ -170,6 +170,14 @@ DataAggregator → EntityResolver → Scorer → SignalGenerator → ReportGener
 **Entry Point**: `src/tradz/run_nightly.py`
 - 4-step process: aggregate → generate signals → create report → send email
 - CLI flags: `--use-claude`, `--template-only`, `--skip-email`, `--refresh-entities`
+- Generates both traditional signals report and new Daily Brief format
+- Emails use Daily Brief format when available, falls back to traditional signals
+
+**Email Generation** (`src/tradz/daily_brief_emailer.py`):
+- `DailyBriefEmailGenerator` generates HTML and plain text emails from DailyBriefContent
+- HTML template matches UI brief format with proper styling for email clients
+- Plain text fallback uses structured formatting
+- Template uses Jinja2 for dynamic content rendering
 
 **Data Models** (`src/tradz/models.py`):
 - `Entity` - Ticker/CIK/Name mappings with aliases

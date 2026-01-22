@@ -361,8 +361,8 @@
         "Typecheck passes"
       ],
       "priority": 20,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented DailyBriefPersister class with persist() method that saves to both files and database. Uses UPSERT for idempotent regeneration. 41 tests pass."
     },
     {
       "id": "US-014",
@@ -379,8 +379,8 @@
         "Typecheck passes"
       ],
       "priority": 21,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented all three Daily Brief API endpoints. Created BriefService for database operations, Pydantic schemas for request/response validation, and comprehensive API tests. All endpoints return proper structured responses with generation metadata."
     },
     {
       "id": "US-015",
@@ -398,8 +398,8 @@
         "Verify in browser  "
       ],
       "priority": 22,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented DailyBrief component with BriefDetail types, useLatestBrief hook, and updated Dashboard.tsx. Typecheck passes. Build successful."
     },
     {
       "id": "US-016",
@@ -416,8 +416,8 @@
         "Verify in browser  "
       ],
       "priority": 23,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented full Reports archive page. Key features:\n\n1. BriefList component shows all reports from GET /api/briefs with pagination\n2. Each brief displays: date, generation method (LLM/TEMPLATE badge), event count, top entity, trade idea count\n3. Download buttons for Markdown and JSON formats\n4. Click-to-open functionality with Markdown viewer overlay\n5. Markdown viewer supports: headers, code blocks, lists, and basic formatting\n6. Layout matches brutalist design aesthetic with hard borders\n7. Loading state with skeleton placeholders\n8. Error state with retry button\n9. Empty state with helpful message\n10. Pagination controls with page navigation\n11. Date filter input for quick date lookup\n\nThe page auto-refreshes every 5 minutes via TanStack Query to show newly generated reports. All API integrations use existing endpoints from US-014."
     },
     {
       "id": "US-017",
