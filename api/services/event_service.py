@@ -327,6 +327,132 @@ class EventService:
 
         return response
 
+    def get_event_timeline(
+        self,
+        event_id: str,
+        source_filter: str = "all",
+        limit: int = 20,
+        offset: int = 0,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """
+        Get chronological observations for an event with filtering and pagination.
+
+        Args:
+            event_id: Event UUID string
+            source_filter: Filter by source - "all", "market", "news", "sec", "congress", "13f", "polymarket"
+            limit: Maximum number of observations to return (1-100)
+            offset: Number of observations to skip
+
+        Returns:
+            Tuple of (list of observation dicts, total count)
+
+        Raises:
+            ValueError: If event not found
+        """
+        db = get_database()
+
+        # Verify event exists
+        check_query = "SELECT id FROM events WHERE id = ?"
+        result = db.conn.execute(check_query, [event_id]).fetchone()
+        if not result:
+            raise ValueError(f"Event {event_id} not found")
+
+        # Build source filter clause
+        source_clause = self._build_source_filter_clause(source_filter)
+
+        # Get total count
+        count_query = f"""
+            SELECT COUNT(*)
+            FROM observations o
+            JOIN event_observations eo ON o.id = eo.observation_id
+            WHERE eo.event_id = ? AND {source_clause}
+        """
+        count_result = db.conn.execute(count_query, [event_id]).fetchone()
+        total_count: int = count_result[0] if count_result is not None else 0
+
+        # Get observations with pagination, sorted by timestamp desc
+        query = f"""
+            SELECT o.*
+            FROM observations o
+            JOIN event_observations eo ON o.id = eo.observation_id
+            WHERE eo.event_id = ? AND {source_clause}
+            ORDER BY o.observed_at DESC
+            LIMIT ? OFFSET ?
+        """
+        results = db.conn.execute(query, [event_id, limit, offset]).fetchall()
+
+        observations = []
+        for row in results:
+            obs_dict = self._row_to_timeline_observation_dict(row)
+            observations.append(obs_dict)
+
+        return observations, total_count
+
+    def _build_source_filter_clause(self, source_filter: str) -> str:
+        """Build SQL WHERE clause for source filtering."""
+        if source_filter == "all":
+            return "1=1"
+        elif source_filter == "market":
+            # Market includes equities and crypto
+            return "LOWER(o.source) IN ('equities', 'crypto')"
+        elif source_filter == "news":
+            return "LOWER(o.source) = 'news'"
+        elif source_filter == "sec":
+            return "LOWER(o.source) = 'sec'"
+        elif source_filter == "congress":
+            return "LOWER(o.source) = 'congress'"
+        elif source_filter == "13f":
+            # 13f is alias for hedgefund
+            return "LOWER(o.source) IN ('hedgefund', '13f')"
+        elif source_filter == "polymarket":
+            return "LOWER(o.source) = 'polymarket'"
+        else:
+            # Default to all if unknown filter
+            return "1=1"
+
+    def _row_to_timeline_observation_dict(self, row) -> Dict[str, Any]:
+        """Convert database row to timeline observation dictionary."""
+        # Row structure: id, source, entity_id, entity_ticker, effective_at, observed_at,
+        # freshness_score, quality_score, summary, payload, source_url, title, raw_payload,
+        # fact_entries, entity_mapping_confidence, payload_truncated
+        fact_entries = []
+        if len(row) > 13 and row[13]:
+            try:
+                raw_facts = json.loads(row[13]) if isinstance(row[13], str) else row[13]
+                for fact in raw_facts:
+                    fact_entries.append({
+                        "fact_id": fact.get("fact_id", ""),
+                        "fact_type": fact.get("fact_type", fact.get("category", "other")),
+                        "label": fact.get("label", ""),
+                        "value": fact.get("value"),
+                        "unit": fact.get("unit"),
+                        "source": fact.get("source", ""),
+                        "timestamp": fact.get("timestamp"),
+                    })
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        # Determine observation_type from payload or source
+        source = row[1] or ""
+        observation_type = ""
+        if len(row) > 9 and row[9]:
+            try:
+                payload = json.loads(row[9]) if isinstance(row[9], str) else row[9]
+                observation_type = payload.get("observation_type", payload.get("type", ""))
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        return {
+            "observation_id": row[0],
+            "source": source,
+            "observation_type": observation_type,
+            "timestamp": row[5],  # observed_at
+            "title": row[11] if len(row) > 11 else None,
+            "summary": row[8] or "",
+            "fact_entries": fact_entries,
+            "source_url": row[10] if len(row) > 10 else None,
+        }
+
     def _row_to_observation_dict(self, row) -> Dict[str, Any]:
         """Convert database row to observation dictionary."""
         # Row structure: id, source, entity_id, entity_ticker, effective_at, observed_at,

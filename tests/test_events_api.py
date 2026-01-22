@@ -787,3 +787,366 @@ class TestEventActions:
         # Only the non-snoozed event should be returned
         assert len(data["events"]) == 1
         assert data["events"][0]["ticker"] == "NVDA"
+
+
+def create_mock_timeline_observation(
+    observation_id: str | None = None,
+    source: str = "equities",
+    observation_type: str = "",
+    title: str | None = "Price surge detected",
+    summary: str = "AAPL price increased 5%",
+    source_url: str | None = "https://example.com/source",
+    fact_entries: list | None = None,
+):
+    """Helper to create mock timeline observation dictionaries."""
+    observation_id = observation_id or str(uuid4())
+
+    if fact_entries is None:
+        fact_entries = [
+            {
+                "fact_id": "fact-1",
+                "fact_type": "price_change",
+                "label": "Price Change",
+                "value": 5.0,
+                "unit": "%",
+                "source": "Yahoo Finance",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        ]
+
+    return {
+        "observation_id": observation_id,
+        "source": source,
+        "observation_type": observation_type,
+        "timestamp": datetime.now(timezone.utc),
+        "title": title,
+        "summary": summary,
+        "fact_entries": fact_entries,
+        "source_url": source_url,
+    }
+
+
+class TestGetEventTimeline:
+    """Tests for GET /api/events/{event_id}/timeline endpoint."""
+
+    def test_get_timeline_default_params(self, client, mock_event_service):
+        """Test getting timeline with default parameters."""
+        event_id = str(uuid4())
+        mock_observations = [
+            create_mock_timeline_observation(source="equities"),
+            create_mock_timeline_observation(source="news"),
+        ]
+        mock_event_service.get_event_timeline.return_value = (mock_observations, 2)
+
+        response = client.get(f"/api/events/{event_id}/timeline")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["event_id"] == event_id
+        assert data["total_count"] == 2
+        assert len(data["observations"]) == 2
+        assert data["offset"] == 0
+        assert data["limit"] == 20
+
+        # Verify service was called with defaults
+        mock_event_service.get_event_timeline.assert_called_once_with(
+            event_id=event_id,
+            source_filter="all",
+            limit=20,
+            offset=0,
+        )
+
+    def test_get_timeline_with_source_filter_all(self, client, mock_event_service):
+        """Test timeline with source filter 'all'."""
+        event_id = str(uuid4())
+        mock_event_service.get_event_timeline.return_value = ([], 0)
+
+        response = client.get(f"/api/events/{event_id}/timeline?source=all")
+
+        assert response.status_code == 200
+        mock_event_service.get_event_timeline.assert_called_once_with(
+            event_id=event_id,
+            source_filter="all",
+            limit=20,
+            offset=0,
+        )
+
+    def test_get_timeline_with_source_filter_market(self, client, mock_event_service):
+        """Test timeline with source filter 'market' (equities + crypto)."""
+        event_id = str(uuid4())
+        mock_observations = [
+            create_mock_timeline_observation(source="equities"),
+            create_mock_timeline_observation(source="crypto"),
+        ]
+        mock_event_service.get_event_timeline.return_value = (mock_observations, 2)
+
+        response = client.get(f"/api/events/{event_id}/timeline?source=market")
+
+        assert response.status_code == 200
+        mock_event_service.get_event_timeline.assert_called_once_with(
+            event_id=event_id,
+            source_filter="market",
+            limit=20,
+            offset=0,
+        )
+
+    def test_get_timeline_with_source_filter_news(self, client, mock_event_service):
+        """Test timeline with source filter 'news'."""
+        event_id = str(uuid4())
+        mock_observations = [
+            create_mock_timeline_observation(source="news"),
+        ]
+        mock_event_service.get_event_timeline.return_value = (mock_observations, 1)
+
+        response = client.get(f"/api/events/{event_id}/timeline?source=news")
+
+        assert response.status_code == 200
+        mock_event_service.get_event_timeline.assert_called_once_with(
+            event_id=event_id,
+            source_filter="news",
+            limit=20,
+            offset=0,
+        )
+
+    def test_get_timeline_with_source_filter_sec(self, client, mock_event_service):
+        """Test timeline with source filter 'sec'."""
+        event_id = str(uuid4())
+        mock_event_service.get_event_timeline.return_value = ([], 0)
+
+        response = client.get(f"/api/events/{event_id}/timeline?source=sec")
+
+        assert response.status_code == 200
+        mock_event_service.get_event_timeline.assert_called_once_with(
+            event_id=event_id,
+            source_filter="sec",
+            limit=20,
+            offset=0,
+        )
+
+    def test_get_timeline_with_source_filter_congress(self, client, mock_event_service):
+        """Test timeline with source filter 'congress'."""
+        event_id = str(uuid4())
+        mock_event_service.get_event_timeline.return_value = ([], 0)
+
+        response = client.get(f"/api/events/{event_id}/timeline?source=congress")
+
+        assert response.status_code == 200
+        mock_event_service.get_event_timeline.assert_called_once_with(
+            event_id=event_id,
+            source_filter="congress",
+            limit=20,
+            offset=0,
+        )
+
+    def test_get_timeline_with_source_filter_13f(self, client, mock_event_service):
+        """Test timeline with source filter '13f' (hedgefund alias)."""
+        event_id = str(uuid4())
+        mock_event_service.get_event_timeline.return_value = ([], 0)
+
+        response = client.get(f"/api/events/{event_id}/timeline?source=13f")
+
+        assert response.status_code == 200
+        mock_event_service.get_event_timeline.assert_called_once_with(
+            event_id=event_id,
+            source_filter="13f",
+            limit=20,
+            offset=0,
+        )
+
+    def test_get_timeline_with_source_filter_polymarket(self, client, mock_event_service):
+        """Test timeline with source filter 'polymarket'."""
+        event_id = str(uuid4())
+        mock_event_service.get_event_timeline.return_value = ([], 0)
+
+        response = client.get(f"/api/events/{event_id}/timeline?source=polymarket")
+
+        assert response.status_code == 200
+        mock_event_service.get_event_timeline.assert_called_once_with(
+            event_id=event_id,
+            source_filter="polymarket",
+            limit=20,
+            offset=0,
+        )
+
+    def test_get_timeline_with_pagination(self, client, mock_event_service):
+        """Test timeline pagination parameters."""
+        event_id = str(uuid4())
+        mock_observations = [create_mock_timeline_observation() for _ in range(5)]
+        mock_event_service.get_event_timeline.return_value = (mock_observations, 15)
+
+        response = client.get(f"/api/events/{event_id}/timeline?limit=5&offset=0")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["limit"] == 5
+        assert data["offset"] == 0
+        assert data["total_count"] == 15
+        assert len(data["observations"]) == 5
+
+    def test_get_timeline_pagination_with_offset(self, client, mock_event_service):
+        """Test timeline pagination with offset."""
+        event_id = str(uuid4())
+        mock_observations = [create_mock_timeline_observation() for _ in range(5)]
+        mock_event_service.get_event_timeline.return_value = (mock_observations, 20)
+
+        response = client.get(f"/api/events/{event_id}/timeline?limit=5&offset=10")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["offset"] == 10
+        mock_event_service.get_event_timeline.assert_called_once_with(
+            event_id=event_id,
+            source_filter="all",
+            limit=5,
+            offset=10,
+        )
+
+    def test_get_timeline_limit_max_100(self, client):
+        """Test that limit is capped at 100."""
+        event_id = str(uuid4())
+
+        response = client.get(f"/api/events/{event_id}/timeline?limit=150")
+        assert response.status_code == 422  # Validation error
+
+    def test_get_timeline_limit_min_1(self, client):
+        """Test that limit minimum is 1."""
+        event_id = str(uuid4())
+
+        response = client.get(f"/api/events/{event_id}/timeline?limit=0")
+        assert response.status_code == 422  # Validation error
+
+    def test_get_timeline_offset_non_negative(self, client):
+        """Test that offset must be non-negative."""
+        event_id = str(uuid4())
+
+        response = client.get(f"/api/events/{event_id}/timeline?offset=-5")
+        assert response.status_code == 422  # Validation error
+
+    def test_get_timeline_empty_result(self, client, mock_event_service):
+        """Test empty timeline result."""
+        event_id = str(uuid4())
+        mock_event_service.get_event_timeline.return_value = ([], 0)
+
+        response = client.get(f"/api/events/{event_id}/timeline")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["observations"] == []
+        assert data["total_count"] == 0
+
+    def test_get_timeline_response_structure(self, client, mock_event_service):
+        """Test that timeline response has correct structure."""
+        event_id = str(uuid4())
+        mock_observation = create_mock_timeline_observation(
+            source="news",
+            observation_type="article",
+            title="AAPL Beats Earnings",
+            summary="Apple reported strong Q4...",
+        )
+        mock_event_service.get_event_timeline.return_value = ([mock_observation], 1)
+
+        response = client.get(f"/api/events/{event_id}/timeline")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify top-level structure
+        assert "event_id" in data
+        assert "observations" in data
+        assert "total_count" in data
+        assert "offset" in data
+        assert "limit" in data
+
+        # Verify observation structure
+        obs = data["observations"][0]
+        assert "observation_id" in obs
+        assert "source" in obs
+        assert "observation_type" in obs
+        assert "timestamp" in obs
+        assert "title" in obs
+        assert "summary" in obs
+        assert "fact_entries" in obs
+        assert "source_url" in obs
+
+        # Verify fact entry structure
+        fact = obs["fact_entries"][0]
+        assert "fact_id" in fact
+        assert "fact_type" in fact
+        assert "label" in fact
+        assert "value" in fact
+        assert "unit" in fact
+        assert "source" in fact
+
+    def test_get_timeline_event_not_found(self, client, mock_event_service):
+        """Test 404 when event not found."""
+        event_id = str(uuid4())
+        mock_event_service.get_event_timeline.side_effect = ValueError(f"Event {event_id} not found")
+
+        response = client.get(f"/api/events/{event_id}/timeline")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_get_timeline_service_error(self, client, mock_event_service):
+        """Test error handling when service fails."""
+        event_id = str(uuid4())
+        mock_event_service.get_event_timeline.side_effect = Exception("Database error")
+
+        response = client.get(f"/api/events/{event_id}/timeline")
+
+        assert response.status_code == 500
+        assert "Database error" in response.json()["detail"]
+
+    def test_get_timeline_invalid_source_filter(self, client):
+        """Test validation error for invalid source filter."""
+        event_id = str(uuid4())
+
+        response = client.get(f"/api/events/{event_id}/timeline?source=invalid")
+        assert response.status_code == 422  # Validation error
+
+    def test_get_timeline_observations_sorted_desc(self, client, mock_event_service):
+        """Test that observations are sorted by timestamp descending."""
+        event_id = str(uuid4())
+        # Mock service returns observations in desc order (most recent first)
+        mock_observations = [
+            create_mock_timeline_observation(source="news"),
+            create_mock_timeline_observation(source="equities"),
+        ]
+        mock_event_service.get_event_timeline.return_value = (mock_observations, 2)
+
+        response = client.get(f"/api/events/{event_id}/timeline")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["observations"]) == 2
+        # Order should be preserved from service (desc by timestamp)
+
+    def test_get_timeline_with_empty_fact_entries(self, client, mock_event_service):
+        """Test timeline observation with no fact entries."""
+        event_id = str(uuid4())
+        mock_observation = create_mock_timeline_observation(fact_entries=[])
+        mock_event_service.get_event_timeline.return_value = ([mock_observation], 1)
+
+        response = client.get(f"/api/events/{event_id}/timeline")
+
+        assert response.status_code == 200
+        data = response.json()
+        obs = data["observations"][0]
+        assert obs["fact_entries"] == []
+
+    def test_get_timeline_with_null_optional_fields(self, client, mock_event_service):
+        """Test timeline observation with null optional fields."""
+        event_id = str(uuid4())
+        mock_observation = create_mock_timeline_observation(
+            title=None,
+            source_url=None,
+        )
+        mock_event_service.get_event_timeline.return_value = ([mock_observation], 1)
+
+        response = client.get(f"/api/events/{event_id}/timeline")
+
+        assert response.status_code == 200
+        data = response.json()
+        obs = data["observations"][0]
+        assert obs["title"] is None
+        assert obs["source_url"] is None
