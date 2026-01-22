@@ -519,8 +519,8 @@
         "Typecheck passes"
       ],
       "priority": 29,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit faa5f9b. Added OpenLoopStatus enum (open, in_progress, resolved, stale), OpenLoop dataclass with full fields, open_loops table with foreign key to events, comprehensive CRUD operations. 29 unit tests pass."
     },
     {
       "id": "US-023",
@@ -536,8 +536,8 @@
         "Typecheck passes"
       ],
       "priority": 30,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit 4d32fa2. Created loops router with all 5 endpoints, LoopService for business logic, Pydantic schemas for request/response. Added Database.get_event_by_id for event validation. 26 API tests pass."
     },
     {
       "id": "US-024",
@@ -555,8 +555,8 @@
         "Verify in browser  "
       ],
       "priority": 31,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Created OpenLoops component with interactive checklist, status indicators, resolve checkbox, progress note input, event links, count badge, and stale highlighting. Added useOpenLoops hook with TanStack Query and optimistic updates. Added TypeScript types and API client functions for loops endpoints. Typecheck and build pass."
     },
     {
       "id": "US-025",

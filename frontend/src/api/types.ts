@@ -680,3 +680,104 @@ export interface BriefDiffResponse {
   total_new_trade_ideas: number;
   total_closed_loops: number;
 }
+
+// =====================================================
+// Open Loops API Types (US-024)
+// =====================================================
+
+/**
+ * Open loop status values.
+ */
+export type OpenLoopStatusValue = 'open' | 'in_progress' | 'resolved' | 'stale';
+
+/**
+ * Brief event summary for open loop responses.
+ */
+export interface OpenLoopEventSummary {
+  event_id: string;
+  title: string | null;
+  attention_score: number | null;
+  status: string | null;
+}
+
+/**
+ * Open loop item in list responses.
+ */
+export interface OpenLoopAPIItem {
+  loop_id: string;
+  event_id: string | null;
+  question: string;
+  created_at: string;
+  status: OpenLoopStatusValue;
+  progress_notes_count: number;
+  resolved_at: string | null;
+  event_summary: OpenLoopEventSummary | null;
+}
+
+/**
+ * Response for GET /api/loops.
+ */
+export interface OpenLoopsListResponse {
+  loops: OpenLoopAPIItem[];
+  total_count: number;
+}
+
+/**
+ * Detailed open loop with progress notes.
+ */
+export interface OpenLoopDetail {
+  loop_id: string;
+  event_id: string | null;
+  question: string;
+  created_at: string;
+  status: OpenLoopStatusValue;
+  progress_notes: string[];
+  resolved_at: string | null;
+  event_summary: OpenLoopEventSummary | null;
+}
+
+/**
+ * Request body for POST /api/loops.
+ */
+export interface CreateOpenLoopRequest {
+  question: string;
+  event_id?: string;
+}
+
+/**
+ * Response for POST /api/loops.
+ */
+export interface OpenLoopCreateResponse {
+  loop_id: string;
+  question: string;
+  status: OpenLoopStatusValue;
+  created_at: string;
+}
+
+/**
+ * Request body for PATCH /api/loops/{loop_id}.
+ */
+export interface UpdateOpenLoopRequest {
+  status?: OpenLoopStatusValue;
+  progress_note?: string;
+}
+
+/**
+ * Response for PATCH /api/loops/{loop_id}.
+ */
+export interface OpenLoopUpdateResponse {
+  loop_id: string;
+  status: OpenLoopStatusValue;
+  progress_notes_count: number;
+  updated: boolean;
+  message: string;
+}
+
+/**
+ * Response for DELETE /api/loops/{loop_id}.
+ */
+export interface OpenLoopDeleteResponse {
+  loop_id: string;
+  deleted: boolean;
+  message: string;
+}
