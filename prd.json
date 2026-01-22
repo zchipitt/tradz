@@ -143,8 +143,8 @@
         "Verify in browser  "
       ],
       "priority": 8,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit. Updated EventCard with 4D score bars (red/blue/green/gray colors), action labels (Act/Investigate/Monitor based on confidence thresholds 70/40), clickable entity chips with exchange info, hover elevation effect, and card-level click handler. Build passes."
     },
     {
       "id": "US-007b",

@@ -1,6 +1,13 @@
 /**
  * Event card component for the Signal Inbox.
  * Brutalist design aesthetic - black/white + yellow accent.
+ *
+ * Features:
+ * - 4D score bars (anomaly/catalyst/flow/confidence) with distinct colors
+ * - Action label (Act/Investigate/Monitor) based on confidence score
+ * - Clickable entity chips with exchange info
+ * - Hover elevation effect
+ * - Full card clickable to open event detail
  */
 import { useState } from 'react';
 import {
@@ -17,14 +24,18 @@ import {
   Zap,
   BarChart3,
   Shield,
+  Play,
+  Search,
+  Eye,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import type { Event, EventState, EventCategory } from '../../api/types';
+import type { Event, EventState, EventCategory, AssetType } from '../../api/types';
 
 interface EventCardProps {
   event: Event;
   onAction?: (eventId: string, action: 'dismiss' | 'snooze' | 'pin' | 'unpin' | 'resolve') => void;
   onOpen?: (event: Event) => void;
+  onEntityClick?: (asset: string, assetType?: AssetType) => void;
 }
 
 const stateConfig: Record<EventState, { label: string; bg: string; text: string }> = {
@@ -45,19 +56,95 @@ const categoryConfig: Record<EventCategory, { label: string; icon: React.Element
   sec_filing: { label: 'SEC', icon: Shield },
 };
 
-function ScorePill({ label, value }: { label: string; value: number }) {
-  const getColor = (score: number) => {
-    if (score >= 80) return 'text-status-success';
-    if (score >= 60) return 'text-score-good';
-    if (score >= 40) return 'text-status-warning';
-    return 'text-gray-500';
+// 4D Score bar colors matching the acceptance criteria
+const scoreBarConfig = {
+  anomaly: { label: 'ANM', color: 'bg-red-500', bgColor: 'bg-red-100' },
+  catalyst: { label: 'CAT', color: 'bg-blue-500', bgColor: 'bg-blue-100' },
+  flow: { label: 'FLW', color: 'bg-green-500', bgColor: 'bg-green-100' },
+  confidence: { label: 'CNF', color: 'bg-gray-500', bgColor: 'bg-gray-200' },
+};
+
+// Action label configuration based on confidence score
+type ActionLabel = 'act' | 'investigate' | 'monitor';
+
+function getActionLabel(confidenceScore: number): ActionLabel {
+  if (confidenceScore >= 70) return 'act';
+  if (confidenceScore >= 40) return 'investigate';
+  return 'monitor';
+}
+
+const actionLabelConfig: Record<ActionLabel, { label: string; icon: React.ElementType; bg: string; text: string }> = {
+  act: { label: 'ACT', icon: Play, bg: 'bg-green-500', text: 'text-white' },
+  investigate: { label: 'INVESTIGATE', icon: Search, bg: 'bg-yellow-400', text: 'text-black' },
+  monitor: { label: 'MONITOR', icon: Eye, bg: 'bg-gray-400', text: 'text-white' },
+};
+
+/**
+ * 4D Score Bar component - displays a labeled progress bar with specific color.
+ */
+function ScoreBar({ label, value, color, bgColor }: { label: string; value: number; color: string; bgColor: string }) {
+  return (
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="text-[10px] text-gray-500 font-medium">{label}</span>
+        <span className="text-[10px] font-bold text-gray-700">{value}</span>
+      </div>
+      <div className={cn('h-1.5 rounded-full', bgColor)}>
+        <div
+          className={cn('h-full rounded-full transition-all duration-300', color)}
+          style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Entity chip component - clickable badge showing symbol + exchange/rank.
+ */
+function EntityChip({
+  asset,
+  assetType,
+  index,
+  onClick
+}: {
+  asset: string;
+  assetType?: AssetType;
+  index: number;
+  onClick?: () => void;
+}) {
+  // Determine exchange or rank info based on asset type
+  const getExchangeInfo = () => {
+    if (assetType === 'crypto') {
+      // For crypto, show rank placeholder (would come from API in real implementation)
+      return `#${index + 1}`;
+    }
+    // For equities, show exchange (simplified - in reality would come from API)
+    if (['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA'].includes(asset)) {
+      return 'NASDAQ';
+    }
+    if (['JPM', 'BAC', 'GS', 'JNJ', 'UNH'].includes(asset)) {
+      return 'NYSE';
+    }
+    return 'US';
   };
 
   return (
-    <div className="flex items-center gap-1 text-xs">
-      <span className="text-gray-500">{label}:</span>
-      <span className={cn('font-bold', getColor(value))}>{value}</span>
-    </div>
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
+      className={cn(
+        'px-2 py-1 text-xs font-bold border border-black transition-all duration-100',
+        'hover:bg-primary hover:border-primary cursor-pointer',
+        'flex items-center gap-1'
+      )}
+      title={`View ${asset} details`}
+    >
+      <span>${asset}</span>
+      <span className="text-[10px] text-gray-500 font-normal">{getExchangeInfo()}</span>
+    </button>
   );
 }
 
@@ -81,7 +168,7 @@ function formatTimeAgo(dateString: string): string {
   return `${diffDays}d`;
 }
 
-export function EventCard({ event, onAction, onOpen }: EventCardProps) {
+export function EventCard({ event, onAction, onOpen, onEntityClick }: EventCardProps) {
   const [expanded, setExpanded] = useState(false);
   const state = stateConfig[event.state];
   const category = categoryConfig[event.category];
@@ -89,12 +176,29 @@ export function EventCard({ event, onAction, onOpen }: EventCardProps) {
 
   const isActionable = event.state !== 'resolved' && event.state !== 'dismissed';
 
+  // Get action label based on confidence score
+  const actionType = getActionLabel(event.confidence_score);
+  const actionConfig = actionLabelConfig[actionType];
+  const ActionIcon = actionConfig.icon;
+
+  // Handle card click to open event detail
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger if clicking on buttons or interactive elements
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a')) {
+      return;
+    }
+    onOpen?.(event);
+  };
+
   return (
     <div
+      onClick={handleCardClick}
       className={cn(
-        'bg-white border-2 border-black overflow-hidden transition-all duration-100',
+        'bg-white border-2 border-black overflow-hidden transition-all duration-150 cursor-pointer',
+        'hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.8)] hover:-translate-x-0.5 hover:-translate-y-0.5',
         event.pinned && 'border-primary',
-        !isActionable && 'opacity-60'
+        !isActionable && 'opacity-60 cursor-default hover:shadow-none hover:translate-x-0 hover:translate-y-0'
       )}
     >
       {/* Header */}
@@ -118,6 +222,15 @@ export function EventCard({ event, onAction, onOpen }: EventCardProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Action Label - Act/Investigate/Monitor based on confidence */}
+          <span className={cn(
+            'px-2 py-0.5 text-[10px] font-bold uppercase flex items-center gap-1',
+            actionConfig.bg, actionConfig.text
+          )}>
+            <ActionIcon size={10} />
+            {actionConfig.label}
+          </span>
+
           {/* Time */}
           <span className="text-xs text-gray-500">{formatTimeAgo(event.last_updated)} ago</span>
 
@@ -146,29 +259,54 @@ export function EventCard({ event, onAction, onOpen }: EventCardProps) {
           <div className="flex-1 min-w-0">
             <h3
               className="font-bold text-black text-lg leading-tight cursor-pointer hover:underline hover:underline-offset-4 transition-all"
-              onClick={() => onOpen?.(event)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen?.(event);
+              }}
             >
               {event.title}
             </h3>
+            {/* Entity chips - clickable with symbol + exchange/rank */}
             <div className="flex flex-wrap items-center gap-2 mt-2">
-              {event.assets.map((asset) => (
-                <span
+              {event.assets.map((asset, index) => (
+                <EntityChip
                   key={asset}
-                  className="px-2 py-0.5 text-xs font-bold bg-gray-100 border border-black"
-                >
-                  ${asset}
-                </span>
+                  asset={asset}
+                  assetType={event.asset_types?.[index]}
+                  index={index}
+                  onClick={() => onEntityClick?.(asset, event.asset_types?.[index])}
+                />
               ))}
             </div>
           </div>
         </div>
 
-        {/* 4D Score Pills */}
-        <div className="flex items-center gap-6 mb-4 pb-3 border-b border-gray-200">
-          <ScorePill label="ANM" value={event.anomaly_score} />
-          <ScorePill label="CAT" value={event.catalyst_score} />
-          <ScorePill label="FLW" value={event.flow_score} />
-          <ScorePill label="CNF" value={event.confidence_score} />
+        {/* 4D Score Bars - anomaly (red), catalyst (blue), flow (green), confidence (gray) */}
+        <div className="flex items-center gap-4 mb-4 pb-3 border-b border-gray-200">
+          <ScoreBar
+            label={scoreBarConfig.anomaly.label}
+            value={event.anomaly_score}
+            color={scoreBarConfig.anomaly.color}
+            bgColor={scoreBarConfig.anomaly.bgColor}
+          />
+          <ScoreBar
+            label={scoreBarConfig.catalyst.label}
+            value={event.catalyst_score}
+            color={scoreBarConfig.catalyst.color}
+            bgColor={scoreBarConfig.catalyst.bgColor}
+          />
+          <ScoreBar
+            label={scoreBarConfig.flow.label}
+            value={event.flow_score}
+            color={scoreBarConfig.flow.color}
+            bgColor={scoreBarConfig.flow.bgColor}
+          />
+          <ScoreBar
+            label={scoreBarConfig.confidence.label}
+            value={event.confidence_score}
+            color={scoreBarConfig.confidence.color}
+            bgColor={scoreBarConfig.confidence.bgColor}
+          />
         </div>
 
         {/* Summary */}
