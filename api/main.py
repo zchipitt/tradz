@@ -5,7 +5,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import get_settings
-from api.routers import signals_router, sources_router, reports_router, events_router, system_router, briefs_router
+from api.routers import (
+    briefs_router,
+    events_router,
+    loops_router,
+    reports_router,
+    signals_router,
+    sources_router,
+    system_router,
+)
 
 settings = get_settings()
 
@@ -44,6 +52,7 @@ app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
 app.include_router(events_router, prefix="/api/events", tags=["events"])
 app.include_router(system_router, prefix="/api/system", tags=["system"])
 app.include_router(briefs_router, prefix="/api/briefs", tags=["briefs"])
+app.include_router(loops_router, prefix="/api/loops", tags=["loops"])
 
 
 @app.get("/")
