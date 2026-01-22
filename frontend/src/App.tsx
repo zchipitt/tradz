@@ -12,6 +12,7 @@ import { Sources } from './pages/Sources';
 import { Reports } from './pages/Reports';
 import { UsageGuide } from './pages/UsageGuide';
 import { EventDetail } from './pages/EventDetail';
+import { Settings } from './pages/Settings';
 import { useEvents, useRefreshEvents } from './hooks/useEvents';
 import { useRefreshSignals } from './hooks/useSignals';
 import { formatDate } from './lib/utils';
@@ -69,6 +70,7 @@ function AppContent() {
       {activeTab === 'signals' && <Signals />}
       {activeTab === 'sources' && <Sources />}
       {activeTab === 'reports' && <Reports />}
+      {activeTab === 'settings' && <Settings />}
       {activeTab === 'guide' && <UsageGuide />}
     </Layout>
   );
