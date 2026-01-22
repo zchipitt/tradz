@@ -6,8 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Tradz is a daily trading signal aggregation system that collects data from multiple sources, generates quantitative signals with 4-dimensional scoring, and delivers reports via email. It includes:
 - **Core Pipeline**: Data aggregation, entity resolution, signal generation, and email reports
-- **DuckDB Database**: Persistent storage for entities, observations, events, and signals
+- **DuckDB Database**: Persistent storage for entities, observations, events, signals, and open loops
 - **Web Dashboard**: React frontend with FastAPI backend for interactive visualization
+- **Quality Gates**: Trade idea generation with configurable thresholds
+- **Open Loops**: Tracking unresolved questions and research items
 
 ## Common Commands
 
@@ -43,6 +45,11 @@ python3 src/tradz/run_nightly.py --refresh-entities
 uvicorn api.main:app --reload --port 8002
 cd frontend && npm install && npm run dev
 
+# Run event state transitions
+python3 scripts/run_state_transitions.py
+# or
+./scripts/state_transitions.sh
+
 # Verification scripts
 python3 scripts/verify_db.py       # Verify database schema
 python3 scripts/verify_entities.py # Verify entity resolution
@@ -76,18 +83,25 @@ tradz/
 │   │   ├── builder.py            # EventBuilder: aggregates observations into events
 │   │   ├── fact_extractor.py     # Extracts FactTableEntry from observations
 │   │   ├── llm_provider.py       # LLM abstraction (Claude CLI, OpenRouter, Mock)
-│   │   └── title_generator.py    # LLM title generation with template fallback
+│   │   ├── title_generator.py    # LLM title generation with template fallback
+│   │   ├── daily_brief_generator.py  # Daily brief generation
+│   │   ├── daily_brief_persister.py  # Daily brief persistence to files/DB
+│   │   ├── narrative_generator.py    # Narrative generation for events
+│   │   ├── quality_gate.py       # Quality gate evaluation and trade ideas
+│   │   └── state_manager.py      # Event state transitions (new→ongoing→stale)
 │   ├── reporting/                # Report generation
 │   │   └── fact_generator.py     # Deterministic fact extraction for LLM
 │   ├── models.py                 # Core data models (Entity, Observation, Event, Signal, FactType)
 │   ├── database.py               # DuckDB persistence layer
 │   ├── entity_resolver.py        # Ticker/CIK/Name mapping
 │   ├── scoring.py                # 4-dimensional signal scoring
+│   ├── unified_scoring.py        # Unified scoring across asset types
 │   ├── signals.py                # Signal generation
 │   ├── aggregator.py             # Multi-source orchestration
 │   ├── report.py                 # Template-based reports
 │   ├── claude_reporter.py        # Claude CLI integration
 │   ├── emailer.py                # SMTP email delivery
+│   ├── daily_brief_emailer.py    # Daily brief email generation (HTML/plain text)
 │   └── run_nightly.py            # Main entry point
 ├── api/                          # FastAPI backend
 │   ├── main.py                   # App entry point
@@ -97,51 +111,99 @@ tradz/
 │   │   ├── sources.py            # Data source endpoints
 │   │   ├── reports.py            # Report endpoints
 │   │   ├── events.py             # Event endpoints (list, detail, actions)
+│   │   ├── briefs.py             # Daily brief endpoints
+│   │   ├── loops.py              # Open loops endpoints (CRUD)
+│   │   ├── settings.py           # Quality gate settings endpoints
 │   │   └── system.py             # System status endpoint
 │   ├── schemas/                  # Pydantic models
 │   │   ├── signals.py
 │   │   ├── sources.py
 │   │   ├── events.py             # Event request/response schemas
+│   │   ├── briefs.py             # Brief schemas
+│   │   ├── loops.py              # Open loop schemas
+│   │   ├── settings.py           # Settings schemas
 │   │   └── system.py             # System health schemas
 │   └── services/                 # Business logic
 │       ├── signal_service.py     # Signal caching (5-min TTL)
 │       ├── aggregator_service.py # Data aggregation
 │       ├── cache_service.py      # In-memory caching
 │       ├── event_service.py      # Event queries and actions
+│       ├── brief_service.py      # Daily brief operations
+│       ├── loop_service.py       # Open loop operations
+│       ├── settings_service.py   # Quality gate settings
 │       └── system_service.py     # System health checks
 ├── frontend/                     # React + TypeScript
 │   └── src/
 │       ├── App.tsx               # Root with TanStack Query
 │       ├── pages/                # Page components
 │       │   ├── Dashboard.tsx     # Event-centric main view
+│       │   ├── EventDetail.tsx   # Event detail with evidence timeline
 │       │   ├── Signals.tsx       # Raw signals table
 │       │   ├── Sources.tsx       # Source panels
 │       │   ├── Reports.tsx       # Report archive
+│       │   ├── Settings.tsx      # Quality gate settings
 │       │   └── UsageGuide.tsx    # Interactive guide
 │       ├── components/
 │       │   ├── layout/Layout.tsx # Header + sidebar + tabs
-│       │   ├── events/           # Event components (EventCard, SignalInbox, SystemStatus)
+│       │   ├── events/           # Event components
+│       │   │   ├── EventCard.tsx
+│       │   │   ├── SignalInbox.tsx
+│       │   │   ├── SystemStatus.tsx
+│       │   │   ├── DailyBrief.tsx
+│       │   │   ├── MarketSnapshot.tsx
+│       │   │   ├── OpenLoops.tsx
+│       │   │   ├── ActionPanel.tsx
+│       │   │   ├── AssetMetrics.tsx
+│       │   │   ├── AssetTypeFilter.tsx
+│       │   │   ├── CompareYesterday.tsx
+│       │   │   ├── EntityBadge.tsx
+│       │   │   ├── EvidenceTimeline.tsx
+│       │   │   ├── FactSpotlight.tsx
+│       │   │   ├── RelatedAssets.tsx
+│       │   │   └── ScoreBreakdown.tsx
 │       │   ├── signals/          # Signal components
-│       │   └── sources/          # Source panels
+│       │   ├── sources/          # Source panels
+│       │   └── common/           # Reusable components (Button, ControlGroup)
 │       ├── hooks/                # React Query hooks
 │       │   ├── useSignals.ts     # 5-min auto-refresh
 │       │   ├── useEvents.ts      # Event actions + useSystemStatus
-│       │   └── useSources.ts     # Source health
+│       │   ├── useSources.ts     # Source health
+│       │   ├── useDailyBrief.ts  # Daily brief data
+│       │   ├── useOpenLoops.ts   # Open loops management
+│       │   └── useQualityGateSettings.ts  # Quality gate settings
 │       └── api/                  # API client
 │           ├── client.ts         # Axios + API functions
 │           └── types.ts          # TypeScript interfaces
 ├── tests/                        # Unit tests
-│   ├── test_event_builder.py    # EventBuilder tests
-│   ├── test_events_api.py       # Events API tests
-│   ├── test_fact_extractor.py   # Fact extraction tests
-│   ├── test_llm_provider.py     # LLM provider tests
-│   ├── test_system_api.py       # System API tests
-│   └── test_title_generator.py  # Title generation tests
+│   ├── test_event_builder.py
+│   ├── test_events_api.py
+│   ├── test_event_actions.py
+│   ├── test_event_state_manager.py
+│   ├── test_fact_extractor.py
+│   ├── test_llm_provider.py
+│   ├── test_title_generator.py
+│   ├── test_narrative_generator.py
+│   ├── test_quality_gate.py
+│   ├── test_daily_brief_generator.py
+│   ├── test_daily_brief_persister.py
+│   ├── test_daily_brief_emailer.py
+│   ├── test_briefs_api.py
+│   ├── test_loops_api.py
+│   ├── test_open_loops.py
+│   ├── test_settings_api.py
+│   ├── test_system_api.py
+│   ├── test_reports_html.py
+│   ├── test_reports_diff_api.py
+│   ├── test_multi_asset_entities.py
+│   └── test_unified_scoring.py
 ├── scripts/                      # Utility scripts
 │   ├── ralph/                    # Autonomous AI agent
 │   │   ├── ralph.sh              # Agent loop script
 │   │   ├── CLAUDE.md             # Agent instructions
 │   │   └── progress.txt          # Agent progress log
+│   ├── run_state_transitions.py  # Run event state machine
+│   ├── state_manager.py          # State management utilities
+│   ├── state_transitions.sh      # Shell script for state transitions
 │   └── ...                       # Other scripts
 ├── tasks/                        # Development tasks
 │   └── prd-tradz-vnext.md        # Product requirements document
@@ -229,6 +291,17 @@ DataAggregator → EntityResolver → Scorer → SignalGenerator → ReportGener
 | `/api/events` | GET | Event list with status/sort/pagination |
 | `/api/events/{event_id}` | GET | Event detail with observations |
 | `/api/events/{event_id}/actions` | POST | Event actions (pin/unpin/snooze/dismiss/resolve) |
+| `/api/briefs` | GET | List daily briefs with pagination |
+| `/api/briefs/latest` | GET | Most recent daily brief |
+| `/api/briefs/{date}` | GET | Daily brief by date (YYYY-MM-DD) |
+| `/api/loops` | GET | List open loops (filter by status) |
+| `/api/loops/{loop_id}` | GET | Open loop detail with progress notes |
+| `/api/loops` | POST | Create new open loop |
+| `/api/loops/{loop_id}` | PATCH | Update loop status/add progress note |
+| `/api/loops/{loop_id}` | DELETE | Delete open loop |
+| `/api/settings/gates` | GET | Get quality gate settings |
+| `/api/settings/gates` | PUT | Update quality gate settings |
+| `/api/settings/gates` | DELETE | Reset quality gate settings to defaults |
 | `/api/system/status` | GET | Data source health status |
 | `/api/sources` | GET | All source data |
 | `/api/sources/equities` | GET | Equities data |
@@ -247,9 +320,11 @@ DataAggregator → EntityResolver → Scorer → SignalGenerator → ReportGener
 - **Design**: Robinhood-style clean interface, event-centric
 - **Pages**:
   - `Dashboard` - Event-centric with 4 sections: SystemStatus, SignalInbox, DailyBrief, MarketSnapshot
+  - `EventDetail` - Event detail with evidence timeline, score breakdown, related assets
   - `Signals` - Raw diagnostic table
   - `Sources` - Individual source panels (Congress, HedgeFunds, News, Polymarket)
   - `Reports` - Historical archive with Markdown viewer
+  - `Settings` - Quality gate threshold configuration
   - `UsageGuide` - Interactive collapsible guide
 - **Event Components**:
   - `EventCard` - 4D scores, evidence, trade plan
@@ -257,11 +332,33 @@ DataAggregator → EntityResolver → Scorer → SignalGenerator → ReportGener
   - `SystemStatus` - Data quality overview
   - `DailyBrief` - Summary + trade ideas
   - `MarketSnapshot` - Collapsible heatmap
+  - `OpenLoops` - Unresolved questions tracker
+  - `EvidenceTimeline` - Chronological evidence display
+  - `ScoreBreakdown` - 4D score visualization
+  - `ActionPanel` - Event actions (pin, snooze, resolve, dismiss)
+  - `AssetMetrics` - Asset-specific metrics display
+  - `FactSpotlight` - Key facts highlighting
 
 **Event State Machine**:
-- `new` → `ongoing` → `stale` (no updates 72h+)
+- `new` → `ongoing` (after 1 hour with observations) → `stale` (no updates 72h+)
 - User actions: `resolved`, `dismissed`
 - Actions: Pin/Unpin, Snooze (24h), Resolve, Dismiss
+- Auto-transitions via `EventStateManager.run_state_transitions()`
+
+**Quality Gates**:
+- `min_confidence` (70): Minimum confidence score
+- `min_sources` (2): Minimum number of unique sources
+- `min_anomaly` (50): Minimum anomaly score
+- `min_catalyst` (40): Minimum catalyst score
+- `has_invalidation` (True): Require invalidation condition
+- Events passing gates → TradeIdea (entry/exit levels)
+- Events failing gates → ResearchPlan (questions to verify)
+
+**Open Loops**:
+- Track unresolved questions from events
+- Status: `open` → `in_progress` → `resolved` | `stale`
+- Progress notes for research tracking
+- Link to events for context
 
 ### Configuration
 
@@ -329,6 +426,7 @@ claude:
 - **Services Layer**: Business logic abstracted from route handlers
 - **TanStack Query**: 5-minute auto-refresh with caching
 - **Event State Machine**: 5-state tracking (new → ongoing → stale, resolved, dismissed)
+- **State Transitions**: Use `EventStateManager.run_state_transitions()` for automatic state updates
 - **LLM Providers**: Abstract base class pattern with `generate()` method (ClaudeCLI, OpenRouter, Mock)
 - **Title Generation**: Returns `(title, source)` tuple where source is 'llm' or 'template'
 - **Fact Extraction**: Use `FactType` enum (23 types) via `extract_facts(observation)`
@@ -339,6 +437,20 @@ claude:
   - Database insert uses UPSERT (ON CONFLICT UPDATE) for idempotent regeneration
   - Link to run_history via optional `run_id` parameter
   - Generation method tracked ('claude' or 'template') for monitoring
+- **Quality Gates**: Use `QualityGate.evaluate(event, observations)` to check thresholds
+  - Returns `QualityGateEvaluation` with pass/fail, score, and suggestions
+  - `TradeIdeaGenerator.generate()` creates TradeIdea or ResearchPlan based on gate results
+- **Trade Ideas**: Generated for events passing all quality gates
+  - Includes direction (long/short/neutral), entry_zone, target, stop_loss
+  - Invalidation conditions and time horizon
+- **Research Plans**: Generated for events failing quality gates
+  - Questions to verify, evidence to watch, next check date
+- **Open Loops**: Track unresolved questions via `loop_service`
+  - CRUD operations: create, get, update (status/notes), delete
+  - Linked to events for context
+- **Settings Management**: Quality gate thresholds via `settings_service`
+  - Persisted in config.yaml under `quality_gates` section
+  - GET/PUT/DELETE for read/update/reset
 
 ## Running Tests
 

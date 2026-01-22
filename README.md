@@ -41,9 +41,11 @@ Daily automated trading signal generation powered by multi-source data aggregati
 ### Web Dashboard / Web 仪表盘
 - 🖥️ **Event-Centric Dashboard / 事件中心化仪表盘**: Robinhood-style clean UI, transformed from ticker-centric to event-driven design / Robinhood 风格简洁界面，从 Ticker 视图转为事件驱动设计
 - 📋 **Signal Inbox / 信号收件箱**: Event cards showing attention score, 4D scores (A/C/F/Conf), evidence summary, trade thesis / 事件卡片展示关注度评分、4D 评分、证据摘要、交易建议
-- 📊 **Event State Machine / 事件状态机**: New/Ongoing/Stale/Resolved/Dismissed state transitions / New/Ongoing/Stale/Resolved/Dismissed 五种状态转换
+- 📊 **Event State Machine / 事件状态机**: New/Ongoing/Stale/Resolved/Dismissed state transitions with auto-transition support / New/Ongoing/Stale/Resolved/Dismissed 五种状态转换，支持自动状态更新
 - ⚡ **Event Actions / 事件操作**: Pin/Snooze/Resolve/Dismiss actions for each event / 每个事件支持置顶/推迟/标记已解决/驳回操作
-- 🔌 **FastAPI Backend / FastAPI 后端**: REST API for signals, sources, and reports / 信号、数据源和报告的 REST API
+- 🎯 **Quality Gates / 质量门控**: Configurable thresholds for trade idea generation / 可配置的交易建议生成阈值
+- 📝 **Open Loops / 未解决问题**: Track unresolved questions and research items / 跟踪未解决的问题和研究项目
+- 🔌 **FastAPI Backend / FastAPI 后端**: REST API for signals, sources, reports, briefs, loops, and settings / 信号、数据源、报告、简报、问题跟踪和设置的 REST API
 - 🔄 **Live Refresh / 实时刷新**: Manual and automatic data refresh with TanStack Query / 使用 TanStack Query 实现手动和自动刷新
 - 📱 **Responsive Design / 响应式设计**: Mobile-friendly layout with collapsible sidebar / 移动端友好，可折叠侧边栏
 
@@ -407,6 +409,9 @@ tradz/
 │   ├── nightly.sh           # Main execution script / 主执行脚本
 │   ├── local_up.sh          # One-click start backend+frontend / 一键启动
 │   ├── local_down.sh        # One-click stop / 一键停止
+│   ├── run_state_transitions.py  # Run event state machine / 运行事件状态机
+│   ├── state_manager.py     # State management utilities / 状态管理工具
+│   ├── state_transitions.sh # Shell script for state transitions / 状态转换脚本
 │   ├── verify_db.py         # Database verification / 数据库验证
 │   ├── verify_entities.py   # Entity resolution verification / 实体解析验证
 │   ├── verify_signals.py    # Signal generation verification / 信号生成验证
@@ -416,12 +421,27 @@ tradz/
 │       ├── CLAUDE.md        # Agent instructions / 代理指令
 │       └── progress.txt     # Agent progress log / 代理进度日志
 ├── tests/                    # Unit tests / 单元测试
-│   ├── test_event_builder.py    # EventBuilder tests
-│   ├── test_events_api.py       # Events API tests
-│   ├── test_fact_extractor.py   # Fact extraction tests
-│   ├── test_llm_provider.py     # LLM provider tests
-│   ├── test_system_api.py       # System API tests
-│   └── test_title_generator.py  # Title generation tests
+│   ├── test_event_builder.py
+│   ├── test_events_api.py
+│   ├── test_event_actions.py
+│   ├── test_event_state_manager.py
+│   ├── test_fact_extractor.py
+│   ├── test_llm_provider.py
+│   ├── test_title_generator.py
+│   ├── test_narrative_generator.py
+│   ├── test_quality_gate.py
+│   ├── test_daily_brief_generator.py
+│   ├── test_daily_brief_persister.py
+│   ├── test_daily_brief_emailer.py
+│   ├── test_briefs_api.py
+│   ├── test_loops_api.py
+│   ├── test_open_loops.py
+│   ├── test_settings_api.py
+│   ├── test_system_api.py
+│   ├── test_reports_html.py
+│   ├── test_reports_diff_api.py
+│   ├── test_multi_asset_entities.py
+│   └── test_unified_scoring.py
 ├── tasks/                    # Development tasks / 开发任务
 │   └── prd-tradz-vnext.md   # Product requirements document / 产品需求文档
 ├── prd.json                  # PRD with user stories for Ralph agent / Ralph 代理用户故事
@@ -442,31 +462,69 @@ tradz/
 │   │   ├── sources.py       # Data sources endpoints / 数据源接口
 │   │   ├── reports.py       # Reports endpoints / 报告接口
 │   │   ├── events.py        # Events endpoints / 事件接口
+│   │   ├── briefs.py        # Daily briefs endpoints / 每日简报接口
+│   │   ├── loops.py         # Open loops endpoints / 未解决问题接口
+│   │   ├── settings.py      # Quality gate settings / 质量门控设置接口
 │   │   └── system.py        # System status endpoint / 系统状态接口
 │   ├── schemas/             # Pydantic models / Pydantic 模型
+│   │   ├── signals.py
+│   │   ├── sources.py
 │   │   ├── events.py        # Event schemas / 事件模型
+│   │   ├── briefs.py        # Brief schemas / 简报模型
+│   │   ├── loops.py         # Open loop schemas / 未解决问题模型
+│   │   ├── settings.py      # Settings schemas / 设置模型
 │   │   └── system.py        # System health schemas / 系统健康模型
 │   └── services/            # Business logic / 业务逻辑
 │       ├── signal_service.py
 │       ├── aggregator_service.py
 │       ├── cache_service.py
 │       ├── event_service.py      # Event queries and actions / 事件查询和操作
+│       ├── brief_service.py      # Daily brief operations / 每日简报操作
+│       ├── loop_service.py       # Open loop operations / 未解决问题操作
+│       ├── settings_service.py   # Quality gate settings / 质量门控设置
 │       └── system_service.py     # System health checks / 系统健康检查
 ├── frontend/                 # React dashboard (event-centric design) / React 仪表盘（事件中心化设计）
 │   ├── src/
 │   │   ├── App.tsx          # Root component / 根组件
 │   │   ├── pages/           # Page components / 页面组件
-│   │   │   ├── Dashboard.tsx    # Event-centric home (SystemStatus, SignalInbox, DailyBrief) / 事件中心化主页
+│   │   │   ├── Dashboard.tsx    # Event-centric home / 事件中心化主页
+│   │   │   ├── EventDetail.tsx  # Event detail with evidence timeline / 事件详情
 │   │   │   ├── Signals.tsx      # Raw signals diagnostic table / 原始信号诊断表格
 │   │   │   ├── Sources.tsx      # Data source status panels / 数据源状态面板
 │   │   │   ├── Reports.tsx      # Historical reports archive / 历史报告归档
+│   │   │   ├── Settings.tsx     # Quality gate settings / 质量门控设置
 │   │   │   └── UsageGuide.tsx   # Interactive usage guide / 交互式使用指南
 │   │   ├── components/      # UI components / UI 组件
 │   │   │   ├── layout/      # Layout components (Header, Sidebar) / 布局组件
-│   │   │   ├── events/      # Event components (EventCard, SignalInbox, SystemStatus, DailyBrief, MarketSnapshot) / 事件组件
-│   │   │   ├── signals/     # Signal components (Heatmap, Card, TopSignals) / 信号组件
-│   │   │   └── sources/     # Data source panels / 数据源面板
-│   │   └── hooks/           # React hooks (useSignals, useEvents) / React 钩子
+│   │   │   ├── events/      # Event components / 事件组件
+│   │   │   │   ├── EventCard.tsx
+│   │   │   │   ├── SignalInbox.tsx
+│   │   │   │   ├── SystemStatus.tsx
+│   │   │   │   ├── DailyBrief.tsx
+│   │   │   │   ├── MarketSnapshot.tsx
+│   │   │   │   ├── OpenLoops.tsx
+│   │   │   │   ├── ActionPanel.tsx
+│   │   │   │   ├── AssetMetrics.tsx
+│   │   │   │   ├── AssetTypeFilter.tsx
+│   │   │   │   ├── CompareYesterday.tsx
+│   │   │   │   ├── EntityBadge.tsx
+│   │   │   │   ├── EvidenceTimeline.tsx
+│   │   │   │   ├── FactSpotlight.tsx
+│   │   │   │   ├── RelatedAssets.tsx
+│   │   │   │   └── ScoreBreakdown.tsx
+│   │   │   ├── signals/     # Signal components / 信号组件
+│   │   │   ├── sources/     # Data source panels / 数据源面板
+│   │   │   └── common/      # Reusable components (Button, ControlGroup) / 通用组件
+│   │   ├── hooks/           # React hooks / React 钩子
+│   │   │   ├── useSignals.ts
+│   │   │   ├── useEvents.ts
+│   │   │   ├── useSources.ts
+│   │   │   ├── useDailyBrief.ts
+│   │   │   ├── useOpenLoops.ts
+│   │   │   └── useQualityGateSettings.ts
+│   │   └── api/             # API client / API 客户端
+│   │       ├── client.ts
+│   │       └── types.ts
 │   ├── package.json
 │   └── vite.config.ts
 ├── docs/
@@ -479,15 +537,22 @@ tradz/
         ├── models.py         # Data models (Entity, Observation, Event, Signal, FactType) / 数据模型
         ├── entity_resolver.py # Entity resolution / 实体解析
         ├── scoring.py        # 4-dimensional signal scoring / 4维信号评分
+        ├── unified_scoring.py # Unified scoring across asset types / 跨资产类型统一评分
         ├── signals.py        # Signal generation logic / 信号生成逻辑
         ├── claude_reporter.py # Claude Code CLI integration / Claude Code CLI 集成
         ├── report.py         # Template-based report rendering / 模板报告渲染
         ├── emailer.py        # SMTP email sender / SMTP 邮件发送
+        ├── daily_brief_emailer.py # Daily brief email generation / 每日简报邮件生成
         ├── events/           # Event-driven system (vNext) / 事件驱动系统
         │   ├── builder.py        # EventBuilder: aggregates observations / 事件聚合
         │   ├── fact_extractor.py # Extracts facts from observations / 事实提取
         │   ├── llm_provider.py   # LLM abstraction (Claude/OpenRouter) / LLM 抽象
-        │   └── title_generator.py # LLM title generation / 标题生成
+        │   ├── title_generator.py # LLM title generation / 标题生成
+        │   ├── daily_brief_generator.py  # Daily brief generation / 每日简报生成
+        │   ├── daily_brief_persister.py  # Daily brief persistence / 每日简报持久化
+        │   ├── narrative_generator.py    # Narrative generation / 叙事生成
+        │   ├── quality_gate.py   # Quality gate evaluation / 质量门控评估
+        │   └── state_manager.py  # Event state transitions / 事件状态转换
         ├── reporting/
         │   └── fact_generator.py # Fact table generation / 事实表生成
         └── sources/
@@ -851,13 +916,16 @@ For issues, questions, or contributions / 如有问题、疑问或贡献:
 - [x] EventCard with 4D score bars and action labels / 事件卡片
 - [x] Unit test suite (pytest) / 单元测试套件
 - [x] Ralph autonomous AI agent / Ralph 自动化 AI 代理
-
-**In Development (vNext) / 开发中功能:**
-- [ ] Event detail page with evidence timeline / 事件详情页面
-- [ ] Quality gates for trade ideas / 交易建议质量门
-- [ ] Daily brief generation / 每日简报生成
-- [ ] Open loops tracking / 未解决问题追踪
-- [ ] Multi-asset support (Equity/Crypto/Polymarket) / 多资产支持
+- [x] Event detail page with evidence timeline / 事件详情页面
+- [x] Quality gates for trade ideas / 交易建议质量门控
+- [x] Daily brief generation and persistence / 每日简报生成和持久化
+- [x] Open loops tracking / 未解决问题追踪
+- [x] Multi-asset support (Equity/Crypto/Polymarket) / 多资产支持
+- [x] Settings page for quality gate thresholds / 质量门控设置页面
+- [x] Event state auto-transitions / 事件状态自动转换
+- [x] Narrative generation for events / 事件叙事生成
+- [x] Daily brief email generation (HTML/plain text) / 每日简报邮件生成
+- [x] Unified scoring across asset types / 跨资产类型统一评分
 
 **Future enhancements / 待开发功能:**
 - [ ] Social media (X/Twitter) trends / 社交媒体趋势
