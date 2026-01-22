@@ -2,7 +2,7 @@
  * TypeScript types matching backend Pydantic schemas.
  */
 
-export type AssetType = 'equity' | 'crypto';
+export type AssetType = 'equity' | 'crypto' | 'polymarket' | 'index' | 'commodity';
 
 export interface SignalMetrics {
   day_return: number;
@@ -329,6 +329,7 @@ export interface EntityBrief {
   entity_id: string | null;
   ticker: string | null;
   name: string | null;
+  asset_type?: AssetType;
 }
 
 /**
