@@ -24,6 +24,8 @@
 - Frontend hooks use TanStack Query with 5-min staleTime and refetchInterval for auto-refresh
 - Use `EventCardSkeleton` component pattern for loading states with `animate-pulse` class
 - Pass `isLoading`, `isError`, `error`, `onRetry` props to components for proper state handling
+- Action labels use confidence thresholds: >=70 = Act (green), >=40 = Investigate (yellow), <40 = Monitor (gray)
+- Hover effects with brutalist style: `hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.8)]` + translate
 
 ---
 
@@ -228,4 +230,30 @@
   - EventCardSkeleton uses CSS `animate-pulse` class for loading animation
   - When integrating with backend, always null-coalesce optional fields in transformer
   - Layout.tsx had unused imports from lucide-react causing build failures with `noUnusedLocals: true`
+---
+
+## 2026-01-22 - US-005
+- **What was implemented**: EventCard UI component with enhanced features
+  - Updated `ScorePill` to `ScoreBar` component with progress bar visualization
+  - Added 4D score bars with distinct colors: anomaly (red), catalyst (blue), flow (green), confidence (gray)
+  - Added action label based on confidence score thresholds:
+    - Act (green) for confidence >= 70
+    - Investigate (yellow) for confidence >= 40
+    - Monitor (gray) for confidence < 40
+  - Added `EntityChip` component with clickable symbol + exchange/rank info
+  - Added hover elevation effect with shadow and translate transform
+  - Made entire card clickable via `handleCardClick` with delegation exclusion for buttons/links
+  - Added `onEntityClick` prop for entity navigation callbacks
+
+- **Files changed**:
+  - `frontend/src/components/events/EventCard.tsx` (major refactor)
+  - `prd.json` (updated passes: true)
+
+- **Learnings for future iterations**:
+  - EventCard uses `scoreBarConfig` object for centralized color configuration
+  - Action label thresholds: 70+ = Act, 40-69 = Investigate, <40 = Monitor
+  - Entity chips determine exchange info locally (simplified - would come from API in production)
+  - Hover effect uses Tailwind: `hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.8)] hover:-translate-x-0.5 hover:-translate-y-0.5`
+  - Card click handler excludes buttons/links via `target.closest('button') || target.closest('a')`
+  - Use `e.stopPropagation()` on nested clickable elements to prevent card click
 ---
