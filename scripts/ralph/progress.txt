@@ -384,3 +384,119 @@ Started: Wed Jan 21 06:13:41 PST 2026
   - Preview evaluation logic can be pure function in hooks file for reuse
   - Settings state is local until Save clicked - pattern of localSettings vs data.settings
 ---
+
+## 2026-01-21 - US-026
+- What was implemented:
+  - Added AssetType enum to models.py with 5 values: equity, crypto, polymarket, index, commodity
+  - Extended Entity dataclass with 4 new fields:
+    - asset_type (AssetType): Default to EQUITY for backward compatibility
+    - identifiers (Dict[str, str]): Asset-specific IDs (ticker/cik for equity, coingecko_id for crypto, market_id for polymarket)
+    - metadata (Dict[str, Any]): Asset-specific data (sector for equity, category for crypto, end_date for polymarket)
+    - related_entities (List[UUID]): Cross-asset relationships
+  - Updated database schema with migrations for 4 new columns:
+    - asset_type (VARCHAR), identifiers (JSON), metadata (JSON), related_entities (JSON)
+  - Added Database._row_to_entity helper for consistent row parsing
+  - Added Database.get_entities_by_asset_type for filtering entities by asset type
+  - Added Database.get_entity_by_identifier for lookup by specific identifier key-value
+  - Extended EntityResolver with asset type detection:
+    - KNOWN_CRYPTO_SYMBOLS: Set of 50+ crypto tickers (BTC, ETH, SOL, etc.)
+    - KNOWN_EQUITY_SYMBOLS: Set of 30+ equity tickers (AAPL, MSFT, etc.)
+    - AMBIGUOUS_SYMBOLS: Set of tickers that exist in both markets (LINK, SAND, etc.)
+    - CRYPTO_PAIR_SUFFIXES: Common trading pair suffixes (/USDT, /USD, etc.)
+    - _looks_like_crypto(): Checks crypto patterns (pairs, known symbols, short caps)
+    - _looks_like_polymarket(): Checks polymarket patterns (UUID, question format, keywords)
+    - _detect_asset_type(): Combined detection logic with priority
+  - Added resolve_symbol_with_context for context-aware disambiguation
+  - Added convenience methods: get_or_create_crypto_entity, get_or_create_polymarket_entity
+  - Updated resolve_ticker to support asset_type filtering via cache key format {ticker}:{asset_type}
+  - 49 comprehensive unit tests covering all scenarios
+- Files changed:
+  - src/tradz/models.py - Added AssetType enum, extended Entity dataclass
+  - src/tradz/database.py - Added migrations, new query methods, _row_to_entity helper
+  - src/tradz/entity_resolver.py - Added symbol sets, detection methods, convenience methods
+  - tests/test_multi_asset_entities.py - New test file with 49 tests
+- **Learnings for future iterations:**
+  - DuckDB temp file issue: NamedTemporaryFile creates zero-byte file that DuckDB rejects - use mkdtemp() instead
+  - Pytest fixtures can't use underscore prefix (e.g., _temp_db) - use noqa comment for unused params
+  - Cache key format {ticker}:{asset_type} enables same ticker to have multiple entities per asset type
+  - Asset type detection priority: explicit patterns > known symbols > defaults
+  - AMBIGUOUS_SYMBOLS allows special handling for tickers like LINK that exist in both crypto and equity markets
+---
+
+## 2026-01-21 - US-027
+- What was implemented:
+  - Created UnifiedScorer class with routing to asset-specific scorers:
+    - EquityScorer: Traditional equity scoring with price (40%) + volume (30%) + volatility (20%) + insider (10%)
+    - CryptoScorer: Crypto-specific scoring with price (35%) + volume (25%) + onchain activity (25%) + funding rate (15%)
+    - PolymarketScorer: Prediction market scoring with price move (50%) + volume spike (30%) + poll divergence (20%)
+  - Asset-specific flow score weights:
+    - EquityScorer: Congress (40%) + 13F (35%) + Insider (25%)
+    - CryptoScorer: Exchange flow (40%) + whale activity (35%) + institutional (25%)
+    - PolymarketScorer: Large trades (50%) + liquidity change (30%) + smart money (20%)
+  - Asset-specific attention score weights:
+    - EQUITY_WEIGHTS: anomaly=0.30, catalyst=0.30, flow=0.25, confidence=0.15
+    - CRYPTO_WEIGHTS: anomaly=0.35, catalyst=0.25, flow=0.25, confidence=0.15 (higher anomaly)
+    - POLYMARKET_WEIGHTS: anomaly=0.30, catalyst=0.40, flow=0.15, confidence=0.15 (higher catalyst)
+  - Percentile ranking via _calculate_percentile() for cross-asset comparability
+  - Historical score storage per asset type for percentile calculations
+  - compare_cross_asset() method for unified sorting across different asset types
+  - ScoringResult dataclass with full component breakdown (AnomalyComponents, FlowComponents)
+  - ScoringWeights dataclass with validation (weights must sum to 1.0)
+  - INDEX and COMMODITY assets route to EquityScorer
+  - 63 comprehensive unit tests covering all scorers and edge cases
+- Files changed:
+  - src/tradz/unified_scoring.py - New file with all scoring classes
+  - tests/test_unified_scoring.py - New test file with 63 tests
+- **Learnings for future iterations:**
+  - Use `Any` type for pandas Series parameters to avoid complex type issues
+  - Percentile ranking allows fair comparison across asset types with different score distributions
+  - Asset-specific weights reflect the relative importance of each dimension for that asset class
+  - CryptoScorer has lower confidence baseline (45) due to noisier data
+  - PolymarketScorer has faster decay (1.5 days vs 2 days) since events are time-sensitive
+  - Flow components need to be normalized to avoid extreme values dominating the score
+---
+
+## 2026-01-22 - US-028
+- What was implemented:
+  - Created AssetTypeFilter component with multi-select support:
+    - Filter chips for All, Equity, Crypto, Polymarket with asset-specific icons
+    - Count display per asset type when counts prop provided
+    - Toggle selection behavior (clicking selected type deselects it)
+    - Color-coded active states per asset type
+  - Created EntityBadge component for asset-specific entity display:
+    - Asset-specific icons: TrendingUp (equity), Bitcoin (crypto), BarChart3 (polymarket)
+    - Metadata display: exchange for equity, rank for crypto, category for polymarket
+    - Color coding per asset type (blue/orange/purple)
+    - Compact mode for inline display
+  - Created AssetMetrics components for asset-specific data display:
+    - EquityMetrics: price, 24h change, volume, volatility with trend indicators
+    - CryptoMetrics: price, 24h/7d change, funding rate, exchange flow
+    - PolymarketMetrics: probability, volume, liquidity, poll divergence
+    - Unified AssetMetrics router component that dispatches to correct implementation
+  - Updated MarketSnapshot with collapsible asset type sections:
+    - AssetSection inner component with individual expand/collapse
+    - Shows top 5 per type when collapsed, all when expanded
+    - Per-section stats: average score, top mover
+    - Color-coded headers matching asset type colors
+  - Created RelatedAssets component for cross-asset relationships:
+    - Groups by relationship type: sector, correlated, mentioned, holding
+    - Shows asset icon, symbol, name, relationship badge
+    - Displays 24h change and attention score per related asset
+    - Collapsible with header showing count
+  - Extended AssetType to include polymarket, index, commodity
+  - Added asset_type to EntityBrief interface
+- Files changed:
+  - frontend/src/api/types.ts - Extended AssetType, added asset_type to EntityBrief
+  - frontend/src/components/events/AssetTypeFilter.tsx - New component
+  - frontend/src/components/events/EntityBadge.tsx - New component
+  - frontend/src/components/events/AssetMetrics.tsx - New component with 3 implementations
+  - frontend/src/components/events/MarketSnapshot.tsx - Updated with asset sections
+  - frontend/src/components/events/RelatedAssets.tsx - New component
+  - frontend/src/pages/EventDetail.tsx - Integrated RelatedAssets
+- **Learnings for future iterations:**
+  - Asset-specific icons help users quickly identify asset type at a glance
+  - Collapsible sections with expand/collapse per type reduce visual clutter
+  - Mock data functions can demonstrate component behavior before API integration
+  - Related assets should show relationship type to explain why assets are linked
+  - Use consistent color coding across all components for asset type recognition
+---

@@ -607,8 +607,8 @@
         "Typecheck passes"
       ],
       "priority": 34,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit 594ad54. Added AssetType enum (equity, crypto, polymarket, index, commodity). Extended Entity dataclass with asset_type, identifiers, metadata, related_entities. Updated database schema with migrations. Added asset type detection methods (_looks_like_crypto, _looks_like_polymarket) with KNOWN_CRYPTO_SYMBOLS, KNOWN_EQUITY_SYMBOLS, AMBIGUOUS_SYMBOLS sets. Added convenience methods get_or_create_crypto_entity, get_or_create_polymarket_entity. 49 unit tests pass."
     },
     {
       "id": "US-027",
@@ -625,8 +625,8 @@
         "Typecheck passes"
       ],
       "priority": 35,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit be4a66d. Created UnifiedScorer with EquityScorer, CryptoScorer, PolymarketScorer. Each scorer has asset-specific weights (EQUITY_WEIGHTS, CRYPTO_WEIGHTS, POLYMARKET_WEIGHTS). CryptoScorer includes onchain activity and funding rate components. PolymarketScorer includes poll divergence and smart money tracking. Percentile ranking via _calculate_percentile for cross-asset comparability. compare_cross_asset() method for unified sorting. 63 unit tests pass."
     },
     {
       "id": "US-028",
@@ -643,8 +643,8 @@
         "Verify in browser"
       ],
       "priority": 36,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit eac1187. Created AssetTypeFilter with multi-select and count badges. Created EntityBadge with asset-specific icons (TrendingUp for equity, Bitcoin for crypto, BarChart3 for polymarket) and metadata display. Created AssetMetrics with EquityMetrics, CryptoMetrics, PolymarketMetrics components. Updated MarketSnapshot with collapsible sections per asset type (top 5 each). Added RelatedAssets component showing correlated/sector/mentioned assets. Extended AssetType to include polymarket, index, commodity. Typecheck passes."
     }
   ]
 }
