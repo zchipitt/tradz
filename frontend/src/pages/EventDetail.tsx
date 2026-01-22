@@ -30,6 +30,7 @@ import { ScoreBreakdown } from '../components/events/ScoreBreakdown';
 import { EvidenceTimeline } from '../components/events/EvidenceTimeline';
 import { FactSpotlight } from '../components/events/FactSpotlight';
 import { ActionPanel } from '../components/events/ActionPanel';
+import { RelatedAssets } from '../components/events/RelatedAssets';
 import type { EventState, EventType } from '../api/types';
 
 // State badge configuration
@@ -315,6 +316,13 @@ export function EventDetail() {
 
           {/* Event Timeline - using the new EvidenceTimeline component */}
           <EvidenceTimeline eventId={event.event_id} />
+
+          {/* Related Assets - assets in same sector or correlated */}
+          <RelatedAssets
+            entityId={event.entity.entity_id ?? ''}
+            ticker={event.entity.ticker ?? undefined}
+            assetType={event.entity.asset_type ?? 'equity'}
+          />
         </div>
 
         {/* Right: Sidebar - Actions */}
