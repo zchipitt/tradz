@@ -5,6 +5,12 @@
 1. [系统概述](#1-系统概述)
 2. [安装配置](#2-安装配置)
 3. [配置详解](#3-配置详解)
+   - 3.1 环境变量配置
+   - 3.2 通用配置（时区、重试）
+   - 3.3 监控列表配置
+   - 3.4 信号阈值配置
+   - 3.5 数据源配置
+   - 3.6 Claude 配置
 4. [运行系统](#4-运行系统)
 5. [信号解读](#5-信号解读)
 6. [定时任务](#6-定时任务)
@@ -105,19 +111,43 @@ tradz/
 │   ├── verify_db.py         # 数据库验证
 │   ├── verify_entities.py   # 实体解析验证
 │   ├── verify_signals.py    # 信号生成验证
-│   └── verify_facts.py      # 事实生成验证
+│   ├── verify_facts.py      # 事实生成验证
+│   ├── debug_server_error.py   # 调试 API 服务器错误
+│   ├── debug_yfinance.py       # 调试 yfinance 数据获取
+│   ├── test_news_fetch.py      # 测试新闻源获取
+│   ├── test_polymarket_fetch.py # 测试 Polymarket API
+│   └── ralph/               # 自动化 AI 代理
+│       ├── ralph.sh         # 代理循环脚本
+│       ├── CLAUDE.md        # 代理指令
+│       └── progress.txt     # 进度日志
+├── tests/                   # 单元测试
+│   ├── test_event_builder.py    # EventBuilder 测试
+│   ├── test_events_api.py       # Events API 测试
+│   ├── test_fact_extractor.py   # 事实提取测试
+│   ├── test_llm_provider.py     # LLM 提供者测试
+│   ├── test_system_api.py       # System API 测试
+│   └── test_title_generator.py  # 标题生成测试
+├── tasks/                   # 开发任务
+│   └── prd-tradz-vnext.md   # 产品需求文档
+├── prd.json                 # Ralph 代理用户故事
 ├── api/                     # FastAPI 后端
 │   ├── main.py              # API 入口
 │   ├── config.py            # API 配置
 │   ├── routers/             # API 路由
 │   │   ├── signals.py       # 信号接口
 │   │   ├── sources.py       # 数据源接口
-│   │   └── reports.py       # 报告接口
+│   │   ├── reports.py       # 报告接口
+│   │   ├── events.py        # 事件接口（列表、详情、操作）
+│   │   └── system.py        # 系统状态接口
 │   ├── schemas/             # Pydantic 模型
+│   │   ├── events.py        # 事件请求/响应模型
+│   │   └── system.py        # 系统健康模型
 │   └── services/            # 业务逻辑
 │       ├── signal_service.py
 │       ├── aggregator_service.py
-│       └── cache_service.py
+│       ├── cache_service.py
+│       ├── event_service.py     # 事件查询和操作
+│       └── system_service.py    # 系统健康检查
 ├── frontend/                # React 仪表盘（Robinhood 风格，事件中心化设计）
 │   ├── src/
 │   │   ├── App.tsx          # 根组件（Tab 路由）
@@ -134,8 +164,9 @@ tradz/
 │   │   │   └── sources/     # 数据源面板组件
 │   │   ├── hooks/           # React 钩子
 │   │   │   ├── useSignals.ts    # 信号数据获取（5分钟自动刷新）
-│   │   │   └── useEvents.ts     # 事件数据获取和操作
-│   │   └── lib/             # 工具函数
+│   │   │   ├── useEvents.ts     # 事件数据获取和操作
+│   │   │   └── useSources.ts    # 数据源健康状态
+│   │   └── api/             # API 客户端
 │   ├── package.json
 │   └── vite.config.ts
 ├── docs/
@@ -144,18 +175,23 @@ tradz/
     ├── run_nightly.py       # 主入口程序
     ├── aggregator.py        # 多源数据聚合器
     ├── database.py          # DuckDB 数据库层
-    ├── models.py            # 数据模型（Entity, Observation, Event, Signal）
+    ├── models.py            # 数据模型（Entity, Observation, Event, Signal, FactType）
     ├── entity_resolver.py   # 实体解析
     ├── scoring.py           # 4 维信号评分
     ├── signals.py           # 信号生成逻辑
     ├── claude_reporter.py   # Claude Code CLI 集成
     ├── report.py            # 模板报告渲染（备用）
     ├── emailer.py           # 邮件发送器
+    ├── events/              # 事件驱动系统（vNext）
+    │   ├── builder.py       # EventBuilder：观察聚合
+    │   ├── fact_extractor.py # 事实提取
+    │   ├── llm_provider.py  # LLM 抽象（Claude/OpenRouter）
+    │   └── title_generator.py # LLM 标题生成
     ├── reporting/
     │   └── fact_generator.py # 事实表生成
     └── sources/
         ├── equities.py      # yfinance 数据源
-        ├── crypto.py        # ccxt 数据源
+        ├── crypto.py        # ccxt 数据源（默认 Kraken）
         ├── congress.py      # 国会议员交易
         ├── hedgefunds.py    # 对冲基金 13F
         ├── polymarket.py    # Polymarket 预测市场
@@ -351,7 +387,20 @@ vim .env
 | 163邮箱 | smtp.163.com | 465 | 需要授权码 |
 | Outlook | smtp.office365.com | 587 | 普通密码 |
 
-### 3.2 监控列表配置 (config.yaml)
+### 3.2 通用配置 (config.yaml)
+
+**时区和重试设置：**
+
+```yaml
+# 报告时间戳的时区
+timezone: "America/New_York"
+
+# 网络重试设置
+max_retries: 3
+retry_delay: 2  # 秒
+```
+
+### 3.3 监控列表配置 (config.yaml)
 
 **股票监控：**
 
@@ -381,7 +430,7 @@ equities:
 
 ```yaml
 crypto:
-  exchange: "binance"  # 交易所（binance/coinbase/kraken）
+  exchange: "kraken"  # 交易所（kraken/binance/coinbase）
   pairs:
     - BTC/USDT    # 比特币
     - ETH/USDT    # 以太坊
@@ -389,7 +438,7 @@ crypto:
     - BNB/USDT    # 币安币
 ```
 
-### 3.3 信号阈值配置
+### 3.4 信号阈值配置
 
 ```yaml
 thresholds:
@@ -408,7 +457,7 @@ thresholds:
   volume_moderate: 1.5  # 成交量 >1.5倍均值视为较高
 ```
 
-### 3.4 数据源配置
+### 3.5 数据源配置
 
 **国会议员交易（多源自动降级）：**
 
@@ -492,7 +541,7 @@ broker:
   client_id: 1
 ```
 
-### 3.5 Claude 配置
+### 3.6 Claude 配置
 
 ```yaml
 claude:
@@ -517,6 +566,7 @@ python3 -m src.tradz.run_nightly [OPTIONS]
 | `--use-claude` | 强制使用 Claude 生成报告 |
 | `--template-only` | 强制使用模板生成（跳过 Claude） |
 | `--skip-email` | 跳过邮件发送 |
+| `--refresh-entities` | 强制从 SEC 刷新实体映射数据 |
 
 **使用示例：**
 
@@ -526,6 +576,9 @@ python3 -m src.tradz.run_nightly
 
 # 强制使用 Claude
 python3 -m src.tradz.run_nightly --use-claude
+
+# 强制刷新 SEC 实体数据
+python3 -m src.tradz.run_nightly --refresh-entities
 
 # 仅使用模板（快速测试）
 python3 -m src.tradz.run_nightly --template-only
@@ -854,8 +907,8 @@ pip install -r requirements.txt
 
 **解决方案：**
 
-1. 在 config.yaml 中更换交易所（尝试 'coinbase' 或 'kraken'）
-2. 检查交易所状态：https://status.binance.com
+1. 在 config.yaml 中更换交易所（默认 'kraken'，可尝试 'binance' 或 'coinbase'）
+2. 检查交易所状态：https://status.kraken.com
 
 #### 问题：国会交易数据显示 0 条记录
 
@@ -1005,7 +1058,7 @@ thresholds:
 | 数据源 | 延迟 | 限制 | 适用场景 |
 |--------|------|------|---------|
 | **yfinance** | 15-20分钟 | 免费层有限流 | 日终分析 |
-| **ccxt (Binance)** | 接近实时 | 依赖交易所 API | 日常趋势分析 |
+| **ccxt (Kraken/Binance)** | 接近实时 | 依赖交易所 API | 日常趋势分析 |
 | **国会议员交易** | ~45天 | Capitol Trades（主）+ Quiver/Finnhub（备选） | 内部人交易跟踪 |
 | **对冲基金 13F** | 季度，~45天 | SEC EDGAR 免费 | 机构持仓变化 |
 | **Polymarket** | 实时 | 免费 API | 事件驱动信号 |
@@ -1236,11 +1289,19 @@ npm run dev
 | 端点 | 方法 | 说明 |
 |-----|------|------|
 | `/api/health` | GET | 健康检查 |
-| `/api/signals/` | GET | 获取所有信号 |
-| `/api/signals/refresh` | POST | 刷新信号数据 |
-| `/api/sources/` | GET | 获取数据源状态 |
-| `/api/sources/{source}` | GET | 获取特定数据源 |
-| `/api/reports/` | GET | 获取报告列表 |
+| `/api/signals` | GET | 获取所有信号（可选 `?refresh=true`） |
+| `/api/signals/top` | GET | 获取前 5 的股票和加密货币信号 |
+| `/api/signals/{symbol}` | GET | 获取单个资产的信号 |
+| `/api/sources` | GET | 获取所有数据源（可选 `?refresh=true`） |
+| `/api/sources/equities` | GET | 获取股票数据 |
+| `/api/sources/crypto` | GET | 获取加密货币数据 |
+| `/api/sources/congress` | GET | 获取国会交易数据 |
+| `/api/sources/hedgefunds` | GET | 获取对冲基金 13F 数据 |
+| `/api/sources/polymarket` | GET | 获取 Polymarket 预测市场数据 |
+| `/api/sources/news` | GET | 获取新闻数据 |
+| `/api/sources/sec` | GET | 获取 SEC 文件数据 |
+| `/api/reports` | GET | 获取报告列表（可选 `?limit=10`） |
+| `/api/reports/latest` | GET | 获取最新报告 |
 | `/api/reports/{date}` | GET | 获取特定日期报告 |
 
 ### 10.6 仪表盘功能
@@ -1501,6 +1562,39 @@ python3 scripts/verify_signals.py
 # 验证事实生成
 python3 scripts/verify_facts.py
 
+# ===== 单元测试 =====
+
+# 运行所有测试
+pytest tests/
+
+# 运行特定测试文件
+pytest tests/test_event_builder.py
+
+# 带详细输出运行
+pytest -v tests/
+
+# ===== 调试脚本 =====
+
+# 调试 API 服务器错误
+python3 scripts/debug_server_error.py
+
+# 调试 yfinance 数据获取
+python3 scripts/debug_yfinance.py
+
+# 测试新闻获取
+python3 scripts/test_news_fetch.py
+
+# 测试 Polymarket API
+python3 scripts/test_polymarket_fetch.py
+
+# ===== Ralph AI 代理 =====
+
+# 运行 Ralph 自动代理（默认 10 次迭代）
+./scripts/ralph/ralph.sh
+
+# 使用指定工具运行（amp 或 claude）
+./scripts/ralph/ralph.sh --tool claude 20
+
 # ===== 故障排查 =====
 
 # 重新安装依赖
@@ -1545,10 +1639,15 @@ launchctl load ~/Library/LaunchAgents/com.tradz.nightly.plist
 | `SMTP_FROM` | 否 | 发件人地址（默认 SMTP_USER） |
 | `SMTP_TO` | 否 | 收件人地址（默认 SMTP_USER） |
 | `ANTHROPIC_API_KEY` | 否 | Claude API 密钥 |
+| `OPENROUTER_API_KEY` | 否 | OpenRouter API 密钥（LLM 标题生成备选） |
 | `NEWSAPI_KEY` | 否 | NewsAPI 密钥 |
 | `QUIVER_API_KEY` | 否 | Quiver Quantitative API 密钥（国会交易备选源） |
 | `FINNHUB_API_KEY` | 否 | Finnhub API 密钥（国会交易备选源） |
 | `SEC_USER_AGENT` | 否 | SEC EDGAR 请求标识 |
+| `TWITTER_BEARER_TOKEN` | 否 | Twitter/X API 密钥（社交媒体分析，未来功能） |
+| `IBKR_HOST` | 否 | 盈透证券主机地址（默认 127.0.0.1） |
+| `IBKR_PORT` | 否 | 盈透证券端口（默认 7497） |
+| `IBKR_CLIENT_ID` | 否 | 盈透证券客户端 ID（默认 1） |
 
 ### C. 联系与支持
 
@@ -1561,4 +1660,4 @@ launchctl load ~/Library/LaunchAgents/com.tradz.nightly.plist
 
 ---
 
-*最后更新：2026-01-20*
+*最后更新：2026-01-21*
