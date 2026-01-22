@@ -7,6 +7,7 @@ from observations, including classification, scoring, and hierarchy management.
 Also provides:
 - LLM-based title generation with template fallback
 - Fact extraction from observations for structured reports
+- Quality gate evaluation for trade ideas
 
 LLM Providers:
 - LLMProvider: Abstract base class for LLM providers
@@ -17,6 +18,12 @@ LLM Providers:
 Fact Extraction:
 - extract_facts(): Extract FactTableEntry data from observations
 - Source-specific extractors for Congress, SEC, News, Market, Polymarket
+
+Quality Gates:
+- QualityGate: Evaluates events against configurable thresholds
+- TradeIdea: Actionable trade recommendations for events passing gates
+- ResearchPlan: Research questions for events failing gates
+- TradeIdeaGenerator: Generates appropriate recommendations based on gate results
 """
 from .builder import EventBuilder
 from .fact_extractor import (
@@ -39,6 +46,18 @@ from .llm_provider import (
     MockProvider,
     OpenRouterProvider,
     get_default_provider,
+)
+from .quality_gate import (
+    GateResult,
+    QualityGate,
+    QualityGateConfig,
+    QualityGateEvaluation,
+    Recommendation,
+    ResearchPlan,
+    TimeHorizon,
+    TradeDirection,
+    TradeIdea,
+    TradeIdeaGenerator,
 )
 from .title_generator import TitleGenerator, generate_event_title
 
@@ -67,4 +86,15 @@ __all__ = [
     "extract_hedgefund_facts",
     "update_observation_with_facts",
     "batch_extract_facts",
+    # Quality gates
+    "QualityGate",
+    "QualityGateConfig",
+    "QualityGateEvaluation",
+    "GateResult",
+    "TradeIdea",
+    "ResearchPlan",
+    "Recommendation",
+    "TradeIdeaGenerator",
+    "TradeDirection",
+    "TimeHorizon",
 ]
