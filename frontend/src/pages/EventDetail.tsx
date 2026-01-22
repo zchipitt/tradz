@@ -28,6 +28,7 @@ import { cn } from '../lib/utils';
 import { useEventDetail, useEventActions } from '../hooks/useEvents';
 import { ScoreBreakdown } from '../components/events/ScoreBreakdown';
 import { EvidenceTimeline } from '../components/events/EvidenceTimeline';
+import { FactSpotlight } from '../components/events/FactSpotlight';
 import type { EventState, EventType } from '../api/types';
 
 // State badge configuration
@@ -300,6 +301,11 @@ export function EventDetail() {
           <ScoreBreakdown
             attentionScore={event.attention_score}
             scores={event.scores}
+            observations={event.observations}
+          />
+
+          {/* Fact Spotlight - Extracted facts grouped by type */}
+          <FactSpotlight
             observations={event.observations}
           />
 
