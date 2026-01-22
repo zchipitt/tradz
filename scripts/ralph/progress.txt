@@ -351,3 +351,36 @@ Started: Wed Jan 21 06:13:41 PST 2026
   - Config preservation: read entire config, modify section, write back to preserve other sections
   - Service singleton pattern: instantiate at module level for shared state
 ---
+
+## 2026-01-22 - US-025b
+- What was implemented:
+  - Created Settings page at frontend/src/pages/Settings.tsx with Quality Gates section
+  - Added SliderInput component with visual slider, current value display, default value reference
+  - Added ToggleInput component for boolean require_invalidation setting
+  - Implemented Save Changes button with optimistic updates via TanStack Query mutation
+  - Implemented Reset to Defaults button calling DELETE /api/settings/gates endpoint
+  - Added preview panel with adjustable sample event values (confidence, anomaly, catalyst, sources, invalidation)
+  - Preview shows real-time gate evaluation results with pass/fail indicators
+  - Created useQualityGateSettings hook with:
+    - useQualityGateSettings for fetching settings
+    - useUpdateQualityGateSettings with optimistic updates and rollback on error
+    - useResetQualityGateSettings for resetting to defaults
+    - evaluateSampleEvent helper for client-side preview evaluation
+  - Added TypeScript types to frontend/src/api/types.ts for settings API
+  - Added API client functions for GET/PUT/DELETE endpoints
+  - Updated Layout.tsx to add Settings nav item with TabId type extension
+  - Updated App.tsx to import and render Settings component
+- Files changed:
+  - frontend/src/api/types.ts - Added QualityGateSettings types
+  - frontend/src/api/client.ts - Added settings API functions
+  - frontend/src/hooks/useQualityGateSettings.ts - New hooks file
+  - frontend/src/pages/Settings.tsx - New Settings page component
+  - frontend/src/components/layout/Layout.tsx - Added 'settings' TabId
+  - frontend/src/App.tsx - Added Settings import and route
+- **Learnings for future iterations:**
+  - TanStack Query useMutation with optimistic updates requires 4 type params: TData, TError, TVariables, TContext
+  - For optimistic updates, define context type explicitly to access previousData in onError
+  - Slider input styling: use absolute positioned transparent input over styled div for custom appearance
+  - Preview evaluation logic can be pure function in hooks file for reuse
+  - Settings state is local until Save clicked - pattern of localSettings vs data.settings
+---
