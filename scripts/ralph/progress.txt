@@ -1,0 +1,59 @@
+# Ralph Progress Log
+Started: Wed Jan 21 06:13:41 PST 2026
+
+## Codebase Patterns
+- Database migrations: Use `_run_migrations()` method in Database class with try/except for ALTER TABLE
+- Model fields: Add new fields to dataclasses with defaults to maintain backward compatibility
+- Row conversion: Use `len(row) > N` pattern to handle both old and new schema rows
+- Enum extensions: New enum values can be added without breaking existing data
+- Foreign keys: Make nullable (no foreign key constraint) if record may not exist yet
+
+---
+
+## 2026-01-21 06:45 - US-001a
+- What was implemented:
+  - Extended EventType enum with 8 new values (market_anomaly, catalyst_news, etc.)
+  - Extended EventStatus enum with 5 new states (new, ongoing, stale, resolved, dismissed)
+  - Added 11 new columns to events table (4D scores, user actions, title metadata)
+  - Added 6 new columns to observations table (source_url, title, fact_entries, etc.)
+  - Created daily_briefs table for storing generated reports
+  - Created event_type_history table for tracking event type transitions
+  - Added DailyBrief and EventTypeHistory dataclasses to models.py
+  - Implemented _run_migrations() for safe schema upgrades
+- Files changed:
+  - src/tradz/models.py - Added new enums, dataclasses, and fields
+  - src/tradz/database.py - Updated schema, insert/query methods, added migration logic
+- **Learnings for future iterations:**
+  - The `scripts/verify_db.py` script is useful for quick schema verification
+  - DuckDB foreign keys are enforced - need to create parent records first
+  - Use `SELECT * FROM information_schema.columns WHERE table_name = 'X'` to check schema
+  - Keep Event.status default as 'new' (not 'open') for new event system
+  - attention_score is now a calculated property on Event, not just Signal
+---
+
+## 2026-01-21 - US-009b
+- What was implemented:
+  - Added TypeScript types for timeline API: TimelineSourceFilter, TimelineObservation, TimelineResponse
+  - Added getEventTimeline API function in client.ts with source/limit/offset params
+  - Added useEventTimeline hook using TanStack Query's useInfiniteQuery for pagination
+  - Created EvidenceTimeline component with all required features:
+    - Source filter chips (All, Market, News, SEC, Congress, 13F, Polymarket)
+    - Expandable timeline entries showing source icon, timestamp, title, summary
+    - Fact entries display in expanded view with grid layout
+    - Source URL links open in new tab
+    - Load more button with pagination support
+    - Empty state when no observations match filter
+    - Loading skeleton and error states with retry button
+  - Integrated EvidenceTimeline into EventDetail page, replacing old ObservationItem component
+- Files changed:
+  - frontend/src/api/types.ts - Added timeline types
+  - frontend/src/api/client.ts - Added getEventTimeline function
+  - frontend/src/hooks/useEvents.ts - Added useEventTimeline hook
+  - frontend/src/components/events/EvidenceTimeline.tsx - New component (created)
+  - frontend/src/pages/EventDetail.tsx - Integrated EvidenceTimeline, removed old code
+- **Learnings for future iterations:**
+  - Use useInfiniteQuery for pagination with load more pattern, getNextPageParam returns undefined to stop
+  - FilterChip pattern: use active state with cn() for conditional classes
+  - Expandable entries: track expanded IDs in a Set for multiple expanded items
+  - Always clear expanded state when filter changes for better UX
+---
