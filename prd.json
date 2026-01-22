@@ -180,8 +180,8 @@
         "Verify in browser  "
       ],
       "priority": 10,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Implemented in commit fd504d2. Added POST /api/events/{event_id}/actions endpoint with pin/unpin/snooze/dismiss/resolve actions, EventActionRequest/EventActionResponse schemas, perform_action() in EventService, and frontend optimistic updates with rollback. EventCard already had action buttons from US-005. 39 API tests pass."
     },
     {
       "id": "US-008a",
