@@ -10,8 +10,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Python lib directories (not frontend/src/lib)
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -31,7 +32,13 @@ env/
 
 # Reports (generated data)
 reports/
-*.json
+
+# Ignore generated JSON data files, but not config files
+data/*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!prd.json
 
 # IDE
 .vscode/

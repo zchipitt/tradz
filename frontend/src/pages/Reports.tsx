@@ -2,7 +2,7 @@
  * Reports page - Historical daily briefs archive.
  * Brutalist design aesthetic - black/white + yellow accent.
  */
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { Calendar, FileText, Download, ChevronRight, Archive, ArchiveIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAvailableBriefs } from '../hooks/useDailyBrief';
@@ -21,7 +21,7 @@ function MarkdownViewer({ content, onClose, date }: MarkdownViewerProps) {
   // Simple markdown rendering for code blocks
   const renderMarkdown = (markdown: string) => {
     const lines = markdown.split('\n');
-    const elements: JSX.Element[] = [];
+    const elements: ReactElement[] = [];
     let i = 0;
 
     while (i < lines.length) {
